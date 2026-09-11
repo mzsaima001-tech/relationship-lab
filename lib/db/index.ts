@@ -31,7 +31,8 @@ if (process.env.NODE_ENV !== "test") {
 // 用条件 re-export 透传当前 backend 的全部命名导出。
 // export * 在每个分支内只跑一次，因此一个进程内只会看到一个实现。
 /* eslint-disable @typescript-eslint/no-var-requires */
-const backend = USE_SUPABASE ? supaMod : localMod;
+import type * as LocalBackend from "@/lib/db/local";
+const backend: typeof LocalBackend = USE_SUPABASE ? supaMod : localMod;
 
 export const {
   // Sessions
@@ -93,7 +94,7 @@ export const {
   listResults,
   listReports,
   listPayments,
-} = backend as any;
+} = backend;
 
 // 类型 re-export（始终用 local 的，因为 supabase 字段一致但 TS 类型可能推断弱）
 export type {
