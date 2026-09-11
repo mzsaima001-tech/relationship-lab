@@ -1,0 +1,381 @@
+@import "tailwindcss";
+
+:root {
+  --bg-dark: #16130f;
+  --bg-darker: #100e0a;
+  --paper: #f5ede0;
+  --paper-dim: #e8dfd0;
+  --ink: #2a2418;
+  --ink-light: #5c5343;
+  --text-warm: #e8e0d4;
+  --text-muted: #9a9080;
+  --accent: #c9a96e;
+  --accent-dim: #a08850;
+  --border-dim: #3a3528;
+  --danger: #c97a5a;
+}
+
+@theme inline {
+  --color-background: var(--bg-dark);
+  --color-foreground: var(--text-warm);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
+  --color-muted: var(--text-muted);
+  --color-border-dim: var(--border-dim);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background: var(--bg-dark);
+  color: var(--text-warm);
+  font-family: var(--font-geist-sans), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Paper texture */
+.paper-bg {
+  background-color: var(--paper);
+  color: var(--ink);
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(0,0,0,0.02) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0,0,0,0.02) 0%, transparent 50%);
+}
+
+/* Archive label */
+.archive-label {
+  font-family: var(--font-geist-mono), "Courier New", monospace;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: var(--accent);
+}
+
+/* File number */
+.file-number {
+  font-family: var(--font-geist-mono), "Courier New", monospace;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+/* Display serif */
+.display-serif {
+  font-family: "Georgia", "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+
+/* Subtle fade-in animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Progress bar */
+.progress-track {
+  background: var(--border-dim);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  background: var(--accent);
+  transition: width 0.4s ease-out;
+}
+
+/* Dimension bar */
+.dim-bar-track {
+  background: var(--border-dim);
+  border-radius: 2px;
+  overflow: hidden;
+  height: 6px;
+}
+
+.dim-bar-fill {
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  transition: width 0.8s ease-out;
+}
+
+/* Option card hover */
+.option-card {
+  border: 1px solid var(--border-dim);
+  background: rgba(255,255,255,0.02);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.option-card:hover {
+  border-color: var(--accent-dim);
+  background: rgba(201,169,110,0.05);
+}
+
+.option-card.selected {
+  border-color: var(--accent);
+  background: rgba(201,169,110,0.1);
+}
+
+/* Input field */
+.input-field {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  color: var(--text-warm);
+  padding: 12px 16px;
+  transition: border-color 0.2s ease;
+  font-size: 15px;
+  width: 100%;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+/* Select field */
+.select-field {
+  appearance: none;
+  background: rgba(255,255,255,0.03) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 5L6 8L9 5' stroke='%23c9a96e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 16px center;
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  color: var(--text-warm);
+  padding: 12px 40px 12px 16px;
+  font-size: 15px;
+  width: 100%;
+  cursor: pointer;
+}
+
+.select-field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.select-field option {
+  background: var(--bg-dark);
+  color: var(--text-warm);
+}
+
+/* Button */
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg-dark);
+  font-weight: 600;
+  padding: 14px 32px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.btn-primary:hover {
+  background: #d4b87a;
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-dim);
+  padding: 12px 28px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn-ghost:hover {
+  border-color: var(--accent-dim);
+  color: var(--text-warm);
+}
+
+/* Card */
+.card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-dim);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
+}
+
+/* =====================================================
+   信纸质感 + 塔罗/星图装饰层
+   ===================================================== */
+
+/* 信纸：羊皮纸渐变 + 微妙纸纹 + 金色顶饰线 */
+.paper-sheet {
+  position: relative;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse at 15% 85%, rgba(140, 110, 60, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(140, 110, 60, 0.06) 0%, transparent 55%),
+    linear-gradient(180deg, #f8f1e2 0%, #f3e9d5 55%, #efe3cc 100%);
+  border: 1px solid #d9c9a8;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 255, 255, 0.35),
+    inset 0 0 40px rgba(150, 120, 70, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* 信纸顶部金色双细线 */
+.paper-sheet::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 8px;
+  height: 5px;
+  border-top: 1px solid rgba(160, 136, 80, 0.55);
+  border-bottom: 1px solid rgba(160, 136, 80, 0.3);
+  pointer-events: none;
+}
+
+/* 信纸内的文字色修正（覆盖深色主题变量类） */
+.paper-sheet .text-\[var\(--text-warm\)\] {
+  color: var(--ink) !important;
+}
+.paper-sheet .text-\[var\(--text-muted\)\] {
+  color: var(--ink-light) !important;
+}
+.paper-sheet .text-\[var\(--accent\)\] {
+  color: #8a6a2f !important;
+}
+.paper-sheet .archive-label {
+  color: #8a6a2f;
+}
+.paper-sheet .dim-bar-track {
+  background: #e3d6ba;
+}
+.paper-sheet .progress-track {
+  background: #e3d6ba;
+}
+.paper-sheet .card {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: #dccdab;
+}
+
+/* 罗盘缓慢自转 */
+@keyframes compassSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.compass-spin {
+  animation: compassSpin 90s linear infinite;
+}
+
+/* 塔罗牌阵缓慢悬浮（神秘感） */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+.floaty {
+  animation: floatY 7s ease-in-out infinite;
+}
+
+/* 首页塔罗牌阵：金边小牌 + 柔光 */
+.tarot-mini {
+  border: 1px solid var(--accent);
+  outline: 3px solid rgba(201, 162, 75, 0.18);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 24px rgba(201, 162, 75, 0.12);
+  filter: brightness(0.85) saturate(0.95);
+}
+
+/* 塔罗牌卡：双层花框 + 悬浮微倾 */
+.tarot-card {
+  display: inline-block;
+}
+.tarot-card-inner {
+  position: relative;
+  border-radius: 10px;
+  padding: 5px;
+  background: linear-gradient(160deg, #d8bd85 0%, #9a7b40 45%, #e6cf9a 100%);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 14px 34px rgba(0, 0, 0, 0.45);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+.tarot-card-inner::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(248, 241, 226, 0.65);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.tarot-card-inner img {
+  border-radius: 6px;
+}
+.tarot-card:hover .tarot-card-inner {
+  transform: translateY(-4px) rotate(-1deg);
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.5),
+    0 20px 44px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(201, 169, 110, 0.25);
+}
+.tarot-card-elevated .tarot-card-inner {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 0 34px rgba(201, 169, 110, 0.3);
+}
+
+/* 顶部星空区（报告页头部背景） */
+.night-sky {
+  position: relative;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -8%, rgba(43, 52, 90, 0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 85% 10%, rgba(60, 46, 90, 0.35) 0%, transparent 65%),
+    var(--bg-dark);
+}
