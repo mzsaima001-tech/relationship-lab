@@ -53,3 +53,12 @@ next-env.d.ts
 # WorkBuddy IDE 配置（不上传到仓库）
 /.workbuddy/
 /.docs/
+
+# 临时脚本 / 数据产物（不影响构建）
+/_NOW-*.py
+/_mk_*.py
+/_*.cjs
+/banks.json
+/banks-diff.md
+/poster-preview*.html
+/screenshot*.png
