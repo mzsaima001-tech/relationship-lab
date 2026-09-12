@@ -184,7 +184,7 @@ export default function PersonalityResult() {
 
   if (loading) {
     return (
-      <main className="flex-1 flex items-center justify-center px-6">
+      <main className="flex-1 flex items-center justify-center px-5 sm:px-6">
         <p className="text-sm text-[var(--text-muted)]">报告加载中...</p>
       </main>
     );
@@ -192,9 +192,9 @@ export default function PersonalityResult() {
 
   if (!data) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+      <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
         <p className="text-sm text-[var(--danger)]">{error}</p>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => router.back()}
@@ -214,7 +214,7 @@ export default function PersonalityResult() {
   const matchPct = data.types.primary.matchScore;
 
   return (
-    <main className="flex-1 px-6 py-10 max-w-2xl mx-auto w-full">
+    <main className="flex-1 px-5 py-8 sm:px-6 sm:py-10 max-w-2xl mx-auto w-full safe-bottom">
       <PersonalityCard
         type={data.types.primary.type as Parameters<typeof PersonalityCard>[0]["type"]}
         userScores={data.scores as Record<string, number>}
@@ -225,10 +225,10 @@ export default function PersonalityResult() {
       />
 
       {/* 顶部：核心人格（保留原型名+tagline 文字） */}
-      <div className="text-center mb-12 fade-in-up">
+      <div className="text-center mb-10 sm:mb-12 fade-in-up">
         <p className="archive-label mb-3">你的核心人格</p>
         <p className="text-xs text-[var(--text-muted)] mb-2">人格模型匹配度 {matchPct}%</p>
-        <h1 className="display-serif text-4xl md:text-5xl font-bold text-[var(--text-warm)] mb-3">
+        <h1 className="display-serif text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--text-warm)] mb-3">
           {primaryCn}
         </h1>
         <p className="display-serif text-base md:text-lg text-[var(--accent)] leading-relaxed max-w-md mx-auto">
