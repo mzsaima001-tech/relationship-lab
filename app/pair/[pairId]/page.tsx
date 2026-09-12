@@ -272,23 +272,58 @@ export default function PairPage() {
         </p>
       </div>
 
-      {/* Pair scores */}
-      <div className="space-y-5 mb-12 fade-in-up" style={{ animationDelay: "0.15s" }}>
-        <h3 className="archive-label">Pair Scores</h3>
+      {/* Pair scores — 高亮突出综合默契分数 */}
+      <div
+        className="space-y-5 mb-12 fade-in-up p-5 rounded-2xl border-2"
+        style={{
+          animationDelay: "0.15s",
+          background: "var(--highlight-bg)",
+          borderColor: "var(--highlight)",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <h3 className="archive-label" style={{ color: "var(--highlight)" }}>
+            Pair Scores · 双人默契指数
+          </h3>
+        </div>
         {Object.entries(pairScores).map(([key, score]) => {
           const label = PAIR_DIMENSION_LABELS[key] || key;
+          const isOverall = key === "overall";
           return (
             <div key={key}>
               <div className="flex items-center justify-between mb-1.5">
-                <span className={`text-sm ${key === "overall" ? "text-[var(--accent)] font-medium" : "text-[var(--text-warm)]"}`}>
+                <span
+                  className={`text-sm ${
+                    isOverall
+                      ? "text-[var(--highlight)] font-semibold text-base"
+                      : "text-[var(--text-warm)]"
+                  }`}
+                >
                   {label}
                 </span>
-                <span className={`font-mono ${key === "overall" ? "text-[var(--accent)] text-lg" : "text-[var(--text-muted)] text-sm"}`}>
+                <span
+                  className={`font-mono ${
+                    isOverall
+                      ? "text-[var(--highlight)] text-xl font-bold"
+                      : "text-[var(--text-muted)] text-sm"
+                  }`}
+                >
                   {score}
                 </span>
               </div>
-              <div className="dim-bar-track" style={{ height: key === "overall" ? "8px" : "6px" }}>
-                <div className="dim-bar-fill h-full" style={{ width: `${score}%` }} />
+              <div
+                className="dim-bar-track"
+                style={{ height: isOverall ? "10px" : "6px" }}
+              >
+                <div
+                  className="dim-bar-fill h-full"
+                  style={{
+                    width: `${score}%`,
+                    background: isOverall
+                      ? "linear-gradient(90deg, var(--highlight), var(--cta))"
+                      : undefined,
+                  }}
+                />
               </div>
             </div>
           );
@@ -381,18 +416,40 @@ export default function PairPage() {
       )}
 
       {report && !generating && !unlocked && (
-        <div className="card p-7 text-center mb-10 fade-in-up">
-          <span className="archive-label">Full Pair Report</span>
+        <div
+          className="p-7 text-center mb-10 fade-in-up rounded-2xl border-2"
+          style={{
+            background: "rgba(239, 68, 68, 0.08)",
+            borderColor: "var(--cta)",
+            boxShadow: "0 8px 24px -8px rgba(239, 68, 68, 0.45)",
+          }}
+        >
+          <span className="archive-label" style={{ color: "var(--cta)" }}>
+            Full Pair Report · 解锁完整双人报告
+          </span>
           <h3 className="display-serif text-xl text-[var(--text-warm)] mt-3 mb-3">
             已识别你们的主互动模式
           </h3>
           <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
             免费预览展示六维对比、共同优势和主模式名称。解锁后可查看双方体验、完整循环、放大条件、次模式、具体建议与沟通话术。
           </p>
-          <p className="text-3xl font-mono text-[var(--accent)] mb-2">¥19.9</p>
-          <p className="text-xs text-[var(--text-muted)] mb-6">双人报告不可使用积分抵扣</p>
-          <button onClick={handlePairUnlock} disabled={paying} className="btn-primary">
-            {paying ? "正在处理..." : "支付 19.9 元解锁完整双人报告"}
+          <p className="text-4xl font-bold font-mono mb-2" style={{ color: "var(--cta)" }}>
+            ¥19.9
+          </p>
+          <p className="text-xs text-[var(--text-muted)] mb-6">
+            双人报告不可使用积分抵扣
+          </p>
+          <button
+            onClick={handlePairUnlock}
+            disabled={paying}
+            className="w-full py-3 px-6 rounded-xl font-semibold transition-all"
+            style={{
+              background: "var(--cta)",
+              color: "#fff",
+              boxShadow: "0 4px 12px rgba(239, 68, 68, 0.35)",
+            }}
+          >
+            {paying ? "正在处理..." : "🔓 支付 19.9 元解锁完整双人报告"}
           </button>
           <p className="text-[10px] text-[var(--text-muted)] mt-4">
             当前本地版使用模拟支付；云端上线时接入正式支付。
@@ -498,7 +555,19 @@ export default function PairPage() {
         </div>
       )}
 
-      {error && <p className="text-sm text-[var(--danger)] text-center mt-4">{error}</p>}
+      {error && (
+        <div
+          className="mt-4 px-4 py-3 rounded-md text-sm flex items-start gap-2"
+          style={{
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.45)",
+            color: "#fca5a5",
+          }}
+        >
+          <span className="flex-shrink-0">⚠</span>
+          <span>{error}</span>
+        </div>
+      )}
 
       <div className="text-center mt-12">
         {mySessionId ? (
