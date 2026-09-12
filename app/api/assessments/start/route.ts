@@ -16,9 +16,16 @@ const schema = z.object({
     "empty_nest", "career_transition", "long_distance", "living_apart_together",
   ]).optional(),
   relationshipType: z.enum(["ambiguous", "dating", "long_term", "friend"]),
-  relationshipStage: z.string(),
-  duration: z.string(),
-  currentFeeling: z.string(),
+  relationshipStage: z.enum([
+    "just_met", "getting_closer", "new_relationship", "stable", "long_distance",
+    "tense", "considering_future", "drifting",
+  ]),
+  duration: z.enum([
+    "under_1_month", "1_6_months", "6_12_months", "1_3_years", "3_plus_years",
+  ]),
+  currentFeeling: z.enum([
+    "comfortable", "mostly_good", "unclear", "frequent_friction", "thinking_seriously",
+  ]),
   /** 来源分享码：朋友从 /s/[code] 落地页进入时携带，用于有效分享归因 */
   ref: z.string().min(4).max(24).optional(),
 });
@@ -50,9 +57,9 @@ export async function POST(request: Request) {
       gender: body.gender,
       partnerGender: body.partnerGender,
       relationshipType: body.relationshipType,
-      relationshipStage: body.relationshipStage as any,
-      duration: body.duration as any,
-      currentFeeling: body.currentFeeling as any,
+      relationshipStage: body.relationshipStage,
+      duration: body.duration,
+      currentFeeling: body.currentFeeling,
     };
 
     const questions = buildInitialQuestionsFromSeed(session.id, context);
@@ -70,9 +77,10 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "请求参数无效", details: error.issues }, { status: 400 });
     }
-    console.error(error);
+    console.error("[assessments/start] failed:", error);
+    const message = error instanceof Error ? error.message : "未知错误";
     return NextResponse.json(
-      { error: "无法开始测试，请稍后重试。" },
+      { error: `无法开始测试: ${message}` },
       { status: 500 }
     );
   }

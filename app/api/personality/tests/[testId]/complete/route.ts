@@ -134,7 +134,8 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "完成测试失败" }, { status: 500 });
+    console.error("[personality/complete] failed:", error);
+    const message = error instanceof Error ? error.message : "未知错误";
+    return NextResponse.json({ error: `完成测试失败: ${message}` }, { status: 500 });
   }
 }

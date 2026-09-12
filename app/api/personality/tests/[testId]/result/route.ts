@@ -98,7 +98,8 @@ export async function GET(
       shareCredit,
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "获取报告失败" }, { status: 500 });
+    console.error("[personality/result] failed:", error);
+    const message = error instanceof Error ? error.message : "未知错误";
+    return NextResponse.json({ error: `获取报告失败: ${message}` }, { status: 500 });
   }
 }

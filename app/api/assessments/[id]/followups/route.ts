@@ -75,7 +75,8 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to get follow-up questions" }, { status: 400 });
+    console.error("[assessments/followups] failed:", error);
+    const message = error instanceof Error ? error.message : "未知错误";
+    return NextResponse.json({ error: `获取追问题失败: ${message}` }, { status: 500 });
   }
 }

@@ -47,12 +47,16 @@ function ensureDir() {
 
 function loadFile<T>(file: string, version: string, seed: T[]): ContentFile<T> {
   if (IS_SERVERLESS) {
-    // 直接返回内存中的 seed（生产环境无文件存储）
-    return {
+    // 生产环境无文件存储：直接读内存 cache（避免每次都 new 对象）
+    const hit = cache.get(file);
+    if (hit) return hit.data as ContentFile<T>;
+    const data: ContentFile<T> = {
       version,
       updatedAt: new Date().toISOString(),
       items: seed,
     };
+    cache.set(file, { mtimeMs: Date.now(), data });
+    return data;
   }
   ensureDir();
   if (!fs.existsSync(file)) {

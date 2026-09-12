@@ -249,8 +249,9 @@ export async function POST(
       credits,
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to complete assessment" }, { status: 400 });
+    console.error("[assessments/complete] POST failed:", error);
+    const message = error instanceof Error ? error.message : "未知错误";
+    return NextResponse.json({ error: `完成测试失败: ${message}` }, { status: 500 });
   }
 }
 
@@ -303,7 +304,8 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to fetch result" }, { status: 400 });
+    console.error("[assessments/complete] GET failed:", error);
+    const message = error instanceof Error ? error.message : "未知错误";
+    return NextResponse.json({ error: `获取报告失败: ${message}` }, { status: 500 });
   }
 }
