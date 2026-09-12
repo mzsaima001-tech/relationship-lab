@@ -366,10 +366,20 @@ export default function PersonalityReport() {
 
       {/* 分享卡（已解锁用户 — 纯分享入口，与默契测试 report 页范式一致） */}
       <section
-        className="card mt-8 p-6 fade-in-up"
-        style={{ animationDelay: "0.18s" }}
+        className="mt-8 p-6 fade-in-up rounded-2xl border-2 shadow-lg"
+        style={{
+          animationDelay: "0.18s",
+          background: "var(--highlight-bg)",
+          borderColor: "var(--highlight)",
+          boxShadow: "0 8px 24px -8px rgba(245, 185, 66, 0.35)",
+        }}
       >
-        <p className="archive-label mb-2">Share · 分享给朋友</p>
+        <p
+          className="archive-label mb-2"
+          style={{ color: "var(--highlight)" }}
+        >
+          Share · 分享给朋友
+        </p>
         <h3 className="display-serif text-base text-[var(--text-warm)] mb-2">
           把你的画像分享给朋友
         </h3>
@@ -378,13 +388,31 @@ export default function PersonalityReport() {
           <br />
           想看看你朋友的会是哪一种吗？
         </p>
-        <button onClick={handleShare} disabled={sharing} className="btn-ghost w-full">
+        <button
+          onClick={handleShare}
+          disabled={sharing}
+          className="btn-primary w-full"
+          style={{
+            background: "var(--highlight)",
+            color: "var(--bg-dark)",
+            borderColor: "var(--highlight)",
+            fontWeight: 600,
+          }}
+        >
           {sharing ? "正在生成..." : "生成我的海报 →"}
         </button>
         {shareError && (
-          <p className="text-[11px] text-[var(--danger)] mt-2 text-center">
-            {shareError}
-          </p>
+          <div
+            className="mt-3 px-3 py-2 rounded-md text-xs flex items-start gap-2"
+            style={{
+              background: "rgba(239, 68, 68, 0.12)",
+              border: "1px solid rgba(239, 68, 68, 0.45)",
+              color: "#fca5a5",
+            }}
+          >
+            <span className="flex-shrink-0">⚠</span>
+            <span>{shareError}</span>
+          </div>
         )}
       </section>
 
