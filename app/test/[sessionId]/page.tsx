@@ -232,14 +232,14 @@ export default function TestPage() {
   const isFollowup = question.phase === "followup";
 
   return (
-    <main className="flex-1 flex flex-col items-center px-6 py-8 max-w-xl mx-auto w-full min-h-screen">
-      {/* Progress */}
-      <div className="w-full mb-12">
-        <div className="flex items-center justify-between mb-3">
-          <span className="archive-label">
+    <main className="flex-1 flex flex-col items-center px-5 pt-0 pb-8 sm:px-6 sm:pb-10 max-w-xl mx-auto w-full min-h-screen safe-bottom">
+      {/* 进度条 sticky 顶部 — 答题时随时看到进度，滚动/键盘弹起也不丢 */}
+      <div className="sticky top-0 z-20 w-full bg-[var(--bg-dark)]/95 backdrop-blur-sm -mx-5 px-5 sm:-mx-6 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-[var(--border-dim)]">
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <span className="archive-label text-[0.65rem] sm:text-[0.7rem]">
             {isFollowup ? "Follow-up" : "Step 02"}
           </span>
-          <span className="file-number">
+          <span className="file-number text-[0.65rem] sm:text-[0.7rem]">
             {currentIdx + 1} / {totalQuestions}
           </span>
         </div>
@@ -249,25 +249,25 @@ export default function TestPage() {
       </div>
 
       {/* Question */}
-      <div className="w-full flex-1 flex flex-col justify-center" key={question.id}>
+      <div className="w-full flex-1 flex flex-col pt-6 sm:pt-10" key={question.id}>
         <div className="fade-in-up" key={currentIdx}>
           {isFollowup && (
-            <p className="text-xs text-[var(--accent)] mb-4 tracking-wider">
+            <p className="text-xs text-[var(--accent)] mb-3 sm:mb-4 tracking-wider text-center sm:text-left">
               · 根据你之前的回答，系统想再确认几件事 ·
             </p>
           )}
-          <h2 className="display-serif text-xl md:text-2xl text-[var(--text-warm)] leading-relaxed mb-10">
+          <h2 className="display-serif text-lg sm:text-xl md:text-2xl text-[var(--text-warm)] leading-relaxed mb-6 sm:mb-10">
             {question.text}
           </h2>
 
           {/* Options */}
-          <div className={`space-y-3 ${question.kind === "forced_choice" ? "grid grid-cols-1 gap-3" : ""}`}>
+          <div className={`space-y-2.5 sm:space-y-3 ${question.kind === "forced_choice" ? "grid grid-cols-1 gap-2.5 sm:gap-3" : ""}`}>
             {options.map((option, idx) => (
               <button
                 key={option.id}
                 onClick={() => handleAnswer(option.value)}
                 disabled={submitting}
-                className={`option-card w-full text-left px-5 py-4 rounded flex items-center gap-4 fade-in-up ${
+                className={`option-card w-full text-left px-4 py-3.5 sm:px-5 sm:py-4 rounded flex items-center gap-3 sm:gap-4 fade-in-up ${
                   selectedValue === option.value ? "selected" : ""
                 }`}
                 style={{ animationDelay: `${idx * 0.08}s` }}
@@ -275,7 +275,7 @@ export default function TestPage() {
                 <span className="w-6 h-6 rounded-full border border-[var(--border-dim)] flex items-center justify-center text-xs text-[var(--text-muted)] flex-shrink-0">
                   {String.fromCharCode(65 + idx)}
                 </span>
-                <span className="text-[15px] text-[var(--text-warm)]">
+                <span className="text-[15px] sm:text-[15px] text-[var(--text-warm)]">
                   {option.label}
                 </span>
               </button>
@@ -285,7 +285,7 @@ export default function TestPage() {
       </div>
 
       {error && (
-        <p className="text-sm text-[var(--danger)] mt-4">{error}</p>
+        <p className="text-sm text-[var(--danger)] mt-4 px-1">{error}</p>
       )}
 
       <HomeFooter />
