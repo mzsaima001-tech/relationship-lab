@@ -302,7 +302,7 @@ export default function PersonalityReport() {
         </div>
       </Section>
 
-      {{/* 10：人际关系 */}
+      {/* 10：人际关系 */}
       <Section title="10 · 你的人际关系模式">
         <div className="space-y-2.5 sm:space-y-3">
           {[
