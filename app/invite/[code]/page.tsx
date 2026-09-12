@@ -155,7 +155,7 @@ export default function InvitePage() {
 
   if (loading) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6">
+      <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6">
         <p className="text-[var(--text-muted)] text-sm">正在打开邀请...</p>
       </main>
     );
@@ -163,7 +163,7 @@ export default function InvitePage() {
 
   if (error && !invite) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+      <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
         <p className="text-[var(--danger)] text-sm">{error}</p>
         <Link href="/" className="btn-ghost">返回首页</Link>
       </main>
@@ -173,17 +173,17 @@ export default function InvitePage() {
   if (!invite) return null;
 
   return (
-    <main className="flex-1 px-6 py-12 max-w-xl mx-auto w-full">
+    <main className="flex-1 px-5 py-8 sm:px-6 sm:py-12 max-w-xl mx-auto w-full safe-bottom">
       <div className="w-full">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8 fade-in">
+        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 fade-in">
           <span className="archive-label">Invitation</span>
           <span className="w-8 h-px bg-[var(--border-dim)]" />
-          <span className="file-number">CODE: {code.toUpperCase()}</span>
+          <span className="file-number text-[0.65rem] sm:text-[0.7rem]">CODE: {code.toUpperCase()}</span>
         </div>
 
         {/* Invite context */}
-        <div className="card p-6 mb-8 fade-in-up">
+        <div className="card p-4 mb-6 sm:p-6 sm:mb-8 fade-in-up">
           <p className="text-sm text-[var(--text-muted)] mb-2">
             {invite.personA.nickname} 邀请你一起完成默契研究所的测评。
           </p>
@@ -192,7 +192,7 @@ export default function InvitePage() {
               TA的类型是：<span className="text-[var(--accent)]">{invite.personA.archetype}</span>
             </p>
           )}
-          <p className="text-xs text-[var(--text-muted)] mt-4">
+          <p className="text-xs text-[var(--text-muted)] mt-4 leading-relaxed">
             你们会各自独立答题，TA看不到你的单题答案。完成后你们可以一起看关系分析。
           </p>
         </div>
