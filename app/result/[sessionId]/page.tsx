@@ -99,12 +99,12 @@ function Section({
   paper?: boolean;
 }) {
   return (
-    <section className="mb-10 fade-in-up" style={{ animationDelay: `${delay}s` }}>
-      <div className="flex items-center gap-3 mb-4">
+    <section className="mb-8 sm:mb-10 fade-in-up" style={{ animationDelay: `${delay}s` }}>
+      <div className="flex items-center gap-3 mb-3 sm:mb-4">
         <h3 className="archive-label">{title}</h3>
         <span className="flex-1 h-px bg-[var(--border-dim)]" />
       </div>
-      {paper ? <LetterFrame className="p-6 pt-8">{children}</LetterFrame> : children}
+      {paper ? <LetterFrame className="p-4 pt-7 sm:p-6 sm:pt-8">{children}</LetterFrame> : children}
     </section>
   );
 }
@@ -113,7 +113,7 @@ function Paragraphs({ text }: { text: string }) {
   return (
     <>
       {text.split("\n\n").map((p, i) => (
-        <p key={i} className="text-sm text-[var(--text-warm)] leading-relaxed mb-3 last:mb-0">
+        <p key={i} className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed mb-3 last:mb-0">
           {p}
         </p>
       ))}
@@ -123,9 +123,9 @@ function Paragraphs({ text }: { text: string }) {
 
 function FactBlock({ fact }: { fact: FactReading }) {
   return (
-    <div className="border-l-2 border-[var(--accent)] pl-4 mb-5 last:mb-0">
-      <p className="text-sm font-medium text-[var(--text-warm)] mb-1.5">{fact.headline}</p>
-      <p className="text-sm text-[var(--text-warm)] leading-relaxed opacity-90">{fact.meaning}</p>
+    <div className="border-l-2 border-[var(--accent)] pl-4 mb-4 sm:mb-5 last:mb-0">
+      <p className="text-[15px] sm:text-sm font-medium text-[var(--text-warm)] mb-1.5">{fact.headline}</p>
+      <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed opacity-90">{fact.meaning}</p>
       {fact.strength && (
         <p className="text-xs text-[var(--text-muted)] leading-relaxed mt-1.5">＋ {fact.strength}</p>
       )}
@@ -241,7 +241,7 @@ export default function ResultPage() {
 
   if (error && !data) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+      <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
         <p className="text-[var(--danger)] text-sm">{error}</p>
         <Link href="/start" className="btn-ghost">重新开始</Link>
       </main>
@@ -255,34 +255,34 @@ export default function ResultPage() {
   const reportUnlocked = Boolean(data.credits?.report_unlocked);
 
   return (
-    <main className="night-sky flex-1 px-6 py-12 max-w-2xl mx-auto w-full">
+    <main className="night-sky flex-1 px-5 py-8 sm:px-6 sm:py-12 max-w-2xl mx-auto w-full safe-bottom">
       <StarMap opacity={0.14} seed={1} />
       <div className="relative">
       {/* ===== Header（免费）：罗盘 + 塔罗牌主视觉 ===== */}
-      <div className="text-center mb-10 fade-in-up">
+      <div className="text-center mb-8 sm:mb-10 fade-in-up">
         <div className="flex items-center justify-center gap-4 mb-4">
           <span className="file-number">No. {sessionId.slice(0, 6).toUpperCase()}</span>
         </div>
         {/* 塔罗牌 + 背后缓缓转动的罗盘 */}
-        <div className="relative flex items-center justify-center mb-5">
+        <div className="relative flex items-center justify-center mb-4 sm:mb-5">
           <div className="absolute pointer-events-none">
-            <CompassDial size={300} opacity={0.18} />
+            <CompassDial size={220} opacity={0.18} />
           </div>
           <TarotCard
             image={tarotImage(tarot.slug)}
             cardTitle={tarot.cardTitle}
             cardTitleEn={tarot.cardTitleEn}
-            width={168}
+            width={140}
             elevated
           />
         </div>
         <p className="text-xs text-[var(--text-muted)] italic display-serif">
           「{tarot.motto}」
         </p>
-        <h1 className="display-serif text-3xl text-[var(--text-warm)] mt-6">{data.nickname}</h1>
-        <p className="display-serif text-xl text-[var(--accent)] mt-2">「{data.archetype}」</p>
+        <h1 className="display-serif text-2xl sm:text-3xl text-[var(--text-warm)] mt-5 sm:mt-6">{data.nickname}</h1>
+        <p className="display-serif text-lg sm:text-xl text-[var(--accent)] mt-2">「{data.archetype}」</p>
         {n?.archetype.essence && (
-          <p className="text-sm text-[var(--text-muted)] mt-3">{n.archetype.essence}</p>
+          <p className="text-sm text-[var(--text-muted)] mt-3 leading-relaxed">{n.archetype.essence}</p>
         )}
         {data.tags.length > 0 && (
           <div className="flex flex-wrap justify-center gap-2 mt-5">
@@ -301,9 +301,9 @@ export default function ResultPage() {
 
       {/* ===== 一句话画像 + 开篇（免费） ===== */}
       {n && (
-        <LetterFrame className="p-6 pt-8 mb-10 fade-in-up" >
+        <LetterFrame className="p-4 pt-7 mb-8 sm:p-6 sm:pt-8 sm:mb-10 fade-in-up" >
           <div className="fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <p className="display-serif text-base text-[var(--text-warm)] leading-relaxed mb-4">
+            <p className="display-serif text-base sm:text-base text-[var(--text-warm)] leading-relaxed mb-4">
               {n.oneLiner}
             </p>
             <OrnamentDivider className="mb-4" />
@@ -319,14 +319,14 @@ export default function ResultPage() {
 
       {/* ===== 六维图（免费） ===== */}
       <Section title="Six Dimensions" delay={0.15}>
-        <div className="space-y-5">
+        <div className="space-y-4 sm:space-y-5">
           {(n?.dimensions ?? Object.entries(data.scores).map(([key, score]) => ({
             key, label: key, score, confidence: 0, bandLabel: "", summary: "", daily: "", evidenceQuotes: [] as string[],
           }))).map((dim) => (
             <div key={dim.key}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-[var(--text-warm)]">{dim.label}</span>
-                <span className="text-sm text-[var(--accent)] font-mono">
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <span className="text-sm text-[var(--text-warm)] truncate">{dim.label}</span>
+                <span className="text-sm text-[var(--accent)] font-mono whitespace-nowrap">
                   {dim.score}
                   {dim.bandLabel && (
                     <span className="text-xs text-[var(--text-muted)] ml-1.5">{dim.bandLabel}</span>
@@ -362,14 +362,14 @@ export default function ResultPage() {
 
       {/* ===== 锁定的隐藏模式（免费只给标题） ===== */}
       {n?.lockedPattern && !reportUnlocked && (
-        <LetterFrame className="p-6 pt-8 mb-10 fade-in-up" >
+        <LetterFrame className="p-4 pt-7 mb-8 sm:p-6 sm:pt-8 sm:mb-10 fade-in-up" >
           <div className="fade-in-up" style={{ animationDelay: "0.25s" }}>
             <div className="flex items-center gap-3 mb-3">
               <h3 className="archive-label">隐藏模式</h3>
               <span className="flex-1 h-px bg-[var(--border-dim)]" />
               <span className="text-xs text-[var(--text-muted)]">🔒</span>
             </div>
-            <p className="text-sm text-[var(--text-warm)] leading-relaxed">
+            <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
               你的回答里还有一个比较明显的模式：
               <span className="text-[var(--accent)] font-medium">「{n.lockedPattern.name}」</span>
             </p>
@@ -382,12 +382,12 @@ export default function ResultPage() {
 
       {/* ===== 付费墙 / 完整报告 ===== */}
       {!reportUnlocked ? (
-        <LetterFrame className="p-6 pt-8 mb-10 fade-in-up" >
+        <LetterFrame className="p-4 pt-7 mb-8 sm:p-6 sm:pt-8 sm:mb-10 fade-in-up" >
           <div className="fade-in-up" style={{ animationDelay: "0.3s" }}>
             {/* 吸引人的一行标题 */}
             <div className="text-center mb-5">
               <p className="archive-label mb-2">Unlock · 完整个人报告</p>
-              <h3 className="display-serif text-xl text-[var(--text-warm)] leading-relaxed">
+              <h3 className="display-serif text-lg sm:text-xl text-[var(--text-warm)] leading-relaxed">
                 你才看到自己的 {data.freePercent ?? 8}%——
                 <br />
                 <span className="text-[var(--accent)]">还有一整个宇宙没展开</span>
@@ -421,7 +421,7 @@ export default function ResultPage() {
               ].map(([t, d]) => (
                 <li key={t} className="flex gap-2.5">
                   <span className="text-[var(--accent)] mt-0.5 flex-shrink-0">✦</span>
-                  <p className="text-sm text-[var(--text-warm)] leading-relaxed">
+                  <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
                     <span className="font-medium">{t}</span>
                     <span className="text-[var(--text-muted)]"> —— {d}</span>
                   </p>
@@ -429,14 +429,14 @@ export default function ResultPage() {
               ))}
             </ul>
 
-            {/* 直接付费（醒目主按钮） */}
+            {/* 直接付费（醒目主按钮 — 手机端满宽） */}
             <button
               onClick={() => router.push(`/pay/${sessionId}`)}
               className="btn-primary w-full text-base"
             >
               ¥{SINGLE_REPORT_PRICE.toFixed(1)} 立即解锁完整报告
             </button>
-            <p className="text-[11px] text-[var(--text-muted)] text-center mt-2.5">
+            <p className="text-[11px] text-[var(--text-muted)] text-center mt-2.5 leading-relaxed">
               支持{PAYMENT_CONFIG.channels} · 也可以分享 {VALID_SHARES_FOR_FREE_UNLOCK} 位朋友，免费解锁 ↓
             </p>
           </div>
@@ -446,16 +446,16 @@ export default function ResultPage() {
           <>
             {/* ===== 原型深度解读 ===== */}
             <Section title={`原型解读 · ${n.archetype.name}`} delay={0.1}>
-              <div className="card p-6">
+              <div className="card p-4 sm:p-6">
                 <Paragraphs text={n.archetype.portrait} />
-                <div className="grid sm:grid-cols-2 gap-4 mt-5">
-                  <div className="border border-[var(--border-dim)] rounded-lg p-4">
+                <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 mt-5">
+                  <div className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4">
                     <p className="archive-label mb-2">天赋</p>
-                    <p className="text-sm text-[var(--text-warm)] leading-relaxed">{n.archetype.gift}</p>
+                    <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{n.archetype.gift}</p>
                   </div>
-                  <div className="border border-[var(--border-dim)] rounded-lg p-4">
+                  <div className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4">
                     <p className="archive-label mb-2">盲区</p>
-                    <p className="text-sm text-[var(--text-warm)] leading-relaxed">{n.archetype.blindSpot}</p>
+                    <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{n.archetype.blindSpot}</p>
                   </div>
                 </div>
               </div>
@@ -477,20 +477,20 @@ export default function ResultPage() {
 
             {/* ===== 六维逐一解读 ===== */}
             <Section title="六个维度，逐一细看" delay={0.16}>
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {n.dimensions.map((dim) => (
-                  <div key={dim.key} className="card p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-sm font-medium text-[var(--text-warm)]">{dim.label}</p>
-                      <span className="text-xs text-[var(--text-muted)]">
+                  <div key={dim.key} className="card p-4 sm:p-5">
+                    <div className="flex items-center justify-between mb-3 gap-2">
+                      <p className="text-[15px] sm:text-sm font-medium text-[var(--text-warm)] truncate">{dim.label}</p>
+                      <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
                         {dim.score} 分 · {dim.bandLabel}
                       </span>
                     </div>
-                    <div className="dim-bar-track mb-4">
+                    <div className="dim-bar-track mb-3 sm:mb-4">
                       <div className="dim-bar-fill h-full" style={{ width: `${dim.score}%` }} />
                     </div>
-                    <p className="text-sm text-[var(--text-warm)] leading-relaxed mb-2">{dim.summary}</p>
-                    <p className="text-sm text-[var(--text-warm)] leading-relaxed opacity-80">{dim.daily}</p>
+                    <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed mb-2">{dim.summary}</p>
+                    <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed opacity-80">{dim.daily}</p>
                     {dim.evidenceQuotes.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-[var(--border-dim)]">
                         <p className="text-xs text-[var(--text-muted)] mb-1.5">你的回答印证了这一点：</p>
@@ -569,10 +569,10 @@ export default function ResultPage() {
             {/* ===== 建议 ===== */}
             {n.suggestions.length > 0 && (
               <Section title="给你的具体建议" delay={0.28}>
-                <div className="space-y-3">
+                <div className="space-y-2.5 sm:space-y-3">
                   {n.suggestions.map((s, i) => (
-                    <div key={i} className="card p-4">
-                      <p className="text-sm text-[var(--text-warm)] leading-relaxed">
+                    <div key={i} className="card p-3.5 sm:p-4">
+                      <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
                         <span className="text-[var(--accent)] font-mono mr-2">{String(i + 1).padStart(2, "0")}</span>
                         {s}
                       </p>
@@ -585,10 +585,10 @@ export default function ResultPage() {
             {/* ===== 沟通话术 ===== */}
             {n.scripts.length > 0 && (
               <Section title="可以直接用的话术" delay={0.3}>
-                <div className="space-y-3">
+                <div className="space-y-2.5 sm:space-y-3">
                   {n.scripts.map((s, i) => (
-                    <div key={i} className="border border-[var(--border-dim)] rounded-lg p-4">
-                      <p className="text-sm text-[var(--text-warm)] leading-relaxed italic">{s}</p>
+                    <div key={i} className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4">
+                      <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed italic">{s}</p>
                     </div>
                   ))}
                 </div>
@@ -597,7 +597,7 @@ export default function ResultPage() {
 
             {/* ===== 质量提示 ===== */}
             {n.qualityNote && (
-              <div className="border border-[var(--border-dim)] rounded-lg p-4 mb-10">
+              <div className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4 mb-8 sm:mb-10">
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed">{n.qualityNote}</p>
                 {data.responseQuality && (
                   <p className="text-xs text-[var(--text-muted)] mt-2">
@@ -617,27 +617,27 @@ export default function ResultPage() {
 
       {/* ===== 邀请另一半（双人默契，解锁后可见） ===== */}
       {reportUnlocked && (
-        <div className="card p-6 mb-6 fade-in-up" style={{ animationDelay: "0.33s" }}>
+        <div className="card p-4 sm:p-6 mb-8 sm:mb-10 fade-in-up" style={{ animationDelay: "0.33s" }}>
           {!inviteUrl ? (
             <div className="text-center">
               <p className="archive-label mb-3">Pair · 双人默契</p>
-              <h3 className="display-serif text-lg text-[var(--text-warm)] mb-3">
+              <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-3">
                 想看看你们俩的关系组合？
               </h3>
-              <p className="text-sm text-[var(--text-muted)] mb-6 leading-relaxed">
+              <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
                 生成一个邀请链接发给TA。TA独立完成测试后，你们就能看到双人关系分析。
                 <br />
                 <span className="text-xs">（这是双人模式，和下面的朋友分享海报是两回事）</span>
               </p>
-              <button onClick={handleCreateInvite} className="btn-primary" disabled={creatingInvite}>
+              <button onClick={handleCreateInvite} className="btn-primary w-full sm:w-auto" disabled={creatingInvite}>
                 {creatingInvite ? "生成中..." : "生成邀请链接 →"}
               </button>
             </div>
           ) : (
             <div className="text-center">
-              <h3 className="display-serif text-lg text-[var(--text-warm)] mb-3">邀请链接已生成</h3>
+              <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-3">邀请链接已生成</h3>
               <p className="text-sm text-[var(--text-muted)] mb-4">把这个链接发给TA：</p>
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
                 <input
                   type="text"
                   readOnly
@@ -661,7 +661,7 @@ export default function ResultPage() {
                   </p>
                 </div>
               )}
-              <p className="text-xs text-[var(--text-muted)] mb-6">TA完成后，你们可以在双人报告页查看结果。</p>
+              <p className="text-xs text-[var(--text-muted)] mb-5">TA完成后，你们可以在双人报告页查看结果。</p>
               {pairId && (
                 <Link href={`/pair/${pairId}`} className="btn-ghost">
                   查看双人报告 →
@@ -679,7 +679,7 @@ export default function ResultPage() {
         const ready = sharesDone >= SHARES_NEEDED;
         return (
           <div
-            className={`rounded-lg p-6 mb-12 fade-in-up ${
+            className={`rounded-lg p-4 mb-8 sm:p-6 sm:mb-12 fade-in-up ${
               reportUnlocked
                 ? "card"
                 : "border border-[var(--accent)] bg-[rgba(201,169,110,0.08)]"
@@ -688,7 +688,7 @@ export default function ResultPage() {
           >
             <div className="text-center">
               <p className="archive-label mb-3">Share · 分享给朋友</p>
-              <h3 className="display-serif text-lg text-[var(--text-warm)] mb-3">
+              <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-3">
                 {reportUnlocked ? "把你的关系牌分享给朋友" : `分享 ${SHARES_NEEDED} 人，免费解锁`}
               </h3>
               <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
@@ -722,7 +722,7 @@ export default function ResultPage() {
               )}
 
               {reportUnlocked ? (
-                <button onClick={() => router.push(`/share/${sessionId}`)} className="btn-primary">
+                <button onClick={() => router.push(`/share/${sessionId}`)} className="btn-primary w-full sm:w-auto">
                   生成我的分享海报 →
                 </button>
               ) : ready ? (
@@ -746,10 +746,10 @@ export default function ResultPage() {
 
       {error && <p className="text-sm text-[var(--danger)] text-center">{error}</p>}
 
-      <div className="text-center mt-8">
+      <div className="text-center mt-6 sm:mt-8">
         <button
           onClick={() => router.back()}
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] active:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4"
         >
           ← 返回上一页
         </button>
