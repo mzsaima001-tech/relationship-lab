@@ -134,24 +134,24 @@ export default function StartPage() {
     form.currentFeeling;
 
   return (
-    <main className="flex-1 flex flex-col items-center px-6 py-12 max-w-xl mx-auto w-full">
+    <main className="flex-1 flex flex-col items-center px-5 py-8 sm:px-6 sm:py-12 max-w-xl mx-auto w-full safe-bottom">
       <div className="w-full">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8 fade-in">
+        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8 fade-in">
           <span className="archive-label">Step 01</span>
           <span className="w-8 h-px bg-[var(--border-dim)]" />
           <span className="file-number">BASIC PROFILE</span>
         </div>
 
-        <h2 className="display-serif text-2xl text-[var(--text-warm)] mb-2 fade-in-up">
+        <h2 className="display-serif text-xl sm:text-2xl text-[var(--text-warm)] mb-2 fade-in-up">
           先告诉我一些关于你的事
         </h2>
-        <p className="text-sm text-[var(--text-muted)] mb-10 fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <p className="text-sm text-[var(--text-muted)] mb-8 sm:mb-10 fade-in-up leading-relaxed" style={{ animationDelay: "0.1s" }}>
           这些信息不会发给你认识的人。它只用来为你的测试选择最合适的题目。
         </p>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6 fade-in-up" style={{ animationDelay: "0.2s" }}>
+        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6 fade-in-up" style={{ animationDelay: "0.2s" }}>
           <div>
             <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
               昵称
@@ -167,7 +167,8 @@ export default function StartPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {/* 手机端单列，桌面双列 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-4 gap-5">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
                 你的年龄
@@ -268,7 +269,7 @@ export default function StartPage() {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-4 gap-5">
             <div>
               <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
                 认识多久了
@@ -304,12 +305,12 @@ export default function StartPage() {
           </div>
 
           {error && (
-            <p className="text-sm text-[var(--danger)]">{error}</p>
+            <p className="text-sm text-[var(--danger)] px-1">{error}</p>
           )}
 
           <button
             type="submit"
-            className="btn-primary w-full"
+            className="btn-primary w-full text-base py-4 mt-2"
             disabled={!isFormValid || loading}
           >
             {loading ? "正在准备题目..." : "开始测试 →"}
@@ -319,7 +320,7 @@ export default function StartPage() {
         <div className="mt-8 text-center">
           <button
             onClick={() => router.push("/")}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4"
           >
             ← 返回首页
           </button>
