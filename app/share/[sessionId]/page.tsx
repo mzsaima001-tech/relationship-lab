@@ -305,7 +305,7 @@ export default function SharePosterPage() {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "结果不存在");
 
-        // 2. 创建/复用普通分享码
+        // 2. 创建/复用普通分享码（仅用于累计访问量，扫码目标为首页）
         const shareRes = await fetch("/api/shares", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -314,11 +314,12 @@ export default function SharePosterPage() {
         const shareJson = await shareRes.json();
         if (!shareRes.ok) throw new Error(shareJson.error || "分享创建失败");
 
-        const url = `${window.location.origin}${shareJson.url}`;
-        setShareUrl(url);
+        // 3. QR 指向首页（用户要求：扫码直达主页）
+        const homeUrl = `${window.location.origin}/`;
+        setShareUrl(homeUrl);
 
-        // 3. 生成二维码
-        const qr = await QRCode.toDataURL(url, {
+        // 4. 生成二维码
+        const qr = await QRCode.toDataURL(homeUrl, {
           width: 512,
           margin: 1,
           color: { dark: "#2a2418", light: "#f5ede0" },
@@ -362,7 +363,7 @@ export default function SharePosterPage() {
 
   /** 复制微信分享文案（唤起微信 / 复制文案提示用户手贴） */
   const handleWechatShare = async () => {
-    const text = `我们之间，是不是有什么总是重复？\n来默契研究所，看看你的关系牌是什么。\n${shareUrl}`;
+    const text = `我们之间，是不是有什么总是重复？\n来默契研究所，看看你的关系牌是什么。\n${window.location.origin}/`;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -515,7 +516,7 @@ export default function SharePosterPage() {
           </button>
           <div className="flex gap-2">
             <button onClick={handleCopy} className="btn-ghost flex-1 text-sm">
-              {copied ? "✓ 已复制链接" : "复制分享链接"}
+              {copied ? "✓ 已复制链接" : "复制首页链接"}
             </button>
             <button onClick={handleWechatShare} className="btn-ghost flex-1 text-sm">
               {copied ? "✓ 已复制文案" : "复制给微信好友"}
