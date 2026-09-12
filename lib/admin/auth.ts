@@ -19,6 +19,9 @@ const DEFAULT_DEV_PASSWORD = "rl-admin-dev-only-2026"; // 仅本地 dev 用，�
 /**
  * 服务启动期一次性校验：缺 ADMIN_PASSWORD 或采用默认值 → panic。
  * 由 proxy / 路由每次启动时调用，结果会被缓存以避免重复启动检查。
+ *
+ * ⚠️ 安全护栏：生产环境如果 ADMIN_PASSWORD 缺失，直接抛错（绝不回退到 dev 默认密码）。
+ * 否则任何人都能用 `rl-admin-dev-only-2026` 登录后台！
  */
 let _bootChecked = false;
 function bootCheck() {
@@ -36,7 +39,7 @@ function bootCheck() {
       "ADMIN_PASSWORD is required in production. Set it to a strong password (>=12 chars)."
     );
   }
-  if (pwd === "admin123" || pwd.length < 12) {
+  if (pwd === "admin123" || pwd === DEFAULT_DEV_PASSWORD || pwd.length < 12) {
     if (isDev()) {
       console.warn(
         `[admin] ⚠️ ADMIN_PASSWORD 太弱（${pwd.length} 位 / 用了默认串），dev 仍继续运行`
@@ -44,7 +47,7 @@ function bootCheck() {
       return;
     }
     throw new Error(
-      `ADMIN_PASSWORD must be at least 12 characters and not 'admin123'. Got length=${pwd.length}.`
+      `ADMIN_PASSWORD must be at least 12 characters and not a default. Got length=${pwd.length}.`
     );
   }
   // 强度提示
@@ -76,16 +79,33 @@ export async function expectedAdminToken(): Promise<string> {
 
 export async function verifyAdminToken(token: string | undefined): Promise<boolean> {
   if (!token) return false;
-  return token === (await expectedAdminToken());
+  try {
+    return token === (await expectedAdminToken());
+  } catch (e) {
+    // bootCheck 抛错（生产但缺 ADMIN_PASSWORD）→ 视为未鉴权，绝不静默放过
+    console.error("[admin] verifyAdminToken failed:", (e as Error).message);
+    return false;
+  }
 }
 
 export function checkPassword(password: string): boolean {
-  return password === secret();
+  try {
+    return password === secret();
+  } catch (e) {
+    // bootCheck 在生产但缺 ADMIN_PASSWORD 时抛错 → 一律拒绝，绝不静默放过
+    console.error("[admin] checkPassword failed:", (e as Error).message);
+    return false;
+  }
 }
 
 /** 用于登录页给提示：当前是否处于弱密码模式 */
 export function isAdminPasswordWeak(): boolean {
-  bootCheck();
-  const pwd = process.env.ADMIN_PASSWORD || DEFAULT_DEV_PASSWORD;
-  return pwd === DEFAULT_DEV_PASSWORD || pwd === "admin123" || pwd.length < 12;
+  try {
+    bootCheck();
+    const pwd = process.env.ADMIN_PASSWORD || DEFAULT_DEV_PASSWORD;
+    return pwd === DEFAULT_DEV_PASSWORD || pwd === "admin123" || pwd.length < 12;
+  } catch {
+    // bootCheck 抛错说明 ADMIN_PASSWORD 配置有问题 → 返回 false（不显示弱密码警告，避免误导）
+    return false;
+  }
 }
