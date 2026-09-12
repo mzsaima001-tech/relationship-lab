@@ -57,7 +57,12 @@ export async function POST(
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "请求参数无效", details: error.issues }, { status: 400 });
     }
-    console.error(error);
-    return NextResponse.json({ error: "保存答案失败" }, { status: 500 });
+    console.error("[personality answers] save failed:", error);
+    const message =
+      error instanceof Error ? `${error.message}` : "未知错误";
+    return NextResponse.json(
+      { error: `保存答案失败: ${message}` },
+      { status: 500 }
+    );
   }
 }
