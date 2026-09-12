@@ -4,34 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { CompassDial, OrnamentDivider, StarMap, TarotCard } from "@/app/components/decor";
+import { CompassDial, OrnamentDivider, StarMap } from "@/app/components/decor";
 import HomeFooter from "@/app/components/HomeFooter";
-import { tarotFor, tarotImage } from "@/lib/reports/tarot";
+import { TAROT_CARDS, tarotImage } from "@/lib/reports/tarot";
 
-// ---------- 类型 ----------
-
-interface PosterData {
-  nickname: string;
-  archetype: string;
-  tags: string[];
-  oneLiner: string;
-  fileNo: string;
-}
-
-// ---------- 邀请话术（好奇驱动，不攀比、不提塔罗） ----------
-
-function invitationLines(nickname: string, archetype: string): string[] {
-  return [
-    `${nickname} 在关系里是「${archetype}」`,
-    "每个人在关系里的样子都不一样——",
-    "你的，会是什么模样？",
-  ];
-}
-
-// ---------- Canvas 海报绘制 ----------
+// =====================================================
+// 默契测试分享海报页 /share/[sessionId]
+// —— 重设计：去掉分享人信息（昵称/原型/标签），借鉴主页布局
+// —— 主图：首页「十一面镜像」塔罗牌阵（随机抽 3 张），不暴露分享人具体身份
+// —— 二维码缩小至 88px，左文案右二维码；可长按保存 + 微信识别
+// =====================================================
 
 const POSTER_W = 900;
 const POSTER_H = 1420;
+
+interface PosterData {
+  archetype: string;
+  fileNo: string;
+}
+
+/** 钩子话术 — 主页同款扎心钩子 + 邀请话术 */
+function invitationLines(): { hook: string; sub: string; tag: string } {
+  return {
+    hook: "你们之间，有没有一种问题，总是在重复发生？",
+    sub: "也许问题不是谁对谁错——\n只是你们理解「在乎」的方式不一样。",
+    tag: "看 TA 的关系牌——\n你的，会是哪一张？",
+  };
+}
 
 function drawSpacedText(
   ctx: CanvasRenderingContext2D,
@@ -49,6 +48,30 @@ function drawSpacedText(
   });
 }
 
+function seededRandom(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+/** 固定种子抽 3 张 — 不暴露具体身份，但与该分享者的 archetype 关联 */
+function pickTarotIdx(archetype: string, length: number): number[] {
+  // 用 archetype 字符串做种子，确保同一分享者每次看到的塔罗阵一致
+  let h = 0;
+  for (let i = 0; i < archetype.length; i++) {
+    h = (h * 31 + archetype.charCodeAt(i)) >>> 0;
+  }
+  const rand = seededRandom(h);
+  const pool = Array.from({ length }, (_, i) => i);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, 3);
+}
+
 async function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -59,15 +82,6 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** 伪随机（种子固定，星点位置每次渲染一致） */
-function seededRandom(seed: number) {
-  let s = seed;
-  return () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-}
-
 async function renderPoster(
   canvas: HTMLCanvasElement,
   data: PosterData,
@@ -76,9 +90,10 @@ async function renderPoster(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas unavailable");
 
-  const tarot = tarotFor(data.archetype);
-  const [cardImg, qrImg] = await Promise.all([
-    loadImage(tarotImage(tarot.slug)),
+  const cardIdxs = pickTarotIdx(data.archetype, TAROT_CARDS.length);
+  const cards = cardIdxs.map((i) => TAROT_CARDS[i]);
+  const [cardImgs, qrImg] = await Promise.all([
+    Promise.all(cards.map((c) => loadImage(tarotImage(c.slug)))),
     loadImage(qrDataUrl),
   ]);
 
@@ -120,149 +135,153 @@ async function renderPoster(
   // ---- 顶部档案头 ----
   ctx.fillStyle = TEXT_MUTED;
   ctx.font = `18px ${MONO}`;
-  const fileNo = `No. ${data.fileNo}`;
-  drawSpacedText(ctx, fileNo, POSTER_W / 2, 100, 3);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  drawSpacedText(ctx, `No. ${data.fileNo}`, POSTER_W / 2, 100, 3);
 
-  // ---- 罗盘底纹（简化圆环） ----
-  ctx.save();
-  ctx.translate(POSTER_W / 2, 430);
+  // ===== 主页标题区 =====
+  ctx.fillStyle = TEXT_WARM;
+  ctx.font = `bold 56px ${SERIF}`;
+  ctx.textAlign = "center";
+  ctx.fillText("默契研究所", POSTER_W / 2, 180);
+
+  ctx.fillStyle = TEXT_MUTED;
+  ctx.font = `18px ${MONO}`;
+  drawSpacedText(ctx, "RELATIONSHIP LAB", POSTER_W / 2, 222, 6);
+
+  // 装饰线 + 菱形
   ctx.strokeStyle = ACCENT;
-  ctx.globalAlpha = 0.16;
-  for (const r of [240, 218, 150]) {
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.6;
+  const lineY = 252;
+  ctx.beginPath();
+  ctx.moveTo(180, lineY);
+  ctx.lineTo(POSTER_W / 2 - 16, lineY);
+  ctx.moveTo(POSTER_W / 2 + 16, lineY);
+  ctx.lineTo(POSTER_W - 180, lineY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(POSTER_W / 2, lineY - 7);
+  ctx.lineTo(POSTER_W / 2 + 7, lineY);
+  ctx.lineTo(POSTER_W / 2, lineY + 7);
+  ctx.lineTo(POSTER_W / 2 - 7, lineY);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // ===== 钩子话术（与主页完全一致） =====
+  ctx.fillStyle = TEXT_WARM;
+  ctx.font = `bold 32px ${SERIF}`;
+  ctx.textAlign = "center";
+  const hookY = 308;
+  ctx.fillText("你们之间，", POSTER_W / 2, hookY);
+  ctx.fillText("有没有一种问题，", POSTER_W / 2, hookY + 46);
+  ctx.fillText("总是在重复发生？", POSTER_W / 2, hookY + 92);
+
+  // 副钩子（次行小字）
+  ctx.fillStyle = TEXT_MUTED;
+  ctx.font = `20px ${SERIF}`;
+  ctx.fillText("也许问题不是谁对谁错——", POSTER_W / 2, hookY + 148);
+  ctx.fillText("只是你们理解「在乎」的方式不一样。", POSTER_W / 2, hookY + 180);
+
+  // ===== 罗盘底纹 + 塔罗牌阵（扇形悬浮） =====
+  ctx.save();
+  ctx.translate(POSTER_W / 2, 720);
+  ctx.strokeStyle = ACCENT;
+  ctx.globalAlpha = 0.14;
+  for (const r of [240, 220, 150]) {
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.lineWidth = r === 240 ? 1.6 : 0.8;
+    ctx.lineWidth = r === 240 ? 1.4 : 0.7;
     ctx.stroke();
   }
   for (let i = 0; i < 72; i++) {
     const a = (i * 5 * Math.PI) / 180;
-    const r1 = i % 6 === 0 ? 200 : 208;
+    const r1 = i % 6 === 0 ? 208 : 216;
     ctx.beginPath();
     ctx.moveTo(r1 * Math.sin(a), -r1 * Math.cos(a));
-    ctx.lineTo(218 * Math.sin(a), -218 * Math.cos(a));
-    ctx.lineWidth = i % 6 === 0 ? 1.2 : 0.5;
+    ctx.lineTo(226 * Math.sin(a), -226 * Math.cos(a));
+    ctx.lineWidth = i % 6 === 0 ? 1 : 0.4;
     ctx.stroke();
   }
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // ---- 牌面 ----
-  const cardW = 330;
-  const cardH = (cardW / cardImg.width) * cardImg.height;
-  const cardX = (POSTER_W - cardW) / 2;
-  const cardY = 240;
-  ctx.save();
-  ctx.shadowColor = "rgba(201, 169, 110, 0.35)";
-  ctx.shadowBlur = 40;
-  ctx.drawImage(cardImg, cardX, cardY, cardW, cardH);
-  ctx.restore();
-  ctx.strokeStyle = ACCENT;
-  ctx.lineWidth = 2.5;
-  ctx.strokeRect(cardX - 8, cardY - 8, cardW + 16, cardH + 16);
+  // 塔罗牌（扇形布局，与主页一致）
+  const cardW = 200;
+  const cardH = (cardW / cardImgs[0].width) * cardImgs[0].height;
+  const positions: Array<{ x: number; y: number; rot: number }> = [
+    { x: POSTER_W / 2 - 200, y: 820, rot: -9 },
+    { x: POSTER_W / 2, y: 760, rot: 0 },
+    { x: POSTER_W / 2 + 200, y: 820, rot: 9 },
+  ];
 
-  let y = cardY + cardH + 62;
+  cardImgs.forEach((img, i) => {
+    const p = positions[i];
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate((p.rot * Math.PI) / 180);
+    // 金边
+    const padX = 8;
+    const padY = 6;
+    ctx.fillStyle = "#9a7b40";
+    ctx.fillRect(-cardW / 2 - padX, -cardH / 2 - padY, cardW + padX * 2, cardH + padY * 2);
+    ctx.drawImage(img, -cardW / 2, -cardH / 2, cardW, cardH);
+    // 内描边
+    ctx.strokeStyle = "rgba(248, 241, 226, 0.65)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-cardW / 2 - padX + 2, -cardH / 2 - padY + 2, cardW + padX * 2 - 4, cardH + padY * 2 - 4);
+    ctx.restore();
+  });
 
-  // ---- 牌名 ----
-  ctx.fillStyle = ACCENT;
-  ctx.font = `40px ${SERIF}`;
+  // 塔罗牌下文字
+  let y = 1080;
+  ctx.fillStyle = TEXT_MUTED;
+  ctx.font = `20px ${MONO}`;
   ctx.textAlign = "center";
-  ctx.fillText(`「${tarot.cardTitle}」`, POSTER_W / 2, y);
-  y += 36;
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `17px ${MONO}`;
-  drawSpacedText(ctx, tarot.cardTitleEn.toUpperCase(), POSTER_W / 2, y, 2);
-  y += 40;
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `italic 20px ${SERIF}`;
-  ctx.fillText(tarot.motto, POSTER_W / 2, y);
-  y += 48;
-
-  // ---- 分隔线（菱形） ----
-  ctx.strokeStyle = ACCENT;
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.6;
-  ctx.beginPath();
-  ctx.moveTo(180, y);
-  ctx.lineTo(POSTER_W / 2 - 24, y);
-  ctx.moveTo(POSTER_W / 2 + 24, y);
-  ctx.lineTo(POSTER_W - 180, y);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(POSTER_W / 2, y - 8);
-  ctx.lineTo(POSTER_W / 2 + 8, y);
-  ctx.lineTo(POSTER_W / 2, y + 8);
-  ctx.lineTo(POSTER_W / 2 - 8, y);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-  y += 48;
-
-  // ---- 答题人 ----
+  drawSpacedText(ctx, "ELEVEN MIRRORS · 十一面镜像", POSTER_W / 2, y, 3);
+  y += 32;
   ctx.fillStyle = TEXT_WARM;
-  ctx.font = `30px ${SERIF}`;
-  ctx.fillText(data.nickname, POSTER_W / 2, y);
-  y += 42;
-  ctx.fillStyle = ACCENT;
-  ctx.font = `26px ${SERIF}`;
-  ctx.fillText(`「${data.archetype}」`, POSTER_W / 2, y);
-  y += 40;
+  ctx.font = `bold 24px ${SERIF}`;
+  ctx.fillText("总有一面，是你。", POSTER_W / 2, y);
+  y += 56;
 
-  // 标签
-  if (data.tags.length > 0) {
-    ctx.font = `17px ${SERIF}`;
-    const tags = data.tags.slice(0, 4);
-    const pillPads = 22;
-    const widths = tags.map((t) => ctx.measureText(t).width + pillPads * 2);
-    const gap = 14;
-    let tx = (POSTER_W - (widths.reduce((a, b) => a + b, 0) + gap * (tags.length - 1))) / 2;
-    tags.forEach((t, i) => {
-      ctx.strokeStyle = ACCENT_DIM;
-      ctx.lineWidth = 1;
-      ctx.globalAlpha = 0.8;
-      const h = 34;
-      const r = h / 2;
-      ctx.beginPath();
-      ctx.roundRect(tx, y - h / 2, widths[i], h, r);
-      ctx.stroke();
-      ctx.fillStyle = TEXT_MUTED;
-      ctx.fillText(t, tx + widths[i] / 2, y + 1);
-      ctx.globalAlpha = 1;
-      tx += widths[i] + gap;
-    });
-    y += 56;
-  }
-
-  // ---- 邀请话术 ----
-  const lines = invitationLines(data.nickname, data.archetype);
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `20px ${SERIF}`;
-  ctx.fillText(lines[1], POSTER_W / 2, y);
-  y += 36;
+  // ===== 邀请话术 =====
   ctx.fillStyle = TEXT_WARM;
-  ctx.font = `bold 27px ${SERIF}`;
-  ctx.fillText(lines[2], POSTER_W / 2, y);
-  y += 50;
+  ctx.font = `bold 26px ${SERIF}`;
+  ctx.textAlign = "center";
+  ctx.fillText("看 TA 的关系牌——", POSTER_W / 2, y);
+  y += 40;
+  ctx.fillText("你的，会是哪一张？", POSTER_W / 2, y);
+  y += 56;
 
-  // ---- 二维码 ----
-  const qrSize = 190;
-  const qrX = (POSTER_W - qrSize) / 2;
+  // ===== 二维码（左文右码） =====
+  const qrSize = 150;
+  const qrX = POSTER_W / 2 + 30;
+  const qrBlockY = y;
   ctx.fillStyle = "#f5ede0";
-  ctx.fillRect(qrX - 12, y - 12, qrSize + 24, qrSize + 24);
-  ctx.drawImage(qrImg, qrX, y, qrSize, qrSize);
-  y += qrSize + 44;
+  ctx.fillRect(qrX, qrBlockY, qrSize, qrSize);
+  ctx.drawImage(qrImg, qrX, qrBlockY, qrSize, qrSize);
 
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `18px ${SERIF}`;
-  ctx.fillText("长按识别二维码，看看你在关系里的样子", POSTER_W / 2, y);
-  y += 44;
+  ctx.textAlign = "left";
+  ctx.fillStyle = TEXT_WARM;
+  ctx.font = `bold 22px ${SERIF}`;
+  ctx.fillText("长按二维码，", 130, qrBlockY + 38);
+  ctx.fillText("看看你的关系牌", 130, qrBlockY + 70);
 
-  // ---- 底部品牌 ----
+  ctx.fillStyle = ACCENT;
+  ctx.font = `18px ${MONO}`;
+  ctx.fillText("· 36 题 · 约 3 分钟", 130, qrBlockY + 110);
+  ctx.fillText("· 无需注册 · TA 看不到答案", 130, qrBlockY + 138);
+
+  y = qrBlockY + qrSize + 36;
+
+  // 品牌签名
   ctx.fillStyle = ACCENT;
   ctx.font = `20px ${SERIF}`;
+  ctx.textAlign = "center";
   drawSpacedText(ctx, "默契研究所", POSTER_W / 2, y, 8);
 }
-
-// ---------- 页面 ----------
 
 export default function SharePosterPage() {
   const params = useParams<{ sessionId: string }>();
@@ -281,12 +300,12 @@ export default function SharePosterPage() {
   useEffect(() => {
     async function prepare() {
       try {
-        // 1. 取测评结果（复用 complete 接口，免费字段即可）
+        // 1. 取测评结果（只为拿到 archetype — 用于随机塔罗种子，不展示）
         const res = await fetch(`/api/assessments/${sessionId}/complete`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "结果不存在");
 
-        // 2. 创建/复用普通分享码（不进入双人模式）
+        // 2. 创建/复用普通分享码
         const shareRes = await fetch("/api/shares", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -298,7 +317,7 @@ export default function SharePosterPage() {
         const url = `${window.location.origin}${shareJson.url}`;
         setShareUrl(url);
 
-        // 3. 生成二维码（深色模块用 accent 深色，兼容纸底）
+        // 3. 生成二维码
         const qr = await QRCode.toDataURL(url, {
           width: 512,
           margin: 1,
@@ -307,10 +326,7 @@ export default function SharePosterPage() {
         setQrDataUrl(qr);
 
         setData({
-          nickname: json.nickname,
           archetype: json.archetype,
-          tags: json.tags ?? [],
-          oneLiner: json.narrative?.oneLiner ?? "",
           fileNo: sessionId.slice(0, 6).toUpperCase(),
         });
       } catch (err: any) {
@@ -328,7 +344,7 @@ export default function SharePosterPage() {
     try {
       await renderPoster(canvasRef.current, data, qrDataUrl);
       const link = document.createElement("a");
-      link.download = `默契研究所-${data.nickname}的关系牌.png`;
+      link.download = `默契研究所-关系牌.png`;
       link.href = canvasRef.current.toDataURL("image/png");
       link.click();
     } catch (err: any) {
@@ -342,6 +358,18 @@ export default function SharePosterPage() {
     await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  /** 复制微信分享文案（唤起微信 / 复制文案提示用户手贴） */
+  const handleWechatShare = async () => {
+    const text = `我们之间，是不是有什么总是重复？\n来默契研究所，看看你的关系牌是什么。\n${shareUrl}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* fallback */
+    }
   };
 
   if (loading) {
@@ -362,93 +390,153 @@ export default function SharePosterPage() {
     );
   }
 
-  const tarot = tarotFor(data.archetype);
-  const lines = invitationLines(data.nickname, data.archetype);
+  const lines = invitationLines();
+  const cardIdxs = pickTarotIdx(data.archetype, TAROT_CARDS.length);
+  const spread = cardIdxs.map((i) => TAROT_CARDS[i]);
 
   return (
-    <main className="night-sky flex-1 px-5 py-6 max-w-sm mx-auto w-full">
-      <StarMap opacity={0.12} seed={2} />
+    <main className="night-sky flex-1 px-5 py-6 sm:py-8 max-w-md mx-auto w-full safe-bottom relative overflow-hidden">
+      <StarMap opacity={0.12} seed={3} />
+
       <div className="relative">
-        {/* ===== 海报（单屏紧凑版） ===== */}
-        <div
-          className="relative border border-[var(--accent-dim)] rounded-sm px-5 pt-5 pb-4 mb-4 fade-in-up"
-          style={{ background: "linear-gradient(180deg,#16130f,#100e0a)" }}
-        >
-          {/* 罗盘 + 牌面（缩小） */}
-          <div className="relative flex items-center justify-center mb-2">
-            <div className="absolute pointer-events-none">
-              <CompassDial size={170} opacity={0.16} />
-            </div>
-            <TarotCard
-              image={tarotImage(tarot.slug)}
-              cardTitle={tarot.cardTitle}
-              cardTitleEn={tarot.cardTitleEn}
-              width={104}
-              elevated
-            />
+        {/* ===== 顶部品牌头（与主页一致） ===== */}
+        <div className="text-center mb-5 fade-in-up">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="archive-label">Relationship Lab</span>
+            <span className="w-8 h-px bg-[var(--border-dim)]" />
+            <span className="file-number">No. {data.fileNo}</span>
           </div>
-          <p className="text-center text-[11px] text-[var(--text-muted)] italic display-serif mb-3">
-            「{tarot.motto}」
+          <h1 className="display-serif text-2xl sm:text-3xl font-bold text-[var(--text-warm)] leading-tight">
+            默契研究所
+          </h1>
+        </div>
+
+        {/* ===== 海报卡（用户长按可保存到相册，微信会自动识别其中二维码） ===== */}
+        <div
+          id="share-poster"
+          className="relative border border-[var(--accent-dim)] rounded-sm px-5 pt-5 pb-5 mb-4 fade-in-up cursor-pointer"
+          style={{
+            background: "linear-gradient(180deg,#16130f,#100e0a)",
+            animationDelay: "0.1s",
+            WebkitUserSelect: "none",
+            userSelect: "none",
+          }}
+          title="长按图片可保存到相册，或长按识别图中二维码"
+        >
+          {/* 顶部小档案号 */}
+          <div className="text-center mb-3">
+            <span className="file-number">FILE · {data.fileNo}</span>
+          </div>
+
+          {/* 钩子话术（主页风） */}
+          <div className="text-center space-y-2 mb-4">
+            <p className="display-serif text-[15px] sm:text-base text-[var(--text-warm)] font-medium leading-relaxed">
+              你们之间，有没有一种问题，
+              <br />
+              总是在重复发生？
+            </p>
+            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+              也许问题不是谁对谁错——
+              <br />
+              只是你们理解「在乎」的方式不一样。
+            </p>
+          </div>
+
+          <OrnamentDivider className="mb-4" />
+
+          {/* 罗盘 + 塔罗牌阵（扇形悬浮，与首页同款） */}
+          <div className="relative flex items-center justify-center h-[180px] mb-3">
+            <div className="absolute pointer-events-none">
+              <CompassDial size={180} opacity={0.14} />
+            </div>
+            <div className="relative flex items-end justify-center">
+              {spread.map((card, i) => {
+                const rotate = i === 0 ? "-rotate-[9deg]" : i === 2 ? "rotate-[9deg]" : "rotate-0";
+                const offset = i === 1 ? "-translate-y-3 z-10" : "z-0";
+                const side = i === 0 ? "-mr-3 sm:-mr-4" : i === 2 ? "-ml-3 sm:-ml-4" : "";
+                return (
+                  <span key={card.slug} className={`${rotate} ${offset} ${side}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={tarotImage(card.slug)}
+                      alt={`塔罗牌：${card.cardTitle}`}
+                      className="tarot-mini w-[68px] sm:w-[76px]"
+                      loading="eager"
+                    />
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <p className="text-center text-[10px] text-[var(--text-muted)] tracking-widest mb-4">
+            十一面镜像，总有一面是你
           </p>
 
-          <OrnamentDivider className="mb-3" />
-
-          {/* 答题人 + 原型 + 标签（紧凑） */}
-          <div className="text-center mb-2.5">
-            <p className="display-serif text-base text-[var(--text-warm)] leading-snug">
-              {data.nickname}
-              <span className="text-[var(--accent)]">「{data.archetype}」</span>
-            </p>
-            {data.tags.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-1 mt-2">
-                {data.tags.slice(0, 3).map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2 py-0.5 text-[10px] text-[var(--text-muted)] border border-[var(--border-dim)] rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          <OrnamentDivider className="mb-4" />
 
           {/* 邀请话术 */}
-          <div className="text-center mb-3">
-            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">{lines[1]}</p>
-            <p className="display-serif text-sm text-[var(--text-warm)] mt-1 font-medium">
-              {lines[2]}
-            </p>
-          </div>
+          <p className="display-serif text-sm sm:text-base text-[var(--text-warm)] text-center font-medium leading-snug mb-4 whitespace-pre-line">
+            {lines.tag}
+          </p>
 
-          {/* 二维码 */}
+          <OrnamentDivider className="mb-4" />
+
+          {/* 小二维码 + 文案（左文右码，引导微信识别） */}
           {qrDataUrl && (
-            <div className="flex flex-col items-center">
-              <div className="bg-[#f5ede0] p-2 rounded-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrDataUrl} alt="分享二维码" className="w-24 h-24 block" />
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div className="flex-1 min-w-0">
+                <p className="display-serif text-sm text-[var(--text-warm)] font-medium leading-snug">
+                  长按二维码，
+                  <br />
+                  看看你的关系牌
+                </p>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                  · 36 题 · 约 3 分钟
+                  <br />
+                  · 无需注册 · TA 看不到答案
+                </p>
               </div>
-              <p className="text-[10px] text-[var(--text-muted)] mt-2">
-                长按识别二维码，看看你在关系里的样子
-              </p>
+              <div className="bg-[#f5ede0] p-1.5 rounded-sm flex-shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrDataUrl}
+                  alt="分享二维码"
+                  className="w-[88px] h-[88px] block"
+                />
+              </div>
             </div>
           )}
         </div>
 
-        {/* ===== 操作区（紧凑） ===== */}
-        <div className="space-y-2 fade-in-up" style={{ animationDelay: "0.1s" }}>
+        {/* ===== 操作区 ===== */}
+        <div className="space-y-2 fade-in-up" style={{ animationDelay: "0.2s" }}>
           <button onClick={handleDownload} disabled={downloading} className="btn-primary w-full">
-            {downloading ? "正在生成..." : "保存海报图片 →"}
+            {downloading ? "正在生成..." : "保存海报图片（长按图片也可保存）→"}
           </button>
           <div className="flex gap-2">
             <button onClick={handleCopy} className="btn-ghost flex-1 text-sm">
-              {copied ? "已复制链接" : "复制分享链接"}
+              {copied ? "✓ 已复制链接" : "复制分享链接"}
             </button>
-            <Link href={`/result/${sessionId}`} className="btn-ghost flex-1 text-center text-sm">
-              返回结果页
+            <button onClick={handleWechatShare} className="btn-ghost flex-1 text-sm">
+              {copied ? "✓ 已复制文案" : "复制给微信好友"}
+            </button>
+          </div>
+          <div className="text-center">
+            <Link
+              href={`/result/${sessionId}`}
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+            >
+              ← 回到我的结果
             </Link>
           </div>
         </div>
+
+        {/* 操作提示（移动端长按提示） */}
+        <p className="text-[10px] text-[var(--text-muted)] text-center mt-4 leading-relaxed">
+          💡 手机端可长按上方海报图片，
+          <br />
+          保存到相册或转发给朋友（微信会自动识别二维码）
+        </p>
 
         {/* 隐藏画布：用于导出 PNG */}
         <canvas ref={canvasRef} width={POSTER_W} height={POSTER_H} className="hidden" />
