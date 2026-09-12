@@ -13,6 +13,12 @@
   --accent-dim: #a08850;
   --border-dim: #3a3528;
   --danger: #c97a5a;
+  /* 新增高亮配色 — 用于关键 CTA / 重要分数 / 引导操作 */
+  --highlight: #f5b942;             /* 亮琥珀黄：用于关键 CTA、引导按钮 */
+  --highlight-bg: rgba(245, 185, 66, 0.12);  /* 黄底透明：用于卡片背景高亮 */
+  --highlight-border: rgba(245, 185, 66, 0.45);  /* 黄边透明：用于卡片边框 */
+  --cta: #ef4444;                   /* 鲜红：用于双人报告支付 CTA（最高紧迫感） */
+  --cta-hover: #dc2626;             /* 红色 hover 加深 */
 }
 
 @theme inline {
