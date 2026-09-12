@@ -7,20 +7,21 @@ import QRCode from "qrcode";
 import { CompassDial, OrnamentDivider, StarMap } from "@/app/components/decor";
 import HomeFooter from "@/app/components/HomeFooter";
 import { RadarChart } from "@/app/components/RadarChart";
-import { PERSONALITY_DIMENSION_META, type PersonalityType } from "@/lib/personality/types";
+import { type PersonalityType } from "@/lib/personality/types";
 import { PersonalityCard } from "@/lib/personality/cards/PersonalityCard";
 import {
-  MOON_PHASE_MAP,
-  TOTEM_MAP,
   TOTEM_ELEMENT_KEY,
   ELEMENT_PALETTE,
   TOTEM_MOON_PHASE,
+  MOON_PHASE_MAP,
+  TOTEM_MAP,
 } from "@/lib/personality/cards/totem";
 
 // =====================================================
 // 人格测试分享海报页 /share/personality/[code]
-// 与 /share/[sessionId] 同款紧凑布局风格，但不出现塔罗牌，
-// 改用 6 维雷达小图。文案好奇心驱动，不攀比、不点具体人（隐私）。
+// —— 重设计：借鉴主页布局（标题 + 钩子话术 + 塔罗图案）
+// —— 二维码缩小至 88px，左文案右码，引导微信识别 / 长按保存
+// —— 海报本身可长按保存到相册，微信会自动识别图中二维码
 // =====================================================
 
 const POSTER_W = 900;
@@ -49,12 +50,13 @@ interface PersonalityShareData {
   };
 }
 
-function invitationLines(primaryCn: string, tagline: string): string[] {
-  return [
-    "每个人在关系里的样子都不一样，",
-    "每个人在关系之外的样子也不一样——",
-    `你是「${primaryCn}」吗？`,
-  ];
+/** 主钩子话术 — 借鉴主页那种"扎心钩子"，让收到的人有冲动扫码 */
+function invitationLines(primaryCn: string): { hook: string; sub: string; tag: string } {
+  return {
+    hook: "你们之间，有没有一种问题，总是在重复发生？",
+    sub: "也许问题不是谁对谁错。",
+    tag: `我是「${primaryCn}」——你呢？`,
+  };
 }
 
 function drawSpacedText(
@@ -91,10 +93,7 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/**
- * 在 Canvas 上手绘 PersonalityCard（简化版 — 对应网页 v5 渐变卡片）
- * 包含：径向渐变底 + 左右圆装饰 + 月相 + 图腾 + 名字 + tagline + 意象副标
- */
+/** 简化版 PersonalityCard（Canvas 手绘：渐变 + 图腾 + 名字 + tagline） */
 function drawPersonalityCardOnCanvas(
   ctx: CanvasRenderingContext2D,
   type: PersonalityType,
@@ -104,23 +103,20 @@ function drawPersonalityCardOnCanvas(
   cardH: number
 ) {
   const palette = ELEMENT_PALETTE[TOTEM_ELEMENT_KEY[type]];
-  const Moon = MOON_PHASE_MAP[type];
-  const Totem = TOTEM_MAP[type];
   const phaseIndex = TOTEM_MOON_PHASE[type].phaseIndex;
 
   const left = cx - cardW / 2;
   const top = topY;
   const right = left + cardW;
   const bottom = top + cardH;
-  const radius = 24;
+  const radius = 22;
 
-  // 卡片径向渐变（中心 = bg，边缘 = bgEdge）
+  // 卡片径向渐变
   const grad = ctx.createRadialGradient(cx, top + cardH / 2, 40, cx, top + cardH / 2, cardW * 0.7);
   grad.addColorStop(0, palette.bg);
   grad.addColorStop(0.7, palette.bgEdge);
   grad.addColorStop(1, palette.bgEdge);
 
-  // 圆角矩形
   ctx.beginPath();
   if (typeof (ctx as any).roundRect === "function") {
     (ctx as any).roundRect(left, top, cardW, cardH, radius);
@@ -130,8 +126,7 @@ function drawPersonalityCardOnCanvas(
   ctx.fillStyle = grad;
   ctx.fill();
 
-  // 卡片描边
-  ctx.strokeStyle = palette.accent + "40"; // 25% alpha
+  ctx.strokeStyle = palette.accent + "55";
   ctx.lineWidth = 1;
   ctx.stroke();
 
@@ -159,28 +154,23 @@ function drawPersonalityCardOnCanvas(
   ctx.fillRect(right - 50, top - 170, 230, 230);
   ctx.restore();
 
-  // 中心文字 + 图腾区
   const SERIF = `"Noto Serif SC", "Songti SC", "SimSun", Georgia, serif`;
   const MONO = `"Courier New", monospace`;
 
-  // 月相序号（左上）
+  // 月相序号
   ctx.fillStyle = palette.accent;
   ctx.font = `18px ${MONO}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  const phaseLabel = `第${phaseIndex}序`;
-  ctx.fillText(phaseLabel, left + 24, top + 24);
+  ctx.fillText(`第${phaseIndex}序`, left + 24, top + 24);
 
-  // 月相小图（右上，月相组件用 SVG 路径渲染这里用 SVGImage 不可行，简化为月相文字符号）
-  // 改用 svg → img 渲染不可靠，改用文字 glyph + 简易弧线
+  // 月相 glyph
   ctx.font = `28px ${MONO}`;
   ctx.textAlign = "right";
   const moonGlyph = ["●","◐","◑","◒","◓","◔","◐","◑","◒","◓","◔","○","◐","◑","●"][phaseIndex - 1] || "●";
   ctx.fillText(moonGlyph, right - 24, top + 20);
 
-  // 月相 SVG 渲染（如果 MOON_PHASE_MAP 支持转 SVG 字符串则跳过；这里用简化几何）
-  // 图腾中央（用 SVG inline → 临时 img 不便，改用纯几何简化图形）
-  // 为了避免重复造轮子，用 totems 的关键元素：中心 + 双圈 + 内部图形
+  // 简化图腾（双圈 + 十字 + 中心点）
   drawSimpleTotemOnCanvas(ctx, type, cx, top + 110, palette.accent);
 
   // 五圆点
@@ -188,44 +178,40 @@ function drawPersonalityCardOnCanvas(
 
   // 名字
   ctx.fillStyle = palette.ink;
-  ctx.font = `bold 36px ${SERIF}`;
+  ctx.font = `bold 38px ${SERIF}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const cnName = personalityCnName(type);
-  ctx.fillText(cnName, cx, top + 240);
+  ctx.fillText(personalityCnName(type), cx, top + 250);
 
-  // tagline 前缀图标 + 文字（截断 18 字）
+  // tagline
   ctx.fillStyle = palette.accent;
   ctx.font = `16px ${MONO}`;
   ctx.textAlign = "left";
-  ctx.fillText("✦", left + 36, top + 278);
+  ctx.fillText("✦", left + 36, top + 300);
   ctx.fillStyle = palette.ink;
   ctx.font = `18px ${SERIF}`;
   const tagline = personalityTagline(type).slice(0, 22);
-  ctx.fillText(tagline, left + 60, top + 280);
+  ctx.fillText(tagline, left + 60, top + 302);
 
-  // 底部意象副标（浅边框）
-  const descY = bottom - 44;
+  // 底部意象副标
+  const descY = bottom - 38;
   ctx.strokeStyle = palette.accent + "55";
   ctx.lineWidth = 1;
   ctx.beginPath();
   if (typeof (ctx as any).roundRect === "function") {
-    (ctx as any).roundRect(left + 28, descY, cardW - 56, 28, 6);
+    (ctx as any).roundRect(left + 28, descY, cardW - 56, 26, 6);
   } else {
-    ctx.rect(left + 28, descY, cardW - 56, 28);
+    ctx.rect(left + 28, descY, cardW - 56, 26);
   }
   ctx.stroke();
   ctx.fillStyle = "rgba(255,255,255,0.18)";
   ctx.fill();
-  // 副标文字
   ctx.fillStyle = palette.accent;
   ctx.font = `16px ${MONO}`;
   ctx.textAlign = "center";
-  const desc = personalityDescriptor(type);
-  ctx.fillText(desc, cx, descY + 18);
+  ctx.fillText(personalityDescriptor(type), cx, descY + 17);
 }
 
-/** 简化的图腾（canvas 可绘的几何版本，避免组件依赖） */
 function drawSimpleTotemOnCanvas(
   ctx: CanvasRenderingContext2D,
   type: PersonalityType,
@@ -240,7 +226,6 @@ function drawSimpleTotemOnCanvas(
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  // 简化版：外双圈 + 十字 + 中心点（大多数原型都套用这个底盘）
   ctx.beginPath();
   ctx.arc(cx, cy, 50, 0, Math.PI * 2);
   ctx.stroke();
@@ -255,7 +240,6 @@ function drawSimpleTotemOnCanvas(
   ctx.arc(cx, cy, 4, 0, Math.PI * 2);
   ctx.fill();
 
-  // 简易「原型名」字标
   ctx.fillStyle = color;
   ctx.font = `bold 14px "Noto Serif SC", serif`;
   ctx.textAlign = "center";
@@ -265,7 +249,6 @@ function drawSimpleTotemOnCanvas(
   ctx.restore();
 }
 
-/** 五圆点序列 */
 function drawFiveDotsOnCanvas(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -289,7 +272,6 @@ function drawFiveDotsOnCanvas(
   ctx.restore();
 }
 
-/** 性格中文名（与 PersonalityCard 内一致） */
 function personalityCnName(type: PersonalityType): string {
   const map: Record<string, string> = {
     strategist: "战略家", explorer: "探索者", leader: "掌控者", observer: "观察者",
@@ -378,12 +360,179 @@ function personalityDescriptor(type: PersonalityType): string {
 }
 
 /**
- * 在 Canvas 上手绘 6 维雷达（不依赖 React 组件）
- * - 600×600 居中绘制
- * - 6 轴等角分布（从正上方顺时针）
- * - 多边形 + 数据层 + 数据点
- * - 标签环绕
+ * Canvas 海报渲染（导出 PNG 用）—— 主页风：标题 + 钩子 + 雷达 + 人格卡 + 小二维码
  */
+async function renderPoster(
+  canvas: HTMLCanvasElement,
+  data: PersonalityShareData,
+  qrDataUrl: string
+): Promise<void> {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas unavailable");
+
+  const qrImg = await loadImage(qrDataUrl);
+
+  const ACCENT = "#c9a96e";
+  const ACCENT_DIM = "#a08850";
+  const TEXT_WARM = "#e8e0d4";
+  const TEXT_MUTED = "#9a9080";
+  const SERIF = `"Noto Serif SC", "Songti SC", "SimSun", Georgia, serif`;
+  const MONO = `"Courier New", monospace`;
+
+  // ---- 背景：夜空渐变 + 星点 ----
+  const grad = ctx.createLinearGradient(0, 0, 0, POSTER_H);
+  grad.addColorStop(0, "#16130f");
+  grad.addColorStop(1, "#100e0a");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, POSTER_W, POSTER_H);
+
+  const rand = seededRandom(17);
+  ctx.fillStyle = ACCENT;
+  for (let i = 0; i < 90; i++) {
+    const x = rand() * POSTER_W;
+    const y = rand() * POSTER_H;
+    ctx.globalAlpha = 0.15 + rand() * 0.4;
+    ctx.beginPath();
+    ctx.arc(x, y, rand() * 1.6 + 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // 外框双线
+  ctx.strokeStyle = ACCENT_DIM;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(28, 28, POSTER_W - 56, POSTER_H - 56);
+  ctx.lineWidth = 0.8;
+  ctx.globalAlpha = 0.5;
+  ctx.strokeRect(40, 40, POSTER_W - 80, POSTER_H - 80);
+  ctx.globalAlpha = 1;
+
+  // 顶部档案头
+  ctx.fillStyle = TEXT_MUTED;
+  ctx.font = `18px ${MONO}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  drawSpacedText(ctx, `No. ${data.sharer.fileNo}`, POSTER_W / 2, 100, 3);
+
+  // ===== 主页标题区（顶部 brand block） =====
+  ctx.fillStyle = TEXT_WARM;
+  ctx.font = `bold 56px ${SERIF}`;
+  ctx.textAlign = "center";
+  ctx.fillText("默契研究所", POSTER_W / 2, 180);
+
+  ctx.fillStyle = TEXT_MUTED;
+  ctx.font = `18px ${MONO}`;
+  ctx.textAlign = "center";
+  drawSpacedText(ctx, "RELATIONSHIP LAB", POSTER_W / 2, 222, 6);
+
+  // 装饰线
+  ctx.strokeStyle = ACCENT;
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.6;
+  const lineY = 252;
+  ctx.beginPath();
+  ctx.moveTo(180, lineY);
+  ctx.lineTo(POSTER_W / 2 - 16, lineY);
+  ctx.moveTo(POSTER_W / 2 + 16, lineY);
+  ctx.lineTo(POSTER_W - 180, lineY);
+  ctx.stroke();
+  // 中间菱形
+  ctx.beginPath();
+  ctx.moveTo(POSTER_W / 2, lineY - 7);
+  ctx.lineTo(POSTER_W / 2 + 7, lineY);
+  ctx.lineTo(POSTER_W / 2, lineY + 7);
+  ctx.lineTo(POSTER_W / 2 - 7, lineY);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // ===== 钩子话术（主页那种扎心钩子） =====
+  ctx.fillStyle = TEXT_WARM;
+  ctx.font = `bold 32px ${SERIF}`;
+  ctx.textAlign = "center";
+  const hookY = 308;
+  ctx.fillText("你们之间，", POSTER_W / 2, hookY);
+  ctx.fillText("有没有一种问题，", POSTER_W / 2, hookY + 46);
+  ctx.fillText("总是在重复发生？", POSTER_W / 2, hookY + 92);
+
+  // 副钩子（次行小字）
+  ctx.fillStyle = TEXT_MUTED;
+  ctx.font = `20px ${SERIF}`;
+  ctx.fillText("也许问题不是谁对谁错——", POSTER_W / 2, hookY + 148);
+  ctx.fillText("只是你们理解「在乎」的方式不一样。", POSTER_W / 2, hookY + 180);
+
+  // ===== 罗盘底纹 + 雷达图 =====
+  ctx.save();
+  ctx.translate(POSTER_W / 2, 700);
+  ctx.strokeStyle = ACCENT;
+  ctx.globalAlpha = 0.14;
+  for (const r of [220, 200, 140]) {
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.lineWidth = r === 220 ? 1.4 : 0.7;
+    ctx.stroke();
+  }
+  for (let i = 0; i < 72; i++) {
+    const a = (i * 5 * Math.PI) / 180;
+    const r1 = i % 6 === 0 ? 188 : 196;
+    ctx.beginPath();
+    ctx.moveTo(r1 * Math.sin(a), -r1 * Math.cos(a));
+    ctx.lineTo(206 * Math.sin(a), -206 * Math.cos(a));
+    ctx.lineWidth = i % 6 === 0 ? 1 : 0.4;
+    ctx.stroke();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+
+  // 雷达小图（半径 150）
+  drawRadarOnCanvas(ctx, data.sharer.scores as any, POSTER_W / 2, 700, 150);
+
+  let y = 700 + 200 + 30;
+
+  // ===== PersonalityCard =====
+  if (data.sharer.primaryType) {
+    drawPersonalityCardOnCanvas(ctx, data.sharer.primaryType as PersonalityType, POSTER_W / 2, y, 320, 380);
+    y += 380 + 30;
+  }
+
+  // ===== 「我是 XXX —— 你呢？」 =====
+  ctx.fillStyle = TEXT_WARM;
+  ctx.font = `bold 28px ${SERIF}`;
+  ctx.textAlign = "center";
+  ctx.fillText(`我是「${data.sharer.primaryCn}」——你呢？`, POSTER_W / 2, y);
+  y += 56;
+
+  // ===== 小二维码 + 文案（左文右码布局） =====
+  const qrSize = 150;
+  const qrBlockY = y;
+  const qrX = POSTER_W / 2 + 30;
+
+  // 二维码白底
+  ctx.fillStyle = "#f5ede0";
+  ctx.fillRect(qrX, qrBlockY, qrSize, qrSize);
+  ctx.drawImage(qrImg, qrX, qrBlockY, qrSize, qrSize);
+
+  // 左侧文案
+  ctx.textAlign = "left";
+  ctx.fillStyle = TEXT_WARM;
+  ctx.font = `bold 22px ${SERIF}`;
+  ctx.fillText("长按二维码，", 130, qrBlockY + 38);
+  ctx.fillText("看看你在关系里的样子", 130, qrBlockY + 70);
+
+  ctx.fillStyle = ACCENT;
+  ctx.font = `18px ${MONO}`;
+  ctx.fillText("· 36 题 · 约 5 分钟", 130, qrBlockY + 110);
+  ctx.fillText("· 无需注册 · 基础结果免费", 130, qrBlockY + 138);
+
+  y = qrBlockY + qrSize + 40;
+
+  // 品牌签名
+  ctx.fillStyle = ACCENT;
+  ctx.font = `20px ${SERIF}`;
+  ctx.textAlign = "center";
+  drawSpacedText(ctx, "我到底什么性格", POSTER_W / 2, y, 8);
+}
+
 function drawRadarOnCanvas(
   ctx: CanvasRenderingContext2D,
   scores: Record<string, number>,
@@ -391,14 +540,11 @@ function drawRadarOnCanvas(
   cy: number,
   radius: number
 ) {
-  const dims = Object.keys(PERSONALITY_DIMENSION_META) as Array<
-    keyof typeof PERSONALITY_DIMENSION_META
-  >;
-  const labels = dims.map((k) => PERSONALITY_DIMENSION_META[k].cn);
-  // 从正上方顺时针偏移 -90°
-  const angleFor = (i: number) => -Math.PI / 2 + (Math.PI * 2 * i) / dims.length;
+  const DIMS_CN = ["社交", "理性", "规划", "风险", "掌控", "敏锐"];
+  const angleFor = (i: number) => -Math.PI / 2 + (Math.PI * 2 * i) / DIMS_CN.length;
+  const dims = Object.keys(scores);
 
-  // 背景网格圈
+  // 背景网格
   ctx.strokeStyle = "rgba(201, 169, 110, 0.3)";
   ctx.lineWidth = 0.8;
   for (const ratio of [0.33, 0.66, 1]) {
@@ -441,7 +587,6 @@ function drawRadarOnCanvas(
   ctx.lineWidth = 1.8;
   ctx.stroke();
 
-  // 数据点
   ctx.fillStyle = "#c9a96e";
   for (let i = 0; i < dims.length; i++) {
     const a = angleFor(i);
@@ -451,190 +596,17 @@ function drawRadarOnCanvas(
     ctx.fill();
   }
 
-  // 标签（中文 6 维）
+  // 标签
   ctx.fillStyle = "#e8e0d4";
-  ctx.font = `24px "Noto Serif SC", "Songti SC", "SimSun", serif`;
+  ctx.font = `18px "Noto Serif SC", serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (let i = 0; i < dims.length; i++) {
     const a = angleFor(i);
-    const lx = cx + Math.cos(a) * (radius + 38);
-    const ly = cy + Math.sin(a) * (radius + 38);
-    ctx.fillText(labels[i], lx, ly);
+    const lx = cx + Math.cos(a) * (radius + 32);
+    const ly = cy + Math.sin(a) * (radius + 32);
+    ctx.fillText(DIMS_CN[i], lx, ly);
   }
-}
-
-async function renderPoster(
-  canvas: HTMLCanvasElement,
-  data: PersonalityShareData,
-  qrDataUrl: string
-): Promise<void> {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas unavailable");
-
-  const qrImg = await loadImage(qrDataUrl);
-
-  const ACCENT = "#c9a96e";
-  const ACCENT_DIM = "#a08850";
-  const TEXT_WARM = "#e8e0d4";
-  const TEXT_MUTED = "#9a9080";
-  const SERIF = `"Noto Serif SC", "Songti SC", "SimSun", Georgia, serif`;
-  const MONO = `"Courier New", monospace`;
-
-  // 背景渐变
-  const grad = ctx.createLinearGradient(0, 0, 0, POSTER_H);
-  grad.addColorStop(0, "#16130f");
-  grad.addColorStop(1, "#100e0a");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, POSTER_W, POSTER_H);
-
-  const rand = seededRandom(17);
-  ctx.fillStyle = ACCENT;
-  for (let i = 0; i < 90; i++) {
-    const x = rand() * POSTER_W;
-    const y = rand() * POSTER_H;
-    ctx.globalAlpha = 0.15 + rand() * 0.4;
-    ctx.beginPath();
-    ctx.arc(x, y, rand() * 1.6 + 0.4, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  // 外框双线
-  ctx.strokeStyle = ACCENT_DIM;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(28, 28, POSTER_W - 56, POSTER_H - 56);
-  ctx.lineWidth = 0.8;
-  ctx.globalAlpha = 0.5;
-  ctx.strokeRect(40, 40, POSTER_W - 80, POSTER_H - 80);
-  ctx.globalAlpha = 1;
-
-  // 顶部档案头
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `18px ${MONO}`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  drawSpacedText(ctx, `No. ${data.sharer.fileNo}`, POSTER_W / 2, 100, 3);
-
-  // 罗盘底纹
-  ctx.save();
-  ctx.translate(POSTER_W / 2, 460);
-  ctx.strokeStyle = ACCENT;
-  ctx.globalAlpha = 0.16;
-  for (const r of [240, 218, 150]) {
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.lineWidth = r === 240 ? 1.6 : 0.8;
-    ctx.stroke();
-  }
-  for (let i = 0; i < 72; i++) {
-    const a = (i * 5 * Math.PI) / 180;
-    const r1 = i % 6 === 0 ? 200 : 208;
-    ctx.beginPath();
-    ctx.moveTo(r1 * Math.sin(a), -r1 * Math.cos(a));
-    ctx.lineTo(218 * Math.sin(a), -218 * Math.cos(a));
-    ctx.lineWidth = i % 6 === 0 ? 1.2 : 0.5;
-    ctx.stroke();
-  }
-  ctx.restore();
-  ctx.globalAlpha = 1;
-
-  // 雷达主图（半径 180）
-  drawRadarOnCanvas(
-    ctx,
-    data.sharer.scores as any,
-    POSTER_W / 2,
-    460,
-    180
-  );
-
-  let y = 460 + 240 + 60;
-
-  // 核心人格 + tagline
-  ctx.fillStyle = ACCENT;
-  ctx.font = `bold 44px ${SERIF}`;
-  ctx.textAlign = "center";
-  ctx.fillText(`「${data.sharer.primaryCn}」`, POSTER_W / 2, y);
-  y += 36;
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `18px ${MONO}`;
-  drawSpacedText(ctx, (data.sharer.primaryEn || "").toUpperCase(), POSTER_W / 2, y, 2);
-  y += 36;
-  ctx.fillStyle = TEXT_WARM;
-  ctx.font = `italic 22px ${SERIF}`;
-  // tagline 太长截断 24 字
-  const tag = (data.sharer.tagline || "").slice(0, 24);
-  ctx.fillText(`「${tag}」`, POSTER_W / 2, y);
-  y += 50;
-
-  // 匹配度（说明口径）
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `18px ${MONO}`;
-  drawSpacedText(
-    ctx,
-    `人格匹配度 · ${data.sharer.matchScore}%`,
-    POSTER_W / 2,
-    y,
-    3
-  );
-  y += 50;
-
-  // 分隔线
-  ctx.strokeStyle = ACCENT;
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.6;
-  ctx.beginPath();
-  ctx.moveTo(180, y);
-  ctx.lineTo(POSTER_W / 2 - 24, y);
-  ctx.moveTo(POSTER_W / 2 + 24, y);
-  ctx.lineTo(POSTER_W - 180, y);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(POSTER_W / 2, y - 8);
-  ctx.lineTo(POSTER_W / 2 + 8, y);
-  ctx.lineTo(POSTER_W / 2, y + 8);
-  ctx.lineTo(POSTER_W / 2 - 8, y);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-  y += 48;
-
-  // === 人格卡（canvas 手绘简化版，对应网页 v5 渐变卡片） ===
-  if (data.sharer.primaryType) {
-    drawPersonalityCardOnCanvas(ctx, data.sharer.primaryType as PersonalityType, POSTER_W / 2, y, 320, 380);
-    y += 380 + 30;
-  }
-
-  // 邀请话术（好奇心驱动）
-  const lines = invitationLines(data.sharer.primaryCn, data.sharer.tagline);
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `20px ${SERIF}`;
-  ctx.fillText(lines[0], POSTER_W / 2, y);
-  y += 36;
-  ctx.fillText(lines[1], POSTER_W / 2, y);
-  y += 48;
-  ctx.fillStyle = TEXT_WARM;
-  ctx.font = `bold 30px ${SERIF}`;
-  ctx.fillText(lines[2], POSTER_W / 2, y);
-  y += 56;
-
-  // 二维码
-  const qrSize = 190;
-  const qrX = (POSTER_W - qrSize) / 2;
-  ctx.fillStyle = "#f5ede0";
-  ctx.fillRect(qrX - 12, y - 12, qrSize + 24, qrSize + 24);
-  ctx.drawImage(qrImg, qrX, y, qrSize, qrSize);
-  y += qrSize + 44;
-
-  ctx.fillStyle = TEXT_MUTED;
-  ctx.font = `18px ${SERIF}`;
-  ctx.fillText("长按识别二维码，看看你是哪一种", POSTER_W / 2, y);
-  y += 44;
-
-  // 品牌
-  ctx.fillStyle = ACCENT;
-  ctx.font = `20px ${SERIF}`;
-  drawSpacedText(ctx, "我到底什么性格", POSTER_W / 2, y, 8);
 }
 
 export default function PersonalitySharePosterPage() {
@@ -686,7 +658,7 @@ export default function PersonalitySharePosterPage() {
     try {
       await renderPoster(canvasRef.current, data, qrDataUrl);
       const link = document.createElement("a");
-      link.download = `我到底什么性格-${data.sharer.primaryCn}.png`;
+      link.download = `默契研究所-${data.sharer.primaryCn}.png`;
       link.href = canvasRef.current.toDataURL("image/png");
       link.click();
     } catch (err: any) {
@@ -700,6 +672,19 @@ export default function PersonalitySharePosterPage() {
     await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  /** 微信分享 — 走 URL scheme（唤起微信 / 复制文案提示用户手贴） */
+  const handleWechatShare = async () => {
+    // 微信内置浏览器无法直接调 share API；其他场景也只能走复制 + 手动粘贴
+    const text = `我在默契研究所测出自己是「${data?.sharer.primaryCn}」——你也来测测？\n${shareUrl}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* fallback */
+    }
   };
 
   if (loading) {
@@ -720,19 +705,60 @@ export default function PersonalitySharePosterPage() {
     );
   }
 
-  const lines = invitationLines(data.sharer.primaryCn, data.sharer.tagline);
+  const lines = invitationLines(data.sharer.primaryCn);
 
   return (
-    <main className="night-sky flex-1 px-5 py-6 max-w-sm mx-auto w-full">
-      <StarMap opacity={0.12} seed={2} />
+    <main className="night-sky flex-1 px-5 py-6 sm:py-8 max-w-md mx-auto w-full safe-bottom relative overflow-hidden">
+      <StarMap opacity={0.12} seed={3} />
+
       <div className="relative">
-        {/* ===== 海报（单屏紧凑版） ===== */}
+        {/* ===== 顶部品牌头（与主页一致） ===== */}
+        <div className="text-center mb-5 fade-in-up">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <span className="archive-label">Relationship Lab</span>
+            <span className="w-8 h-px bg-[var(--border-dim)]" />
+            <span className="file-number">No. {data.sharer.fileNo}</span>
+          </div>
+          <h1 className="display-serif text-2xl sm:text-3xl font-bold text-[var(--text-warm)] leading-tight">
+            默契研究所
+          </h1>
+        </div>
+
+        {/* ===== 海报卡（用户长按可保存到相册，微信会自动识别其中二维码） ===== */}
         <div
-          className="relative border border-[var(--accent-dim)] rounded-sm px-5 pt-5 pb-4 mb-4 fade-in-up"
-          style={{ background: "linear-gradient(180deg,#16130f,#100e0a)" }}
+          id="share-poster"
+          className="relative border border-[var(--accent-dim)] rounded-sm px-5 pt-5 pb-5 mb-4 fade-in-up cursor-pointer"
+          style={{
+            background: "linear-gradient(180deg,#16130f,#100e0a)",
+            animationDelay: "0.1s",
+            WebkitUserSelect: "none",
+            userSelect: "none",
+          }}
+          title="长按图片可保存到相册，或长按识别图中二维码"
         >
+          {/* 顶部小档案号 */}
+          <div className="text-center mb-3">
+            <span className="file-number">FILE · {data.sharer.fileNo}</span>
+          </div>
+
+          {/* 钩子话术（主页风） */}
+          <div className="text-center space-y-2 mb-4">
+            <p className="display-serif text-[15px] sm:text-base text-[var(--text-warm)] font-medium leading-relaxed">
+              你们之间，有没有一种问题，
+              <br />
+              总是在重复发生？
+            </p>
+            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+              也许问题不是谁对谁错——
+              <br />
+              只是你们理解「在乎」的方式不一样。
+            </p>
+          </div>
+
+          <OrnamentDivider className="mb-4" />
+
           {/* 罗盘 + 雷达主图 */}
-          <div className="relative flex items-center justify-center mb-2">
+          <div className="relative flex items-center justify-center mb-4">
             <div className="absolute pointer-events-none">
               <CompassDial size={170} opacity={0.16} />
             </div>
@@ -740,15 +766,10 @@ export default function PersonalitySharePosterPage() {
               <RadarChart scores={data.sharer.scores} size={180} />
             </div>
           </div>
-          <p className="text-center text-[11px] text-[var(--text-muted)] italic display-serif mb-3">
-            「{data.sharer.tagline.slice(0, 26)}」
-          </p>
 
-          <OrnamentDivider className="mb-3" />
-
-          {/* 核心人格卡（v5 渐变版） */}
+          {/* 核心人格卡（小尺寸） */}
           {data.sharer.primaryType && (
-            <div className="flex justify-center mb-3">
+            <div className="flex justify-center mb-4">
               <PersonalityCard
                 type={data.sharer.primaryType as PersonalityType}
                 userScores={data.sharer.scores as any}
@@ -759,47 +780,69 @@ export default function PersonalitySharePosterPage() {
             </div>
           )}
 
-          {/* 邀请话术 */}
-          <div className="text-center mb-3">
-            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-              {lines[0]}
-            </p>
-            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-              {lines[1]}
-            </p>
-            <p className="display-serif text-sm text-[var(--text-warm)] mt-1.5 font-medium">
-              {lines[2]}
-            </p>
-          </div>
+          {/* 「我是 XXX —— 你呢？」 */}
+          <p className="display-serif text-sm sm:text-base text-[var(--text-warm)] text-center font-medium leading-snug mb-4">
+            {lines.tag}
+          </p>
 
-          {/* 二维码 */}
+          <OrnamentDivider className="mb-4" />
+
+          {/* 小二维码 + 文案（左文右码，引导微信识别） */}
           {qrDataUrl && (
-            <div className="flex flex-col items-center">
-              <div className="bg-[#f5ede0] p-2 rounded-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrDataUrl} alt="分享二维码" className="w-24 h-24 block" />
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div className="flex-1 min-w-0">
+                <p className="display-serif text-sm text-[var(--text-warm)] font-medium leading-snug">
+                  长按二维码，
+                  <br />
+                  看看你是哪一种
+                </p>
+                <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
+                  · 36 题 · 约 5 分钟
+                  <br />
+                  · 无需注册 · 基础免费
+                </p>
               </div>
-              <p className="text-[10px] text-[var(--text-muted)] mt-2">
-                长按识别二维码，看看你是哪一种
-              </p>
+              <div className="bg-[#f5ede0] p-1.5 rounded-sm flex-shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrDataUrl}
+                  alt="分享二维码"
+                  className="w-[88px] h-[88px] block"
+                />
+              </div>
             </div>
           )}
         </div>
 
-        {/* ===== 操作区（紧凑） ===== */}
-        <div className="space-y-2 fade-in-up" style={{ animationDelay: "0.1s" }}>
+        {/* ===== 操作区 ===== */}
+        <div className="space-y-2 fade-in-up" style={{ animationDelay: "0.2s" }}>
           <button onClick={handleDownload} disabled={downloading} className="btn-primary w-full">
-            {downloading ? "正在生成..." : "保存海报图片 →"}
+            {downloading ? "正在生成..." : "保存海报图片（长按图片也可保存）→"}
           </button>
           <div className="flex gap-2">
             <button onClick={handleCopy} className="btn-ghost flex-1 text-sm">
-              {copied ? "已复制链接" : "复制分享链接"}
+              {copied ? "✓ 已复制链接" : "复制分享链接"}
             </button>
-            <Link href={`/personality/report/${data.testId}`} className="btn-ghost flex-1 text-center text-sm">
-              回到我的报告
+            <button onClick={handleWechatShare} className="btn-ghost flex-1 text-sm">
+              {copied ? "✓ 已复制文案" : "复制给微信好友"}
+            </button>
+          </div>
+          <div className="text-center">
+            <Link
+              href={`/personality/report/${data.testId}`}
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+            >
+              ← 回到我的完整报告
             </Link>
           </div>
         </div>
+
+        {/* 操作提示（移动端长按提示） */}
+        <p className="text-[10px] text-[var(--text-muted)] text-center mt-4 leading-relaxed">
+          💡 手机端可长按上方海报图片，
+          <br />
+          保存到相册或转发给朋友（微信会自动识别二维码）
+        </p>
 
         {/* 隐藏画布：用于导出 PNG */}
         <canvas ref={canvasRef} width={POSTER_W} height={POSTER_H} className="hidden" />
