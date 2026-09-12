@@ -167,3 +167,11 @@ export function getActivePersonalityQuestions(): PersonalityQuestion[] {
   const items = PERSONALITY_QUESTIONS.filter(q => q.active !== false);
   return [...items].sort((a, b) => a.order - b.order);
 }
+
+/** 引擎使用：返回启用中的 followup 题（按 order 升序）
+ *  生产环境（Vercel serverless）下直接读 TS seed。
+ */
+export function getFollowupQuestions(): Question[] {
+  const items = seedQuestions.filter(q => q.phase === "followup" && q.active !== false);
+  return [...items].sort((a, b) => a.order - b.order);
+}
