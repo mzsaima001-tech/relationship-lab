@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { WeChatOnboarding } from "@/app/components/WeChatOnboarding";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,19 @@ export const metadata: Metadata = {
     "依恋类型",
   ],
   alternates: { canonical: SITE_URL },
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/icon-192.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
     type: "website",
     locale: "zh_CN",
@@ -73,7 +87,10 @@ export default function RootLayout({
       lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <WeChatOnboarding />
+      </body>
     </html>
   );
 }
