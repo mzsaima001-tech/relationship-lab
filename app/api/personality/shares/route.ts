@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   getPersonalityTest,
@@ -68,7 +68,19 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "请求参数无效", details: error.issues }, { status: 400 });
     }
-    console.error(error);
-    return NextResponse.json({ error: "Failed to create personality share" }, { status: 500 });
+    console.error("[personality shares] create failed:", error);
+    // 暴露完整错误信息便于排查（FK / not-null / RLS 等）
+    const message =
+      error instanceof Error
+        ? `${error.message}${error.stack ? " | stack=" + error.stack.split("\n")[0] : ""}`
+        : "未知错误";
+    return NextResponse.json(
+      {
+        error: `Failed to create personality share: ${message}`,
+        // 暴露 error 全字段给前端（用于排查线上数据库 schema 与本地不一致的情况）
+        debug: error && typeof error === "object" ? JSON.parse(JSON.stringify(error, Object.getOwnPropertyNames(error))) : error,
+      },
+      { status: 500 }
+    );
   }
 }
