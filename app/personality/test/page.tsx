@@ -232,14 +232,14 @@ function PersonalityTestInner() {
   }
 
   return (
-    <main className="flex-1 flex flex-col items-center px-6 py-10 max-w-xl mx-auto w-full">
+    <main className="flex-1 flex flex-col items-center px-5 pt-0 pb-8 sm:px-6 sm:pb-10 max-w-xl mx-auto w-full safe-bottom">
       {ref && (
-        <p className="text-[11px] text-[var(--text-muted)] mb-4 fade-in">
+        <p className="text-[11px] text-[var(--text-muted)] mt-4 mb-2 fade-in text-center">
           来自好友的分享 · 不会留下你的测试记录给对方
         </p>
       )}
-      {/* 进度：按已答题数 = idx + 1，最后一题答完会显示 36 / 36 · 100% */}
-      <div className="w-full mb-8 fade-in">
+      {/* 进度：sticky 顶部，方便答题时随时看到 */}
+      <div className="sticky top-0 z-20 w-full bg-[var(--bg-dark)]/95 backdrop-blur-sm -mx-5 px-5 sm:-mx-6 sm:px-6 pt-3 sm:pt-4 pb-3 border-b border-[var(--border-dim)] fade-in">
         <div className="flex items-center justify-between text-xs text-[var(--text-muted)] mb-2">
           <span className="font-mono">
             {totalAnswered} / {questions.length}
@@ -255,38 +255,38 @@ function PersonalityTestInner() {
       </div>
 
       {/* 题目 */}
-      <div key={current.id} className="w-full mb-8 fade-in">
-        <p className="display-serif text-lg md:text-xl text-[var(--text-warm)] leading-relaxed min-h-[5rem]">
+      <div key={current.id} className="w-full mt-8 mb-6 sm:mt-10 sm:mb-8 fade-in">
+        <p className="display-serif text-base sm:text-lg md:text-xl text-[var(--text-warm)] leading-relaxed min-h-[4rem] sm:min-h-[5rem]">
           {current.question}
         </p>
       </div>
 
       {/* 选项 */}
-      <div className="w-full space-y-3 mb-8 fade-in" style={{ animationDelay: "0.1s" }}>
+      <div className="w-full space-y-2.5 sm:space-y-3 mb-6 sm:mb-8 fade-in" style={{ animationDelay: "0.1s" }}>
         {ANSWER_OPTIONS.map((opt) => {
           const isSelected = selected === opt.letter;
           return (
             <button
               key={opt.letter}
               onClick={() => handleAnswer(opt.letter)}
-              className={`w-full min-h-[56px] text-left px-5 py-4 rounded-lg border transition-all ${
+              className={`w-full min-h-[56px] text-left px-4 py-3.5 sm:px-5 sm:py-4 rounded-lg border transition-all ${
                 isSelected
                   ? "bg-[var(--accent-dim)] border-[var(--accent)] text-[var(--text-warm)]"
-                  : "bg-[rgba(245,237,224,0.04)] border-[var(--border-dim)] text-[var(--text-warm)] hover:border-[var(--accent-dim)] hover:bg-[rgba(201,169,110,0.08)]"
+                  : "bg-[rgba(245,237,224,0.04)] border-[var(--border-dim)] text-[var(--text-warm)] active:bg-[rgba(201,169,110,0.12)] active:border-[var(--accent-dim)]"
               }`}
             >
-              <span className="text-[var(--accent)] font-mono mr-3">{opt.letter}</span>
+              <span className="text-[var(--accent)] font-mono mr-2 sm:mr-3">{opt.letter}</span>
               {opt.label}
             </button>
           );
         })}
       </div>
 
-      {/* 上一题（idx > 0 才显示，已是默认行为，不再显示「题目未全部完成」提示） */}
+      {/* 上一题（idx > 0 才显示） */}
       {idx > 0 && (
         <button
           onClick={goPrev}
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4 active:text-[var(--text-warm)]"
         >
           ← 上一题
         </button>
@@ -295,7 +295,7 @@ function PersonalityTestInner() {
       {error && (
         <div className="w-full mt-6 fade-in">
           <p className="text-xs text-[var(--danger)] mb-3 text-center">{error}</p>
-          <div className="flex gap-2 justify-center">
+          <div className="flex flex-wrap gap-2 justify-center">
             {/* 出错时给用户两条出路：重试最后一题 / 跳过看结果（即便数据不完整） */}
             <button
               type="button"
@@ -305,19 +305,19 @@ function PersonalityTestInner() {
                   completeTest();
                 }
               }}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)]/10"
+              className="text-xs px-3 py-2 rounded-lg border border-[var(--accent)] text-[var(--accent)] active:bg-[var(--accent)]/15 min-h-[40px]"
             >
               重试
             </button>
             <Link
               href={`/personality/result/${testId}`}
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] hover:text-[var(--text-warm)]"
+              className="text-xs px-3 py-2 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] active:text-[var(--text-warm)] min-h-[40px] inline-flex items-center"
             >
               跳到结果页
             </Link>
             <Link
               href="/personality"
-              className="text-xs px-3 py-1.5 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] hover:text-[var(--text-warm)]"
+              className="text-xs px-3 py-2 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] active:text-[var(--text-warm)] min-h-[40px] inline-flex items-center"
             >
               返回测试首页
             </Link>
