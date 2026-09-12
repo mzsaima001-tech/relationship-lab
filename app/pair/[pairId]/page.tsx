@@ -169,7 +169,7 @@ export default function PairPage() {
 
   if (loading) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6">
+      <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6">
         <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
         <p className="text-[var(--text-muted)] text-sm mt-4">正在加载关系档案...</p>
       </main>
@@ -178,7 +178,7 @@ export default function PairPage() {
 
   if (error && !data) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+      <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
         <p className="text-[var(--danger)] text-sm">{error}</p>
         <Link href="/" className="btn-ghost">返回首页</Link>
       </main>
@@ -191,22 +191,22 @@ export default function PairPage() {
   if (data.status === "waiting_b" || data.status === "waiting_a") {
     const personA = data.personA;
     return (
-      <main className="flex-1 px-6 py-12 max-w-xl mx-auto w-full">
+      <main className="flex-1 px-5 py-8 sm:px-6 sm:py-12 max-w-xl mx-auto w-full safe-bottom">
         <div className="text-center fade-in-up">
-          <div className="flex items-center justify-center gap-4 mb-8">
+          <div className="flex items-center justify-center gap-4 mb-6 sm:mb-8">
             <span className="archive-label">Relationship Pair</span>
             <span className="w-8 h-px bg-[var(--border-dim)]" />
             <span className="file-number">WAITING</span>
           </div>
 
-          <div className="w-16 h-16 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-8" />
+          <div className="w-14 h-14 sm:w-16 sm:h-16 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-6 sm:mb-8" />
 
-          <h2 className="display-serif text-xl text-[var(--text-warm)] mb-3">
+          <h2 className="display-serif text-lg sm:text-xl text-[var(--text-warm)] mb-3">
             {data.message || "等待 TA 完成测评"}
           </h2>
 
           {personA && (
-            <div className="card p-6 mt-8">
+            <div className="card p-5 sm:p-6 mt-6 sm:mt-8">
               <p className="text-sm text-[var(--text-muted)] mb-2">
                 {personA.nickname} 已完成测评
               </p>
@@ -223,17 +223,17 @@ export default function PairPage() {
             </div>
           )}
 
-          <p className="text-xs text-[var(--text-muted)] mt-8">
+          <p className="text-xs text-[var(--text-muted)] mt-6 sm:mt-8 leading-relaxed px-2">
             TA 完成后会自动生成双人关系分析。请保持页面打开，或稍后回来查看。
           </p>
 
-          <div className="mt-8">
+          <div className="mt-6 sm:mt-8">
             {mySessionId ? (
-              <Link href={`/result/${mySessionId}`} className="btn-ghost inline-block">
+              <Link href={`/result/${mySessionId}`} className="btn-ghost inline-block min-h-[44px]">
                 ← 返回我的报告
               </Link>
             ) : (
-              <Link href="/" className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors">
+              <Link href="/" className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] active:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4">
                 ← 返回首页
               </Link>
             )}
@@ -248,7 +248,7 @@ export default function PairPage() {
 
   if (!personA || !personB || !pairScores) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+      <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
         <p className="text-[var(--text-muted)] text-sm">数据不完整</p>
         <Link href="/" className="btn-ghost">返回首页</Link>
       </main>
@@ -256,25 +256,25 @@ export default function PairPage() {
   }
 
   return (
-    <main className="flex-1 px-6 py-12 max-w-2xl mx-auto w-full">
+    <main className="flex-1 px-5 py-8 sm:px-6 sm:py-12 max-w-2xl mx-auto w-full safe-bottom">
       {/* Header */}
-      <div className="text-center mb-12 fade-in-up">
-        <div className="flex items-center justify-center gap-4 mb-6">
+      <div className="text-center mb-10 sm:mb-12 fade-in-up">
+        <div className="flex items-center justify-center gap-4 mb-5 sm:mb-6">
           <span className="archive-label">Relationship Pair</span>
           <span className="w-8 h-px bg-[var(--border-dim)]" />
           <span className="file-number">No. {pairId.slice(0, 6).toUpperCase()}</span>
         </div>
-        <h1 className="display-serif text-2xl md:text-3xl text-[var(--text-warm)]">
+        <h1 className="display-serif text-xl sm:text-2xl md:text-3xl text-[var(--text-warm)] leading-tight">
           {personA.nickname} × {personB.nickname}
         </h1>
-        <p className="display-serif text-lg text-[var(--accent)] mt-2">
+        <p className="display-serif text-base sm:text-lg text-[var(--accent)] mt-2">
           {report ? `「${report.headline}」` : `「${personA.archetype} × ${personB.archetype}」`}
         </p>
       </div>
 
       {/* Pair scores — 高亮突出综合默契分数 */}
       <div
-        className="space-y-5 mb-12 fade-in-up p-5 rounded-2xl border-2"
+        className="space-y-4 sm:space-y-5 mb-10 sm:mb-12 fade-in-up p-4 sm:p-5 rounded-2xl border-2"
         style={{
           animationDelay: "0.15s",
           background: "var(--highlight-bg)",
@@ -291,18 +291,18 @@ export default function PairPage() {
           const isOverall = key === "overall";
           return (
             <div key={key}>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between mb-1.5 gap-2">
                 <span
                   className={`text-sm ${
                     isOverall
                       ? "text-[var(--highlight)] font-semibold text-base"
                       : "text-[var(--text-warm)]"
-                  }`}
+                  } truncate`}
                 >
                   {label}
                 </span>
                 <span
-                  className={`font-mono ${
+                  className={`font-mono whitespace-nowrap ${
                     isOverall
                       ? "text-[var(--highlight)] text-xl font-bold"
                       : "text-[var(--text-muted)] text-sm"
@@ -331,7 +331,7 @@ export default function PairPage() {
       </div>
 
       {/* Dimension comparison */}
-      <div className="card p-6 mb-12 fade-in-up" style={{ animationDelay: "0.25s" }}>
+      <div className="card p-4 mb-10 sm:p-6 sm:mb-12 fade-in-up" style={{ animationDelay: "0.25s" }}>
         <h3 className="archive-label mb-4">Dimension Comparison</h3>
         <div className="space-y-4">
           {Object.entries(personA.scores).map(([key, scoreA]) => {
@@ -372,13 +372,13 @@ export default function PairPage() {
 
       {/* Shared strengths */}
       {data.strengths && data.strengths.length > 0 && (
-        <div className="card p-6 mb-6 fade-in-up" style={{ animationDelay: "0.28s" }}>
+        <div className="card p-4 mb-5 sm:p-6 sm:mb-10 fade-in-up" style={{ animationDelay: "0.28s" }}>
           <h3 className="archive-label mb-4">Shared Strengths</h3>
-          <div className="space-y-3">
+          <div className="space-y-2.5 sm:space-y-3">
             {data.strengths.map((strength) => (
-              <div key={strength} className="flex gap-3">
+              <div key={strength} className="flex gap-2.5 sm:gap-3">
                 <span className="text-[var(--accent)] flex-shrink-0">+</span>
-                <p className="text-sm text-[var(--text-warm)] leading-relaxed">{strength}</p>
+                <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{strength}</p>
               </div>
             ))}
           </div>
@@ -387,14 +387,14 @@ export default function PairPage() {
 
       {/* Patterns */}
       {patterns && patterns.length > 0 && (
-        <div className="card p-6 mb-12 fade-in-up" style={{ animationDelay: "0.3s" }}>
+        <div className="card p-4 mb-10 sm:p-6 sm:mb-12 fade-in-up" style={{ animationDelay: "0.3s" }}>
           <h3 className="archive-label mb-4">Interaction Patterns</h3>
-          <div className="space-y-3">
+          <div className="space-y-2.5 sm:space-y-3">
             {patterns.map((pattern) => (
-              <div key={pattern.pattern} className="flex gap-3">
+              <div key={pattern.pattern} className="flex gap-2.5 sm:gap-3">
                 <span className="text-[var(--accent)] flex-shrink-0">·</span>
                 <div>
-                  <p className="text-sm text-[var(--text-warm)] leading-relaxed">
+                  <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
                     {pattern.isPrimary ? "主模式 · " : "次模式 · "}{pattern.name}
                   </p>
                   <p className="text-xs text-[var(--text-muted)] mt-1">
@@ -409,7 +409,7 @@ export default function PairPage() {
 
       {/* Full report */}
       {generating && (
-        <div className="text-center py-12 fade-in">
+        <div className="text-center py-10 sm:py-12 fade-in">
           <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-sm text-[var(--text-muted)]">正在撰写你们的关系分析报告...</p>
         </div>
