@@ -66,7 +66,7 @@ export default function PersonalityHome() {
   };
 
   return (
-    <main className="relative flex-1 flex flex-col items-center px-6 py-12 overflow-hidden">
+    <main className="relative flex-1 flex flex-col items-center px-5 py-10 sm:px-6 sm:py-12 overflow-hidden">
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <StarMap opacity={0.10} seed={9} />
         <div className="absolute left-1/2 top-20 -translate-x-1/2">
@@ -74,33 +74,33 @@ export default function PersonalityHome() {
         </div>
       </div>
 
-      <div className="relative z-10 flex w-full max-w-xl flex-col items-center text-center">
-        <div className="flex items-center gap-4 mb-8 fade-in">
+      <div className="relative z-10 flex w-full max-w-md sm:max-w-xl flex-col items-center text-center">
+        <div className="flex items-center gap-4 mb-6 sm:mb-8 fade-in">
           <span className="archive-label">人格实验室</span>
           <span className="w-12 h-px bg-[var(--border-dim)]" />
           <span className="file-number">SELF · 36</span>
         </div>
 
-        <h1 className="display-serif text-4xl md:text-5xl font-bold text-[var(--text-warm)] leading-tight fade-in-up">
+        <h1 className="display-serif text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--text-warm)] leading-tight fade-in-up">
           你真的了解自己吗？
         </h1>
 
-        <p className="mt-6 text-base md:text-lg text-[var(--text-muted)] leading-relaxed fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <p className="mt-5 sm:mt-6 text-sm sm:text-base md:text-lg text-[var(--text-muted)] leading-relaxed fade-in-up px-2" style={{ animationDelay: "0.1s" }}>
           36 个问题，看清你的真实人格、隐藏性格和决策模式。
         </p>
 
-        <OrnamentDivider className="mt-8 w-48 fade-in-up" />
+        <OrnamentDivider className="mt-7 sm:mt-8 w-48 fade-in-up" />
 
-        <ul className="mt-8 space-y-2 text-sm text-[var(--text-muted)] fade-in-up" style={{ animationDelay: "0.2s" }}>
+        <ul className="mt-7 sm:mt-8 space-y-2 text-sm text-[var(--text-muted)] fade-in-up" style={{ animationDelay: "0.2s" }}>
           <li>· 约 5 分钟完成</li>
           <li>· 无需注册即可测试</li>
           <li>· 基础结果免费查看</li>
         </ul>
 
-        <div className="mt-12 flex flex-col items-center gap-4 fade-in-up" style={{ animationDelay: "0.3s" }}>
+        <div className="mt-10 sm:mt-12 flex flex-col items-center gap-4 fade-in-up w-full" style={{ animationDelay: "0.3s" }}>
           {resumedTestId ? (
             <>
-              <button onClick={startTest} disabled={creating} className="btn-primary">
+              <button onClick={startTest} disabled={creating} className="btn-primary w-full sm:w-auto sm:min-w-[200px]">
                 继续测试 →
               </button>
               <button
@@ -111,25 +111,25 @@ export default function PersonalityHome() {
                     startTest();
                   }
                 }}
-                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4"
               >
                 重新开始
               </button>
             </>
           ) : (
-            <button onClick={startTest} disabled={creating || !ready} className="btn-primary">
+            <button onClick={startTest} disabled={creating || !ready} className="btn-primary w-full sm:w-auto sm:min-w-[200px]">
               {creating ? "准备中..." : "开始测试"}
             </button>
           )}
           <Link
             href="/"
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors mt-4"
+            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors mt-3 sm:mt-4 min-h-[44px] inline-flex items-center px-4"
           >
             ← 返回首页
           </Link>
         </div>
 
-        <p className="mt-16 text-[11px] text-[var(--text-muted)] leading-relaxed max-w-md fade-in" style={{ animationDelay: "0.6s" }}>
+        <p className="mt-12 sm:mt-16 text-[11px] text-[var(--text-muted)] leading-relaxed max-w-md fade-in px-2" style={{ animationDelay: "0.6s" }}>
           本测试用于人格探索与娱乐，不构成医学、心理学或精神健康诊断。测试结果不应代替专业意见。
         </p>
       </div>
