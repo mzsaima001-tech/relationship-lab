@@ -29,6 +29,9 @@ export default function TestPage() {
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // loadingFollowups 独立 flag：仅在加载追问题时显示轻量过渡，
+  // 不复用 completing phase（否则会错误触发 AnalyzingScreen 全屏星空页）
+  const [loadingFollowups, setLoadingFollowups] = useState(false);
   const [phase, setPhase] = useState<"initial" | "followup" | "completing">("initial");
   const [error, setError] = useState("");
   const [questionShownAt, setQuestionShownAt] = useState(() => Date.now());
@@ -121,7 +124,8 @@ export default function TestPage() {
 
   const fetchFollowups = async () => {
     try {
-      setPhase("completing");
+      // 用独立 flag，不再误触发 AnalyzingScreen
+      setLoadingFollowups(true);
       const res = await fetch(`/api/assessments/${sessionId}/followups`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
@@ -132,13 +136,13 @@ export default function TestPage() {
       } else {
         setAllQuestions((prev) => [...prev, ...json.followups]);
         setPhase("followup");
-        setCurrentIdx((prev) => prev + 0); // stays at same index, now pointing to first followup
-        // Actually we need to set currentIdx to data.initialQuestions.length
         setCurrentIdx(data!.initialQuestions.length);
       }
     } catch (err: any) {
       setError(err.message || "加载追问题失败");
       setPhase("initial");
+    } finally {
+      setLoadingFollowups(false);
     }
   };
 
@@ -177,7 +181,17 @@ export default function TestPage() {
     );
   }
 
-  // 进入 completing 阶段（等追问题 / 生成报告）即全屏过渡，不再依赖 currentIdx 边界判断
+  // 加载追问题（20 → 24 题过渡）显示轻量过渡，不复用 completing 的 AnalyzingScreen
+  if (loadingFollowups) {
+    return (
+      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-3">
+        <div className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" />
+        <p className="text-[var(--text-muted)] text-sm">正在根据你的回答准备追问题…</p>
+      </main>
+    );
+  }
+
+  // 进入 completing 阶段（生成报告）才全屏过渡
   if (phase === "completing") {
     return <AnalyzingScreen />;
   }
