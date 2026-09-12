@@ -30,8 +30,9 @@ export async function POST(request: Request) {
     );
   }
 
-  // 生产模式强制 admin 鉴权
-  if (process.env.NODE_ENV === "production") {
+  // 仅在「生产 + 真网关在线」组合下强制 admin 鉴权：
+  // 生产但网关未配置（V1 mock 阶段）→ 允许前端主动解锁，否则用户永远无法解锁报告。
+  if (process.env.NODE_ENV === "production" && isXingyifuLive()) {
     const token = (await cookies()).get(ADMIN_COOKIE)?.value;
     if (!(await verifyAdminToken(token))) {
       return NextResponse.json({ error: "需要后台登录" }, { status: 401 });

@@ -3,12 +3,14 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { getPayment, markPaymentPaid } from "@/lib/db";
 import { ADMIN_COOKIE, verifyAdminToken } from "@/lib/admin/auth";
+import { isXingyifuLive } from "@/lib/payment/xingyifu";
 
 /**
  * ⚠️ 这是开发阶段「主动确认收款」路由（保留给人工对账/客服补偿用）。
  *
  * 安全策略：
- *  - 生产模式下必须登录后台（看 ADMIN_COOKIE + verifyAdminToken）
+ *  - 仅在「生产 + 真网关在线」组合下强制 admin 鉴权
+ *  - V1 mock（网关未配置）：允许前端主动解锁（用户不能永远不拿到报告）
  *  - 记录到 audit log（dev 简化为 console.warn）
  *
  * 真网关接入后，订单解锁主要靠 /notify/xingyifu 上游回包；
@@ -20,8 +22,11 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ paymentId: string }> }
 ) {
-  // 1) 强制 admin 鉴权（生产必须；dev 直接放行）
-  if (process.env.NODE_ENV === "production") {
+  // 1) 强制 admin 鉴权（仅在「生产 + 真网关在线」组合下）
+  //    V1 mock 阶段（网关未配置）：允许前端主动解锁
+  //    真网关已接入：订单解锁主要靠 /notify/xingyifu 上游回包，
+  //    本路由降级为"对账补偿"工具，必须加 admin 鉴权
+  if (process.env.NODE_ENV === "production" && isXingyifuLive()) {
     const token = (await cookies()).get(ADMIN_COOKIE)?.value;
     if (!(await verifyAdminToken(token))) {
       return NextResponse.json({ error: "需要后台登录" }, { status: 401 });
