@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import QRCode from "qrcode";
 import { CompassDial, OrnamentDivider, StarMap } from "@/app/components/decor";
 import HomeFooter from "@/app/components/HomeFooter";
+import SharePosterActions from "@/app/components/SharePosterActions";
 import { TAROT_CARDS, tarotImage } from "@/lib/reports/tarot";
 import { PERSONALITY_COPY_SETS } from "@/lib/personality-copy";
+import { PERSONALITY_TYPE_META, type PersonalityType } from "@/lib/personality/types";
+import { wrapMystery, FALLBACK_PERSONALITY } from "@/lib/share-mystery";
 
 // =====================================================
 // 人格测试分享海报页 /share/personality/[code]
@@ -19,7 +22,8 @@ import { PERSONALITY_COPY_SETS } from "@/lib/personality-copy";
 // =====================================================
 
 const POSTER_W = 900;
-const POSTER_H = 1420;
+// POSTER_H 从 1420 提升到 1560，给多行 mystery.body（AI 润色版 80-150 字）留垂直空间
+const POSTER_H = 1560;
 
 interface PersonalityShareData {
   code: string;
@@ -49,15 +53,66 @@ function drawSpacedText(
   text: string,
   cx: number,
   y: number,
-  spacing: number
+  spacing: number,
+  options: { maxWidth?: number; maxLines?: number; lineHeight?: number } = {}
 ) {
-  const widths = [...text].map((ch) => ctx.measureText(ch).width);
-  const total = widths.reduce((a, b) => a + b, 0) + spacing * (text.length - 1);
-  let x = cx - total / 2;
-  [...text].forEach((ch, i) => {
-    ctx.fillText(ch, x, y);
-    x += widths[i] + spacing;
-  });
+  const maxWidth = options.maxWidth ?? 800;
+  const maxLines = options.maxLines ?? 2;
+  const lineHeight = options.lineHeight ?? 30;
+
+  const chars = [...text];
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
+
+  const lines: { chars: string[]; widths: number[]; total: number }[] = [];
+  let cur: { chars: string[]; widths: number[]; total: number } = {
+    chars: [],
+    widths: [],
+    total: 0,
+  };
+  for (let i = 0; i < chars.length; i++) {
+    const w = widths[i] + (cur.chars.length > 0 ? spacing : 0);
+    if (cur.total + w > maxWidth && cur.chars.length > 0) {
+      lines.push(cur);
+      cur = { chars: [chars[i]], widths: [widths[i]], total: widths[i] };
+    } else {
+      cur.chars.push(chars[i]);
+      cur.widths.push(widths[i]);
+      cur.total += w;
+    }
+  }
+  if (cur.chars.length > 0) lines.push(cur);
+
+  let truncated = false;
+  if (lines.length > maxLines) {
+    const kept = lines.slice(0, maxLines);
+    const ELLIPSIS_W = ctx.measureText("……").width;
+    const last = kept[maxLines - 1];
+    while (last.total > maxWidth - ELLIPSIS_W - spacing && last.chars.length > 1) {
+      const removedW = last.widths.pop()! + spacing;
+      last.chars.pop();
+      last.total -= removedW;
+    }
+    lines.length = 0;
+    lines.push(...kept);
+    truncated = true;
+  }
+
+  const totalH = (lines.length - 1) * lineHeight;
+  let yOffset = y - totalH / 2;
+  for (const line of lines) {
+    const lineTotal =
+      line.widths.reduce((a, b) => a + b, 0) +
+      spacing * Math.max(line.chars.length - 1, 0);
+    let x = cx - lineTotal / 2;
+    for (let i = 0; i < line.chars.length; i++) {
+      ctx.fillText(line.chars[i], x, yOffset);
+      x += line.widths[i] + spacing;
+    }
+    if (truncated && line === lines[lines.length - 1]) {
+      ctx.fillText("……", x, yOffset);
+    }
+    yOffset += lineHeight;
+  }
 }
 
 function seededRandom(seed: number) {
@@ -106,6 +161,7 @@ async function loadImage(src: string): Promise<HTMLImageElement> {
  * Canvas 海报渲染（导出 PNG 用）
  * —— 主页风：标题 + 钩子 + 3 张塔罗 + 邀请 + 小二维码（左文右码）
  * —— 不画人格卡 / 雷达图 / 分享人信息
+ * —— 新增方案 A：钩子和塔罗之间塞「神秘暗号」一句（来自分享人 tagline）
  */
 async function renderPoster(
   canvas: HTMLCanvasElement,
@@ -118,6 +174,13 @@ async function renderPoster(
   const cardIdxs = pickTarotIdx(data.code, TAROT_CARDS.length);
   const cards = cardIdxs.map((i) => TAROT_CARDS[i]);
   const copy = pickCopy(data.code);
+  const mystery = wrapMystery(
+    data.sharer?.primaryType
+      ? PERSONALITY_TYPE_META[data.sharer.primaryType as PersonalityType]?.tagline
+      : null,
+    "—— 一位走过默契研究所的 TA",
+    FALLBACK_PERSONALITY
+  );
   const [cardImgs, qrImg] = await Promise.all([
     Promise.all(cards.map((c) => loadImage(tarotImage(c.slug)))),
     loadImage(qrDataUrl),
@@ -211,9 +274,51 @@ async function renderPoster(
     ctx.fillText(s, POSTER_W / 2, subY + i * 28);
   });
 
-  // ===== 罗盘底纹 =====
+  // ===== 神秘暗号（方案 A：揭示一句 tagline，不暴露身份） =====
+  const mysteryTopY = subY + copy.scenes.length * 28 + 72;
+  // 上一根装饰线（菱形 + 两段横线）
+  ctx.strokeStyle = ACCENT;
+  ctx.lineWidth = 0.8;
+  ctx.globalAlpha = 0.45;
+  const dY = mysteryTopY - 30;
+  ctx.beginPath();
+  ctx.moveTo(180, dY);
+  ctx.lineTo(POSTER_W / 2 - 18, dY);
+  ctx.moveTo(POSTER_W / 2 + 18, dY);
+  ctx.lineTo(POSTER_W - 180, dY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(POSTER_W / 2, dY - 6);
+  ctx.lineTo(POSTER_W / 2 + 6, dY);
+  ctx.lineTo(POSTER_W / 2, dY + 6);
+  ctx.lineTo(POSTER_W / 2 - 6, dY);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // 主钩子：motto（tagline 自带「」强调，不再外包避免嵌套）
+  // tagline 可能也是 AI 润色版（60-100 字），必须限行 + 限宽
+  ctx.fillStyle = TEXT_WARM;
+  ctx.font = `bold 26px ${SERIF}`;
+  ctx.textAlign = "center";
+  drawSpacedText(ctx, mystery.body, POSTER_W / 2, mysteryTopY + 8, 2, {
+    maxWidth: POSTER_W - 100,
+    maxLines: 3,
+    lineHeight: 34,
+  });
+
+  // 署名（byline 通常短，1 行即可）
+  ctx.fillStyle = ACCENT_DIM;
+  ctx.font = `italic 17px ${SERIF}`;
+  drawSpacedText(ctx, mystery.byline, POSTER_W / 2, mysteryTopY + 116, 0, {
+    maxWidth: POSTER_W - 100,
+    maxLines: 1,
+    lineHeight: 18,
+  });
+
+  // ===== 罗盘底纹（下移 60px 给多行 mystery.body 留空间） =====
   ctx.save();
-  ctx.translate(POSTER_W / 2, 880);
+  ctx.translate(POSTER_W / 2, 940);
   ctx.strokeStyle = ACCENT;
   ctx.globalAlpha = 0.14;
   for (const r of [240, 220, 150]) {
@@ -234,13 +339,13 @@ async function renderPoster(
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // ===== 3 张塔罗牌（扇形悬浮，与主页一致） =====
+  // ===== 3 张塔罗牌（扇形悬浮，与主页一致） —— 下移 ~50px，给多行 mystery.body 留空间 =====
   const cardW = 200;
   const cardH = (cardW / cardImgs[0].width) * cardImgs[0].height;
   const positions: Array<{ x: number; y: number; rot: number }> = [
-    { x: POSTER_W / 2 - 200, y: 980, rot: -9 },
-    { x: POSTER_W / 2, y: 920, rot: 0 },
-    { x: POSTER_W / 2 + 200, y: 980, rot: 9 },
+    { x: POSTER_W / 2 - 200, y: 1040, rot: -9 },
+    { x: POSTER_W / 2, y: 980, rot: 0 },
+    { x: POSTER_W / 2 + 200, y: 1040, rot: 9 },
   ];
 
   cardImgs.forEach((img, i) => {
@@ -259,12 +364,12 @@ async function renderPoster(
     ctx.restore();
   });
 
-  // 塔罗牌下方：十一面镜像
-  let y = 1180;
+  // 塔罗牌下方：十一面镜像（也下移 50px）
+  let y = 1230;
   ctx.fillStyle = TEXT_MUTED;
   ctx.font = `20px ${MONO}`;
   ctx.textAlign = "center";
-  drawSpacedText(ctx, "ELEVEN MIRRORS · 十一面镜像", POSTER_W / 2, y, 3);
+  drawSpacedText(ctx, "SEVENTY-FOUR MIRRORS · 七十四面镜子", POSTER_W / 2, y, 3);
   y += 32;
   ctx.fillStyle = TEXT_WARM;
   ctx.font = `bold 24px ${SERIF}`;
@@ -313,10 +418,6 @@ export default function PersonalitySharePosterPage() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [downloading, setDownloading] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // 随机挑一套人格话术 + 3 张塔罗（用 code 作种子，保证 SSR 一致）
   const copy = pickCopy(code);
@@ -353,39 +454,23 @@ export default function PersonalitySharePosterPage() {
     prepare();
   }, [code]);
 
-  const handleDownload = async () => {
-    if (!canvasRef.current || !data || !qrDataUrl) return;
-    setDownloading(true);
-    try {
-      await renderPoster(canvasRef.current, data, qrDataUrl);
-      const link = document.createElement("a");
-      link.download = `默契研究所-性格面.png`;
-      link.href = canvasRef.current.toDataURL("image/png");
-      link.click();
-    } catch (err: any) {
-      setError(err.message || "海报生成失败");
-    } finally {
-      setDownloading(false);
-    }
-  };
+  // —— 新版：SharePosterActions 需要 ——
+  const renderPosterAction = useCallback(
+    async (canvas: HTMLCanvasElement) => {
+      if (!data || !qrDataUrl) throw new Error("海报数据未就绪");
+      await renderPoster(canvas, data, qrDataUrl);
+    },
+    [data, qrDataUrl]
+  );
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(`${window.location.origin}/`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  /** 复制微信分享文案（唤起微信 / 复制文案提示用户手贴） */
-  const handleWechatShare = async () => {
-    const text = `${copy.hook.join("")}\n${copy.tag}\n${window.location.origin}/`;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* fallback */
-    }
-  };
+  const defaultCaption =
+    copy.hook.join("") +
+    "\n" +
+    copy.scenes.join(" ") +
+    "\n\n" +
+    "——\n来默契研究所，看看你是哪一种\n36 题 · 5 分钟 · 基础结果免费\n" +
+    (typeof window !== "undefined" ? window.location.origin : "") +
+    "/";
 
   if (loading) {
     return (
@@ -459,6 +544,33 @@ export default function PersonalitySharePosterPage() {
             </p>
           </div>
 
+          {/* ===== 神秘暗号（方案 A：揭示一句 tagline，但不暴露身份） ===== */}
+          <div className="my-5 fade-in-up" style={{ animationDelay: "0.12s" }}>
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className="flex-1 max-w-[60px] h-px bg-[var(--accent-dim)] opacity-50" />
+              <span className="text-[var(--accent-dim)] text-[10px] tracking-[0.2em]">◆</span>
+              <span className="flex-1 max-w-[60px] h-px bg-[var(--accent-dim)] opacity-50" />
+            </div>
+            <p className="display-serif text-[15px] sm:text-base text-[var(--text-warm)] font-medium text-center leading-relaxed italic">
+              {wrapMystery(
+                data?.sharer?.primaryType
+                  ? PERSONALITY_TYPE_META[data.sharer.primaryType as PersonalityType]?.tagline
+                  : null,
+                "—— 一位走过默契研究所的 TA",
+                FALLBACK_PERSONALITY
+              ).body}
+            </p>
+            <p className="text-[11px] text-[var(--accent-dim)] text-center mt-2 italic">
+              {wrapMystery(
+                data?.sharer?.primaryType
+                  ? PERSONALITY_TYPE_META[data.sharer.primaryType as PersonalityType]?.tagline
+                  : null,
+                "—— 一位走过默契研究所的 TA",
+                FALLBACK_PERSONALITY
+              ).byline}
+            </p>
+          </div>
+
           <OrnamentDivider className="mb-4" />
 
           {/* 罗盘 + 塔罗牌阵（扇形悬浮，与首页同款） */}
@@ -486,7 +598,7 @@ export default function PersonalitySharePosterPage() {
             </div>
           </div>
           <p className="text-center text-[10px] text-[var(--text-muted)] tracking-widest mb-4">
-            十一面镜像，总有一面是你
+            七十四面镜子，总有一面是你
           </p>
 
           <OrnamentDivider className="mb-4" />
@@ -525,38 +637,21 @@ export default function PersonalitySharePosterPage() {
           )}
         </div>
 
-        {/* ===== 操作区 ===== */}
-        <div className="space-y-2 fade-in-up" style={{ animationDelay: "0.2s" }}>
-          <button onClick={handleDownload} disabled={downloading} className="btn-primary w-full">
-            {downloading ? "正在生成..." : "保存海报图片（长按图片也可保存）→"}
-          </button>
-          <div className="flex gap-2">
-            <button onClick={handleCopy} className="btn-ghost flex-1 text-sm">
-              {copied ? "✓ 已复制链接" : "复制首页链接"}
-            </button>
-            <button onClick={handleWechatShare} className="btn-ghost flex-1 text-sm">
-              {copied ? "✓ 已复制文案" : "复制给微信好友"}
-            </button>
-          </div>
-          <div className="text-center">
-            <Link
-              href={`/personality/report/${data.testId}`}
-              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
-            >
-              ← 回到我的完整报告
-            </Link>
-          </div>
+        {/* ===== 操作区（新版：分享好友 / 朋友圈 / 保存图片） ===== */}
+        <SharePosterActions
+          renderPoster={renderPosterAction}
+          defaultCaption={defaultCaption}
+          fileName={`默契研究所-性格面-${code.slice(0, 6)}.png`}
+        />
+
+        <div className="text-center mt-5">
+          <Link
+            href={`/personality/report/${data.testId}`}
+            className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+          >
+            ← 回到我的完整报告
+          </Link>
         </div>
-
-        {/* 操作提示（移动端长按提示） */}
-        <p className="text-[10px] text-[var(--text-muted)] text-center mt-4 leading-relaxed">
-          💡 手机端可长按上方海报图片，
-          <br />
-          保存到相册或转发给朋友（微信会自动识别二维码）
-        </p>
-
-        {/* 隐藏画布：用于导出 PNG */}
-        <canvas ref={canvasRef} width={POSTER_W} height={POSTER_H} className="hidden" />
 
         <HomeFooter />
       </div>

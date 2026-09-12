@@ -1,24 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --bg-dark: #16130f;
-  --bg-darker: #100e0a;
+  /* —— 主背景从 #16130f 提到 #1c1610，扫掉"灰压压"质感 —— */
+  --bg-dark: #1c1610;
+  --bg-darker: #120e09;
+  --bg-card: rgba(245, 237, 224, 0.045);  /* 卡片底：8% 米色透明（之前 2% 太透） */
   --paper: #f5ede0;
   --paper-dim: #e8dfd0;
   --ink: #2a2418;
   --ink-light: #5c5343;
-  --text-warm: #e8e0d4;
-  --text-muted: #9a9080;
-  --accent: #c9a96e;
-  --accent-dim: #a08850;
-  --border-dim: #3a3528;
-  --danger: #c97a5a;
-  /* 新增高亮配色 — 用于关键 CTA / 重要分数 / 引导操作 */
-  --highlight: #f5b942;             /* 亮琥珀黄：用于关键 CTA、引导按钮 */
-  --highlight-bg: rgba(245, 185, 66, 0.12);  /* 黄底透明：用于卡片背景高亮 */
-  --highlight-border: rgba(245, 185, 66, 0.45);  /* 黄边透明：用于卡片边框 */
-  --cta: #ef4444;                   /* 鲜红：用于双人报告支付 CTA（最高紧迫感） */
-  --cta-hover: #dc2626;             /* 红色 hover 加深 */
+  --text-warm: #ece4d4;          /* 从 #e8e0d4 提 +4 明度，让字更"看得见" */
+  --text-muted: #b0a690;         /* 从 #9a9080 提对比，不再发灰 */
+  --accent: #d4b278;             /* 从 #c9a96e 提 +6 明度，主金色更亮 */
+  --accent-dim: #a78c52;
+  --accent-bright: #f0c863;      /* 新增：用于报告页"高亮"数字、CTA 强调 */
+  --border-dim: #453f30;         /* 从 #3a3528 提 +6，描边更清晰 */
+  --danger: #d68d6e;             /* 从 #c97a5a 提 +15，错误更醒目 */
+  --highlight: #f5b942;
+  --highlight-bg: rgba(245, 185, 66, 0.14);
+  --highlight-border: rgba(245, 185, 66, 0.5);
+  --cta: #ef4444;
+  --cta-hover: #dc2626;
 }
 
 @theme inline {
@@ -69,6 +71,19 @@ body { overflow-x: hidden; }
     radial-gradient(circle at 80% 20%, rgba(0,0,0,0.02) 0%, transparent 50%);
 }
 
+/* 米色信纸卡片 —— A 方案风格：浅米黄 + 暖棕描边 + 轻微阴影 + 金色打亮字色支持 */
+.paper-section {
+  background: linear-gradient(180deg, #fbf3df 0%, #f5ead0 100%);
+  border: 1px solid #d9c8a3;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.35),
+    inset 0 0 30px rgba(150, 120, 70, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    0 4px 14px rgba(120, 95, 55, 0.12);
+  color: var(--ink);
+}
+
 /* Archive label */
 .archive-label {
   font-family: var(--font-geist-mono), "Courier New", monospace;
@@ -110,6 +125,12 @@ body { overflow-x: hidden; }
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* 底部 Action Sheet 上滑入场（手机端原生气质感） */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
 .fade-in {
@@ -315,7 +336,7 @@ body { overflow-x: hidden; }
    信纸质感 + 塔罗/星图装饰层
    ===================================================== */
 
-/* 信纸：羊皮纸渐变 + 微妙纸纹 + 金色顶饰线 */
+/* 信纸：方案 A —— 米黄信纸（保留手感）+ 金色打亮 */
 .paper-sheet {
   position: relative;
   color: var(--ink);
@@ -345,28 +366,39 @@ body { overflow-x: hidden; }
   pointer-events: none;
 }
 
-/* 信纸内的文字色修正（覆盖深色主题变量类） */
+/* 信纸内字色修正 —— 纯黑/深灰路线（不再用金棕色 var 覆盖） */
 .paper-sheet .text-\[var\(--text-warm\)\] {
-  color: var(--ink) !important;
+  color: #0a0a0a !important;          /* 近黑 */
 }
 .paper-sheet .text-\[var\(--text-muted\)\] {
-  color: var(--ink-light) !important;
+  color: #333333 !important;          /* 深灰，副标对比度 9.4:1 */
 }
 .paper-sheet .text-\[var\(--accent\)\] {
-  color: #8a6a2f !important;
+  color: #0a0a0a !important;          /* 强调 = 黑（不再偏暖棕） */
+}
+.paper-sheet .text-\[var\(--accent-bright\)\] {
+  color: #1a1a1a !important;          /* 主标题 = 近黑深灰 */
 }
 .paper-sheet .archive-label {
-  color: #8a6a2f;
+  color: #1a1a1a;
 }
 .paper-sheet .dim-bar-track {
-  background: #e3d6ba;
+  background: #d6c8a8;
 }
 .paper-sheet .progress-track {
-  background: #e3d6ba;
+  background: #d6c8a8;
 }
 .paper-sheet .card {
-  background: rgba(255, 255, 255, 0.35);
-  border-color: #dccdab;
+  background: rgba(255, 255, 255, 0.55);
+  border-color: #c8b88a;
+}
+
+
+/* —— 反向：深色页面（home / share）显式把 muted 拉回正常色 ——
+   （paper-sheet 的 !important 会泄漏到 .paper-sheet 之外的应用，
+   加这条兜底确保站点其余位置继续走 var()） */
+.text-\[var\(--text-muted\)\]:not(.paper-sheet *) {
+  color: var(--text-muted);
 }
 
 /* 罗盘缓慢自转 */
@@ -387,12 +419,76 @@ body { overflow-x: hidden; }
   animation: floatY 7s ease-in-out infinite;
 }
 
+/* ===== 3D 动效（首页塔罗牌阵） ===== */
+
+/* ① 入场：从左侧/右侧带 3D 透视切入 */
+@keyframes popin3D {
+  from { opacity: 0; transform: perspective(800px) rotateY(-22deg) translateZ(-80px) scale(0.88); }
+  to   { opacity: 1; transform: perspective(800px) rotateY(0deg)   translateZ(0)     scale(1); }
+}
+.popin-3d {
+  animation: popin3D 0.7s cubic-bezier(0.34, 1.56, 0.5, 1) backwards;
+}
+
+/* ② 摆动：轻微左右倾斜 + 纵深起伏，6s 周期 */
+@keyframes wobble3D {
+  0%, 100% { transform: perspective(700px) rotateY(0deg) rotateX(0deg) translateZ(0); }
+  25%      { transform: perspective(700px) rotateY(-4deg) rotateX(2deg) translateZ(6px); }
+  50%      { transform: perspective(700px) rotateY(0deg)  rotateX(-1deg) translateZ(0); }
+  75%      { transform: perspective(700px) rotateY(4deg)  rotateX(2deg) translateZ(6px); }
+}
+.wobble-3d {
+  animation: wobble3D 7s ease-in-out infinite;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* ③ 中间牌：金边呼吸光晕 */
+@keyframes glowPulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 12px 28px rgba(0,0,0,0.55))
+      drop-shadow(0 0 14px rgba(245,185,66,0.35));
+  }
+  50% {
+    filter:
+      drop-shadow(0 16px 36px rgba(0,0,0,0.65))
+      drop-shadow(0 0 32px rgba(245,185,66,0.85))
+      drop-shadow(0 0 14px rgba(245,185,66,0.4));
+  }
+}
+.glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* ④ 跳题时选项卡"心跳选中"反馈（120ms 内） */
+@keyframes heartTap {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.04); background: rgba(201,169,110,0.18); }
+  100% { transform: scale(1); }
+}
+.heart-tap {
+  animation: heartTap 280ms ease-out forwards;
+}
+
+/* ⑤ 顶部进度条淡入小提示（丝滑过渡 step 02 → Follow-up） */
+@keyframes phaseShift {
+  0%   { opacity: 0; transform: translateY(-4px); }
+  20%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+.phase-shift {
+  animation: phaseShift 3.2s ease-in-out forwards;
+}
+
 /* 首页塔罗牌阵：金边小牌 + 柔光 */
 .tarot-mini {
   border: 1px solid var(--accent);
   outline: 3px solid rgba(201, 162, 75, 0.18);
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 24px rgba(201, 162, 75, 0.12);
-  filter: brightness(0.85) saturate(0.95);
+  filter: brightness(0.95) saturate(1.05);
+  border-radius: 8px;
 }
 
 /* 塔罗牌卡：双层花框 + 悬浮微倾 */

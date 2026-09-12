@@ -29,12 +29,14 @@ export default function TestPage() {
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  // loadingFollowups 独立 flag：仅在加载追问题时显示轻量过渡，
-  // 不复用 completing phase（否则会错误触发 AnalyzingScreen 全屏星空页）
-  const [loadingFollowups, setLoadingFollowups] = useState(false);
+  // loadingFollowups 已弃用 —— 改为 phase-shift 顶部小提示，不再全屏替换。
   const [phase, setPhase] = useState<"initial" | "followup" | "completing">("initial");
   const [error, setError] = useState("");
   const [questionShownAt, setQuestionShownAt] = useState(() => Date.now());
+  // —— 新版：phase-shift 提示的状态机 ——
+  // "idle" → 不显示；"switching" → 顶部出现"已切换到 FOLLOW-UP"+下方原题保持
+  const [phaseBanner, setPhaseBanner] = useState<"idle" | "switching">("idle");
+  const [phaseBannerText, setPhaseBannerText] = useState("");
 
   useEffect(() => {
     async function fetchSession() {
@@ -99,14 +101,14 @@ export default function TestPage() {
 
       setAnswers((prev) => ({ ...prev, [question.id]: value }));
 
-      // Wait a moment for UX, then move to next
+      // 150ms 让"已选中"视觉反馈出现，然后立即切下一题
       setTimeout(() => {
         setSelectedValue(null);
         const nextIdx = currentIdx + 1;
 
         // Check if we've finished initial 20 and need to fetch followups
         if (data && nextIdx === data.initialQuestions.length && phase === "initial") {
-          // Fetch follow-ups
+          // Fetch follow-ups（不再切全屏，就地显示进度条 phase-shift）
           fetchFollowups();
         } else if (nextIdx >= allQuestions.length) {
           // All done
@@ -115,7 +117,7 @@ export default function TestPage() {
           setCurrentIdx(nextIdx);
         }
         setSubmitting(false);
-      }, 350);
+      }, 150);
     } catch (err) {
       setSubmitting(false);
       setSelectedValue(null);
@@ -124,38 +126,61 @@ export default function TestPage() {
 
   const fetchFollowups = async () => {
     try {
-      // 用独立 flag，不再误触发 AnalyzingScreen
-      setLoadingFollowups(true);
+      // —— 新版：丝滑过渡 ——
+      // 1. 顶部弹出 banner "正在准备追问题..."，原题目卡保留
+      setPhaseBannerText("正在根据你的回答准备追问题…");
+      setPhaseBanner("switching");
+      // 2. 异步加载追问题
       const res = await fetch(`/api/assessments/${sessionId}/followups`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
 
       if (json.followups.length === 0) {
         // No followups, go straight to complete
+        setPhaseBanner("idle");
         completeAssessment();
-      } else {
-        setAllQuestions((prev) => [...prev, ...json.followups]);
-        setPhase("followup");
-        setCurrentIdx(data!.initialQuestions.length);
+        return;
       }
+
+      // 3. 切换到 FOLLOW-UP 题
+      setAllQuestions((prev) => [...prev, ...json.followups]);
+      setPhase("followup");
+      setCurrentIdx(data!.initialQuestions.length);
+      // 4. 切换完成后再亮一次"已进入 FOLLOW-UP"提示，2s 后淡出
+      setPhaseBannerText("已进入 Follow-up · 接下来 4 道题让我们更懂你");
+      setTimeout(() => setPhaseBanner("idle"), 2200);
     } catch (err: any) {
       setError(err.message || "加载追问题失败");
       setPhase("initial");
-    } finally {
-      setLoadingFollowups(false);
+      setPhaseBanner("idle");
     }
   };
 
   const completeAssessment = async () => {
     try {
       setPhase("completing");
-      const res = await fetch(`/api/assessments/${sessionId}/complete`, {
-        method: "POST",
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-
-      router.push(`/result/${sessionId}`);
+      // —— 新版：fire-and-forget + polling，避免阻塞等后端 ——
+      fetch(`/api/assessments/${sessionId}/complete`, { method: "POST" }).catch(() => {});
+      // 立即轮询（每 1.2s 拉一次 result 接口）
+      const FALLBACK_MS = 10000;
+      const startedAt = Date.now();
+      const tick = async () => {
+        try {
+          const r = await fetch(`/api/assessments/${sessionId}/complete`, { method: "GET" });
+          if (r.ok) {
+            router.push(`/result/${sessionId}`);
+            return;
+          }
+        } catch {
+          /* 网络抖动继续轮询 */
+        }
+        if (Date.now() - startedAt > FALLBACK_MS) {
+          router.push(`/result/${sessionId}`);
+          return;
+        }
+        setTimeout(tick, 1200);
+      };
+      setTimeout(tick, 400);
     } catch (err: any) {
       setError(err.message || "完成测评失败");
       setPhase("followup");
@@ -181,15 +206,8 @@ export default function TestPage() {
     );
   }
 
-  // 加载追问题（20 → 24 题过渡）显示轻量过渡，不复用 completing 的 AnalyzingScreen
-  if (loadingFollowups) {
-    return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-3">
-        <div className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" />
-        <p className="text-[var(--text-muted)] text-sm">正在根据你的回答准备追问题…</p>
-      </main>
-    );
-  }
+  // 加载追问题（step 02 → FOLLOW-UP）采用顶部小提示，原题卡不消失
+  // （这一步原本会全屏替换，体验"卡顿"，改为就地提示）
 
   // 进入 completing 阶段（生成报告）才全屏过渡
   if (phase === "completing") {
@@ -246,6 +264,14 @@ export default function TestPage() {
         <div className="progress-track h-1">
           <div className="progress-fill h-full" style={{ width: `${progress}%` }} />
         </div>
+
+        {/* —— phase-shift 顶部小提示（step 02 → FOLLOW-UP 过渡）—— */}
+        {phaseBanner === "switching" && (
+          <div className="phase-shift mt-3 flex items-center justify-center gap-2 rounded-md bg-[rgba(245,185,66,0.12)] border border-[rgba(245,185,66,0.45)] px-3 py-2 text-[12px] text-[var(--accent-bright)]">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-bright)] animate-pulse" />
+            <span>{phaseBannerText}</span>
+          </div>
+        )}
       </div>
 
       {/* Question */}

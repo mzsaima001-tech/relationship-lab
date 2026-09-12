@@ -25,7 +25,11 @@ export async function GET(
       return NextResponse.json({ error: "测试不存在" }, { status: 404 });
     }
     if (test.status !== "completed") {
-      return NextResponse.json({ error: "测试未完成" }, { status: 400 });
+      // 透出当前 status 便于排查（前端可基于此区分"在算"vs"真出错"）
+      return NextResponse.json(
+        { error: "测试未完成", status: test.status },
+        { status: 400 }
+      );
     }
 
     if (

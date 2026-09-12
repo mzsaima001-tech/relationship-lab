@@ -202,7 +202,7 @@ export default function PairPage() {
           <div className="w-14 h-14 sm:w-16 sm:h-16 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-6 sm:mb-8" />
 
           <h2 className="display-serif text-lg sm:text-xl text-[var(--text-warm)] mb-3">
-            {data.message || "等待 TA 完成测评"}
+            {data.message || "快点分享给 TA，让 TA 也测一下"}
           </h2>
 
           {personA && (
@@ -425,7 +425,7 @@ export default function PairPage() {
           }}
         >
           <span className="archive-label" style={{ color: "var(--cta)" }}>
-            Full Pair Report · 解锁完整双人报告
+            Full Pair Report · 解锁我们的契合画像
           </span>
           <h3 className="display-serif text-xl text-[var(--text-warm)] mt-3 mb-3">
             已识别你们的主互动模式
@@ -437,7 +437,7 @@ export default function PairPage() {
             ¥19.9
           </p>
           <p className="text-xs text-[var(--text-muted)] mb-6">
-            双人报告不可使用积分抵扣
+            契合画像不可使用积分抵扣
           </p>
           <button
             onClick={handlePairUnlock}
@@ -449,7 +449,7 @@ export default function PairPage() {
               boxShadow: "0 4px 12px rgba(239, 68, 68, 0.35)",
             }}
           >
-            {paying ? "正在处理..." : "🔓 支付 19.9 元解锁完整双人报告"}
+            {paying ? "正在处理..." : "🔓 支付 19.9 元解锁我们的契合画像"}
           </button>
           <p className="text-[10px] text-[var(--text-muted)] mt-4">
             当前本地版使用模拟支付；云端上线时接入正式支付。

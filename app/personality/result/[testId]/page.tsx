@@ -68,22 +68,22 @@ const PERSONALITY_TYPE_CN: Record<string, string> = {
 };
 
 const LOCKED_SECTIONS = [
-  "🔒 第二人格",
-  "🔒 隐藏人格",
-  "🔒 别人眼中的你",
-  "🔒 真正的你",
-  "🔒 你的性格矛盾",
-  "🔒 你的核心优势（完整）",
-  "🔒 你的性格盲区",
-  "🔒 你的情绪触发点",
-  "🔒 压力状态下的你",
-  "🔒 你的人际关系模式",
-  "🔒 你的亲密关系模式",
-  "🔒 你的事业人格",
-  "🔒 你的领导风格",
-  "🔒 你的金钱与风险模式",
-  "🔒 你的成长建议",
-  "🔒 你的完整人格总结",
+  "第二人格",
+  "隐藏人格",
+  "别人眼中的你",
+  "真正的你",
+  "你的性格矛盾",
+  "你的核心优势（完整）",
+  "你的性格盲区",
+  "你的情绪触发点",
+  "压力状态下的你",
+  "你的人际关系模式",
+  "你的亲密关系模式",
+  "你的事业人格",
+  "你的领导风格",
+  "你的金钱与风险模式",
+  "你的成长建议",
+  "你的完整人格总结",
 ];
 
 export default function PersonalityResult() {
@@ -214,7 +214,7 @@ export default function PersonalityResult() {
   const matchPct = data.types.primary.matchScore;
 
   return (
-    <main className="flex-1 px-5 py-8 sm:px-6 sm:py-10 max-w-2xl mx-auto w-full safe-bottom">
+    <main className="flex-1 px-5 py-8 sm:px-6 sm:py-10 max-w-2xl mx-auto w-full safe-bottom paper-bg">
       <PersonalityCard
         type={data.types.primary.type as Parameters<typeof PersonalityCard>[0]["type"]}
         userScores={data.scores as Record<string, number>}
@@ -226,19 +226,19 @@ export default function PersonalityResult() {
 
       {/* 顶部：核心人格（保留原型名+tagline 文字） */}
       <div className="text-center mb-10 sm:mb-12 fade-in-up">
-        <p className="archive-label mb-3">你的核心人格</p>
-        <p className="text-xs text-[var(--text-muted)] mb-2">人格模型匹配度 {matchPct}%</p>
-        <h1 className="display-serif text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--text-warm)] mb-3">
+        <p className="archive-label mb-3" style={{ color: "var(--accent-bright)" }}>你的核心人格</p>
+        <p className="text-xs mb-2" style={{ color: "var(--ink-light)" }}>人格模型匹配度 {matchPct}%</p>
+        <h1 className="display-serif text-3xl sm:text-4xl md:text-5xl font-bold mb-3" style={{ color: "var(--accent-bright)", textShadow: "0 0 12px rgba(240, 200, 99, 0.25)" }}>
           {primaryCn}
         </h1>
-        <p className="display-serif text-base md:text-lg text-[var(--accent)] leading-relaxed max-w-md mx-auto">
+        <p className="display-serif text-base md:text-lg leading-relaxed max-w-md mx-auto" style={{ color: "var(--ink)" }}>
           「{data.freeReport.primaryTagline}」
         </p>
       </div>
 
       {/* 人格 DNA 雷达图 */}
-      <div className="card p-6 mb-10 fade-in-up" style={{ animationDelay: "0.15s" }}>
-        <p className="archive-label mb-4">你的性格 DNA</p>
+      <div className="paper-section p-6 mb-10 fade-in-up" style={{ animationDelay: "0.15s" }}>
+        <p className="archive-label mb-4" style={{ color: "var(--accent-bright)" }}>你的性格 DNA</p>
         <div className="flex justify-center mb-5">
           <RadarChart scores={data.scores} size={280} />
         </div>
@@ -247,8 +247,8 @@ export default function PersonalityResult() {
               const meta = PERSONALITY_DIMENSION_META[key as keyof typeof PERSONALITY_DIMENSION_META];
               return (
                 <div key={key}>
-                  <p className="text-xs text-[var(--text-muted)]">{meta.cn}</p>
-                  <p className="font-mono text-[var(--text-warm)]">{score}</p>
+                  <p className="text-xs" style={{ color: "var(--ink-light)" }}>{meta.cn}</p>
+                  <p className="font-mono font-semibold text-base" style={{ color: "var(--accent-bright)" }}>{score}</p>
                 </div>
               );
             })}
@@ -257,17 +257,17 @@ export default function PersonalityResult() {
 
       {/* 两个突出特征 */}
       <div className="mb-10 fade-in-up" style={{ animationDelay: "0.25s" }}>
-        <p className="archive-label mb-4">两项核心特质</p>
+        <p className="archive-label mb-4" style={{ color: "var(--accent-bright)" }}>两项核心特质</p>
         <div className="space-y-4">
           {data.freeReport.topDimensions.map((dim) => {
             const meta = PERSONALITY_DIMENSION_META[dim.key];
             return (
-              <div key={dim.key} className="card p-5">
+              <div key={dim.key} className="paper-section p-5">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="display-serif text-base text-[var(--text-warm)]">{meta.cn}</p>
-                  <p className="font-mono text-[var(--accent)]">{dim.score} / 100</p>
+                  <p className="display-serif text-base font-semibold" style={{ color: "var(--ink)" }}>{meta.cn}</p>
+                  <p className="font-mono font-semibold text-sm" style={{ color: "var(--accent-bright)" }}>{dim.score} / 100</p>
                 </div>
-                <p className="text-sm text-[var(--text-muted)] leading-relaxed">{dim.summary}</p>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--ink-light)" }}>{dim.summary}</p>
               </div>
             );
           })}
@@ -275,43 +275,97 @@ export default function PersonalityResult() {
       </div>
 
       {/* 核心优势 */}
-      <div className="card p-6 mb-12 fade-in-up" style={{ animationDelay: "0.35s" }}>
-        <p className="archive-label mb-3">一项核心优势</p>
-        <h3 className="display-serif text-lg text-[var(--text-warm)] mb-3">
+      <div className="paper-section p-6 mb-12 fade-in-up" style={{ animationDelay: "0.35s" }}>
+        <p className="archive-label mb-3" style={{ color: "var(--accent-bright)" }}>一项核心优势</p>
+        <h3 className="display-serif text-lg font-bold mb-3" style={{ color: "var(--ink)" }}>
           {data.freeReport.coreStrength.title}
         </h3>
-        <p className="text-sm text-[var(--text-muted)] leading-relaxed">
+        <p className="text-sm leading-relaxed" style={{ color: "var(--ink-light)" }}>
           {data.freeReport.coreStrength.description}
         </p>
       </div>
 
-      {/* 付费墙 */}
-      <div className="card p-6 text-center fade-in-up" style={{ animationDelay: "0.45s" }}>
-        <h3 className="display-serif text-xl text-[var(--text-warm)] mb-3">
-          关于你，还有更重要的部分没有展开
+      {/* 付费墙 —— 米黄信纸底 + 纯黑/深灰字（黑字清晰可读） */}
+      <div className="paper-sheet p-6 fade-in-up" style={{ animationDelay: "0.45s" }}>
+        {/* 主大标题（纯黑） */}
+        <h3
+          className="display-serif text-xl sm:text-2xl text-center font-bold leading-tight mb-2"
+          style={{ color: "#0a0a0a" }}
+        >
+          你才看到自己的 36%
         </h3>
-        <p className="text-sm text-[var(--text-muted)] mb-6">
+        <p
+          className="display-serif text-base sm:text-lg text-center font-semibold leading-snug mb-6"
+          style={{ color: "#1a1a1a" }}
+        >
+          —— 还有一整个宇宙没展开
+        </p>
+
+        <p className="text-base sm:text-lg font-bold mb-5 text-center" style={{ color: "#0a0a0a" }}>
           16 个完整模块，让你看清完整的自己。
         </p>
 
-        <div className="grid grid-cols-2 gap-2 mb-6 text-left">
-          {LOCKED_SECTIONS.map((s) => (
-            <p key={s} className="text-xs text-[var(--text-muted)] py-1.5">{s}</p>
+        {/* 锁住模块列表 —— 手机 2 列 / 桌面 2 列，字号放大 + 金色锁图标 + 编号 */}
+        <div className="grid grid-cols-2 gap-x-3 sm:gap-x-4 gap-y-2.5 mb-7 text-left">
+          {LOCKED_SECTIONS.map((s, i) => (
+            <div
+              key={s}
+              className="flex items-center gap-2 sm:gap-2.5 py-2.5 sm:py-3 px-2 sm:px-2.5 rounded-md border"
+              style={{
+                borderColor: "rgba(26,26,26,0.18)",
+                background: "rgba(255,255,255,0.45)",
+              }}
+            >
+              <span
+                className="flex-shrink-0 text-[15px] sm:text-base leading-none"
+                style={{ color: "#d4a850" }}
+                aria-hidden
+              >
+                🔒
+              </span>
+              <span
+                className="flex-shrink-0 font-mono text-[10px] sm:text-[11px] leading-none tracking-wider"
+                style={{ color: "#8a6a2a" }}
+              >
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <span
+                className="flex-1 min-w-0 text-[14px] sm:text-[15px] leading-tight font-medium"
+                style={{ color: "#1a1a1a" }}
+              >
+                {s.replace(/^🔒\s*/, "")}
+              </span>
+            </div>
           ))}
         </div>
 
         <div className="flex items-baseline justify-center gap-2 mb-5">
-          <span className="display-serif text-4xl font-bold text-[var(--accent)]">¥9.9</span>
-          <span className="text-xs text-[var(--text-muted)] line-through opacity-60">¥29.9</span>
-          <span className="text-[10px] text-[var(--accent)] px-1.5 py-0.5 border border-[var(--accent)] rounded font-mono">
+          <span className="display-serif text-3xl font-bold" style={{ color: "#0a0a0a" }}>¥9.9</span>
+          <span className="text-xs line-through opacity-60" style={{ color: "#2a2a2a" }}>¥29.9</span>
+          <span
+            className="text-[10px] px-1.5 py-0.5 border rounded font-mono"
+            style={{ color: "#1a1a1a", borderColor: "#1a1a1a" }}
+          >
             限时
           </span>
         </div>
 
-        <button onClick={handleUnlock} disabled={paying} className="btn-primary w-full text-base">
+        <button
+          onClick={handleUnlock}
+          disabled={paying}
+          className="w-full text-base font-bold"
+          style={{
+            background: "#1a1a1a",
+            color: "#fcf6e2",
+            padding: "16px 24px",
+            borderRadius: 8,
+            border: "none",
+            minHeight: 56,
+          }}
+        >
           {paying ? "解锁中..." : "¥9.9 解锁看完整报告"}
         </button>
-        <p className="text-[11px] text-[var(--text-muted)] mt-2.5">
+        <p className="text-[11px] mt-2.5 text-center" style={{ color: "#2a2a2a" }}>
           支付完成后立即解锁，无需重新测试。
         </p>
       </div>
@@ -324,19 +378,15 @@ export default function PersonalityResult() {
         const paid = data.paid;
         return (
           <div
-            className={`rounded-lg p-6 mt-6 fade-in-up ${
-              paid
-                ? "card"
-                : "border border-[var(--accent)] bg-[rgba(201,169,110,0.08)]"
-            }`}
+            className={`rounded-lg p-6 mt-6 fade-in-up paper-section`}
             style={{ animationDelay: "0.55s" }}
           >
             <div className="text-center">
-              <p className="archive-label mb-3">Share · 分享给朋友</p>
-              <h3 className="display-serif text-lg text-[var(--text-warm)] mb-3">
+              <p className="archive-label mb-3" style={{ color: "var(--accent-bright)" }}>Share · 分享给朋友</p>
+              <h3 className="display-serif text-lg font-bold mb-3" style={{ color: "var(--ink)" }}>
                 {paid ? "把你的画像分享给朋友" : `分享 ${SHARES_NEEDED} 人，免费解锁`}
               </h3>
-              <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
+              <p className="text-sm mb-5 leading-relaxed" style={{ color: "var(--ink-light)" }}>
                 生成你的专属海报（含二维码）。朋友扫码后翻开的，是 TA 们自己的人格。
                 {!paid && (
                   <>
@@ -352,8 +402,8 @@ export default function PersonalityResult() {
               {!paid && (
                 <>
                   <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-xs text-[var(--text-muted)]">有效分享进度</p>
-                    <p className="text-sm text-[var(--accent)] font-mono">
+                    <p className="text-xs" style={{ color: "var(--ink-light)" }}>有效分享进度</p>
+                    <p className="text-sm font-mono font-semibold" style={{ color: "var(--accent-bright)" }}>
                       {sharesDone}/{SHARES_NEEDED}
                     </p>
                   </div>
@@ -363,9 +413,12 @@ export default function PersonalityResult() {
                         key={i}
                         className={`flex-1 h-1.5 rounded-full ${
                           i < sharesDone
-                            ? "bg-[var(--accent)]"
-                            : "bg-[var(--border-dim)]"
+                            ? ""
+                            : ""
                         }`}
+                        style={{
+                          background: i < sharesDone ? "var(--accent-bright)" : "#d6c8a8",
+                        }}
                       />
                     ))}
                   </div>
@@ -398,13 +451,13 @@ export default function PersonalityResult() {
                       ? "正在生成..."
                       : `分享我的海报（还差 ${SHARES_NEEDED - sharesDone} 人）→`}
                   </button>
-                  <p className="text-[11px] text-[var(--text-muted)] text-center mt-2.5 leading-relaxed">
+                  <p className="text-[11px] text-center mt-2.5 leading-relaxed" style={{ color: "var(--ink-light)" }}>
                     每 1 位朋友完成测评，进度 +1 · 海报已备好，点一下就能发
                   </p>
                 </>
               )}
               {shareError && (
-                <p className="text-[11px] text-[var(--danger)] mt-2 text-center">
+                <p className="text-[11px] mt-2 text-center" style={{ color: "var(--danger)" }}>
                   {shareError}
                 </p>
               )}
@@ -419,25 +472,26 @@ export default function PersonalityResult() {
           <button
             onClick={handleUnlock}
             disabled={paying}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+            className="text-xs hover:opacity-70 transition-opacity"
+            style={{ color: "var(--ink-light)" }}
           >
             {paying ? "跳转中..." : "不想等？直接 ¥9.9 解锁 →"}
           </button>
         </div>
       )}
 
-      {error && <p className="text-xs text-[var(--danger)] mt-4 text-center">{error}</p>}
+      {error && <p className="text-xs mt-4 text-center" style={{ color: "var(--danger)" }}>{error}</p>}
 
-      <div className="flex items-center justify-center gap-4 mt-8 text-xs">
+      <div className="flex items-center justify-center gap-4 mt-8 text-xs" style={{ color: "var(--ink-light)" }}>
         <button
           type="button"
           onClick={() => router.back()}
-          className="text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+          className="hover:opacity-70 transition-opacity"
         >
           ← 返回上一页
         </button>
-        <span className="text-[var(--text-muted)]/40">·</span>
-        <Link href="/personality" className="text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors">
+        <span style={{ opacity: 0.4 }}>·</span>
+        <Link href="/personality" className="hover:opacity-70 transition-opacity">
           重新测试
         </Link>
       </div>

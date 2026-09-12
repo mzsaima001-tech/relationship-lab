@@ -73,37 +73,63 @@ export async function POST(
       hidden,
     });
 
-    // 5. 生成完整版报告（模板版）→ AI 润色（失败/超时降级为模板版原样）
+    // 5. 生成完整版报告（模板版，作为兜底缓存；AI 润色失败时也用它）
     const fullReportDraft = buildFullReport({
       scores,
       primary,
       secondary,
       hidden,
     });
-    const polishStartedAt = Date.now();
-    const { fullReport, applied, model, error } =
-      await polishPersonalityReportWithLLM(fullReportDraft);
-    const polishElapsedMs = Date.now() - polishStartedAt;
 
-    // 6. 更新测试记录（含报告缓存 + 润色元数据）
-    const updated = applyScoresToTest(test, scores);
+    // 6. 【关键】先把 status=completed 立即写库 —— 让前端的轮询能在 1-2 秒内拿到 200 跳转
+    //    即使后续 polish 还在跑（30-45s），用户已经能看到结果页（免费版立刻可见）
+    //    polish 跑完后再 updatePersonalityTest 覆盖 full_report_cache 即可
+    //    （/result API 已经支持 free_report_cache 直读，无需依赖 polish 成功）
+    //    polish_status 此时不写，保持 undefined —— 等 polish 真正跑完再写 ai-polished/local-template
+    const polishStartedAt = Date.now();
+    const initialUpdated = applyScoresToTest(test, scores);
     await updatePersonalityTest(testId, {
-      ...updated,
+      ...initialUpdated,
       primary_type: primary.type,
       secondary_type: secondary.type,
       hidden_type: hidden.type,
       status: "completed",
       completed_at: new Date().toISOString(),
       free_report_cache: freeReport,
-      full_report_cache: fullReport,
-      polish_status: applied ? "ai-polished" : (error ? "local-template" : "local-template"),
+      // 立即把模板版当作兜底缓存写进去；polish 成功后会被覆盖
+      full_report_cache: fullReportDraft,
+    });
+
+    // 7. 后台 polish（30-45s；失败/超时降级为模板版）
+    //    注意：这里的 catch 只为记录错误，绝不能影响 status=completed 的可见性
+    let applied = false;
+    let model: string | undefined;
+    let polishError: string | undefined;
+    let finalFullReport = fullReportDraft;
+    try {
+      const polishResult = await polishPersonalityReportWithLLM(fullReportDraft);
+      applied = polishResult.applied;
+      model = polishResult.model;
+      polishError = polishResult.error;
+      finalFullReport = polishResult.fullReport;
+    } catch (e) {
+      polishError = e instanceof Error ? e.message : String(e);
+      console.error("[personality/complete] polish crashed:", polishError);
+    }
+    const polishElapsedMs = Date.now() - polishStartedAt;
+
+    // 8. polish 完后再 update 一次 —— 覆盖 full_report_cache + 润色元数据
+    //    如果 polish 没成功也写一次元数据（让前端能区分是 ai-polished 还是 local-template）
+    await updatePersonalityTest(testId, {
+      full_report_cache: finalFullReport,
+      polish_status: applied ? "ai-polished" : "local-template",
       polish_model: model,
       polish_prompt_version: applied ? "v1.0-ai-polish" : undefined,
       polish_elapsed_ms: polishElapsedMs,
-      polish_error: error,
+      polish_error: polishError,
     });
 
-    // 7. 分享归因：若来自 ref 落地，则给推荐者 +1（最多 5 人自动解锁完整报告）
+    // 9. 分享归因：若来自 ref 落地，则给推荐者 +1（最多 5 人自动解锁完整报告）
     //    - 同一 visitor 不重复计数
     //    - 推荐者自动 is_paid=true → 下次访问直接拿完整版
     let referrerUnlocked = false;

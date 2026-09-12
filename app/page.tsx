@@ -92,24 +92,32 @@ export default function Home() {
           </p>
         </div>
 
-        {/* ===== 塔罗牌阵（随机三张，扇形悬浮） ===== */}
+        {/* ===== 塔罗牌阵（随机三张，扇形悬浮 + 3D 透视） ===== */}
         <div
           className={`mt-10 sm:mt-14 flex flex-col items-center transition-opacity duration-700 delay-150 ${
             ready ? "opacity-100" : "opacity-0"
           }`}
         >
-          <div className="relative flex items-end justify-center">
+          <div className="relative flex items-end justify-center" style={{ perspective: "900px" }}>
             {spread.map((card, i) => {
-              const rotate = i === 0 ? "-rotate-[9deg]" : i === 2 ? "rotate-[9deg]" : "rotate-0";
-              const offset = i === 1 ? "-translate-y-3 z-10" : "z-0";
-              const side = i === 0 ? "-mr-4 sm:-mr-5" : i === 2 ? "-ml-4 sm:-ml-5" : "";
+              // —— 角度稍微大一点，配合 3D 透视更立体 ——
+              const rotate = i === 0 ? "-rotate-[12deg]" : i === 2 ? "rotate-[12deg]" : "rotate-0";
+              const offset = i === 1 ? "-translate-y-4 z-20" : i === 0 ? "z-10" : "z-10";
+              const side = i === 0 ? "-mr-6 sm:-mr-8" : i === 2 ? "-ml-6 sm:-ml-8" : "";
+              const isCenter = i === 1;
               return (
-                <span key={card.slug} className={`${rotate} ${offset} ${side} transition-transform`}>
+                <span
+                  key={card.slug}
+                  className={`${rotate} ${offset} ${side} transition-transform popin-3d wobble-3d ${
+                    isCenter ? "glow-pulse" : ""
+                  }`}
+                  style={{ animationDelay: `${i * 0.18}s, ${i * 1.6 + 0.4}s` }}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={tarotImage(card.slug)}
                     alt={`塔罗牌：${card.cardTitle}`}
-                    className="tarot-mini floaty w-[64px] sm:w-[74px] md:w-[88px]"
+                    className="tarot-mini w-[110px] sm:w-[130px] md:w-[160px]"
                     style={{ animationDelay: `${i * 1.4}s` }}
                     loading="eager"
                   />
@@ -117,8 +125,8 @@ export default function Home() {
               );
             })}
           </div>
-          <p className="mt-4 sm:mt-5 text-xs text-[var(--text-muted)] tracking-widest">
-            十一面镜像，总有一面是你
+          <p className="mt-5 sm:mt-6 text-xs sm:text-sm text-[var(--text-muted)] tracking-widest">
+            七十四面镜子，总有一面是你
           </p>
         </div>
 

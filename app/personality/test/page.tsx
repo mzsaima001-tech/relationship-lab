@@ -161,13 +161,14 @@ function PersonalityTestInner() {
       return;
     }
 
-    // 答完最后一题（AWAIT 后写盘）→ 切 completing 阶段，原地全屏过渡
+    // 答完最后一题（AWAIT 后写盘）→ 切 completing 阶段
+    // —— 新版：fire-and-forget POST + 轮询提前跳 ——
     if (idx + 1 >= questions.length) {
       setPhase("completing");
-      await completeTest();
+      fireAndPollComplete();
     } else {
-      // 自动下一题
-      setTimeout(() => setIdx(idx + 1), 280);
+      // 自动下一题 — 150ms 内让用户看到"已选中"视觉，然后切
+      setTimeout(() => setIdx(idx + 1), 150);
     }
   };
 
@@ -202,6 +203,40 @@ function PersonalityTestInner() {
       setError(e?.message || "完成测试失败");
       setPhase("answering");
     }
+  };
+
+  /**
+   * 新版完成流程：触发计算 + 轮询结果独立进行，**结果一出来立刻跳**，
+   * 不再阻塞在服务端计算的 N 秒。最坏 10 秒兜底。
+   */
+  const fireAndPollComplete = () => {
+    // 1. fire-and-forget 触发后端计算
+    fetch(`/api/personality/tests/${testId}/complete`, { method: "POST" }).catch(() => {});
+    // 2. 启动 polling，每 1.2s 拉一次 result（任何 200 都视作"已就绪"）
+    const startedAt = Date.now();
+    const FALLBACK_MS = 10000;
+    const tick = async () => {
+      try {
+        const r = await fetch(`/api/personality/tests/${testId}/result`);
+        if (r.ok) {
+          // 拿到 result 说明后端已完成 — 立刻跳转
+          localStorage.removeItem(`personality_draft_${testId}`);
+          router.push(`/personality/result/${testId}`);
+          return;
+        }
+      } catch {
+        /* 网络抖动继续轮询 */
+      }
+      if (Date.now() - startedAt > FALLBACK_MS) {
+        // 兜底 10 秒：万一 polling 持续失败，最后强制跳
+        localStorage.removeItem(`personality_draft_${testId}`);
+        router.push(`/personality/result/${testId}`);
+        return;
+      }
+      setTimeout(tick, 1200);
+    };
+    // 立即发起第一次（POST 后端一般同步算完，节省一轮等待）
+    setTimeout(tick, 400);
   };
 
   if (loading) {

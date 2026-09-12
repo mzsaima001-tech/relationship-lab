@@ -380,36 +380,28 @@ export default function ResultPage() {
         </LetterFrame>
       )}
 
-      {/* ===== 付费墙 / 完整报告 ===== */}
+      {/* ===== 付费墙 / 完整报告 —— 文案不动，颜色全部加深 ===== */}
       {!reportUnlocked ? (
         <LetterFrame className="p-4 pt-7 mb-8 sm:p-6 sm:pt-8 sm:mb-10 fade-in-up" >
           <div className="fade-in-up" style={{ animationDelay: "0.3s" }}>
-            {/* 吸引人的一行标题 */}
-            <div className="text-center mb-5">
-              <p className="archive-label mb-2">Unlock · 完整个人报告</p>
-              <h3 className="display-serif text-lg sm:text-xl text-[var(--text-warm)] leading-relaxed">
-                你才看到自己的 {data.freePercent ?? 8}%——
-                <br />
-                <span className="text-[var(--accent)]">还有一整个宇宙没展开</span>
-              </h3>
-            </div>
+            {/* 主大标题 —— 纯黑/深灰（去棕色） */}
+            <h3
+              className="display-serif text-lg sm:text-xl text-center font-bold leading-tight mb-2"
+              style={{ color: "#0a0a0a" }}
+            >
+              你才看到自己的 {data.freePercent ?? 8}%
+            </h3>
+            <p
+              className="display-serif text-base sm:text-lg text-center font-semibold leading-snug mb-5"
+              style={{ color: "#1a1a1a" }}
+            >
+              —— 还有一整个宇宙没展开
+            </p>
 
-            {/* 钩子话术：解锁后才能读懂 TA 没说出口的部分 */}
-            <div className="border border-[var(--accent-dim)] rounded-lg px-4 py-3.5 mb-5 bg-[rgba(201,169,110,0.05)]">
-              <p className="display-serif text-sm text-[var(--text-warm)] leading-relaxed text-center">
-                「有些事，TA 永远不会直接告诉你。
-                <br />
-                但你的答案里，藏着<span className="text-[var(--accent)]">读懂 TA 的钥匙</span>。」
-              </p>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed text-center mt-2">
-                解锁后你会看到：TA 在关系里真正需要什么、为什么 TA 最近那样对你、
-                以及哪句话能真正说到 TA 心里去。
-              </p>
-            </div>
             <OrnamentDivider className="mb-5" />
 
-            {/* 解锁后能得到什么 */}
-            <p className="display-serif text-sm text-[var(--text-warm)] mb-3">解锁后，你将立刻得到：</p>
+            {/* 解锁后能得到什么 —— ✦ 用深灰（非金棕色） */}
+            <p className="display-serif text-sm font-semibold mb-3" style={{ color: "#0a0a0a" }}>解锁后，你将立刻得到：</p>
             <ul className="space-y-2.5 mb-6">
               {[
                 ["读懂 TA 的钥匙", "TA 不愿说出口的需求和期待，一次讲透"],
@@ -420,23 +412,31 @@ export default function ResultPage() {
                 ["具体建议 + 沟通话术", "拿来就能用的 3 条建议和可以照着说的话"],
               ].map(([t, d]) => (
                 <li key={t} className="flex gap-2.5">
-                  <span className="text-[var(--accent)] mt-0.5 flex-shrink-0">✦</span>
-                  <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
+                  <span className="mt-0.5 flex-shrink-0 text-base" style={{ color: "#1a1a1a" }}>✦</span>
+                  <p className="text-[15px] sm:text-sm leading-relaxed" style={{ color: "#0a0a0a" }}>
                     <span className="font-medium">{t}</span>
-                    <span className="text-[var(--text-muted)]"> —— {d}</span>
+                    <span style={{ color: "#2a2a2a" }}> —— {d}</span>
                   </p>
                 </li>
               ))}
             </ul>
 
-            {/* 直接付费（醒目主按钮 — 手机端满宽） */}
+            {/* 主按钮（深棕底 + 米色字） */}
             <button
               onClick={() => router.push(`/pay/${sessionId}`)}
-              className="btn-primary w-full text-base"
+              className="w-full text-base font-bold"
+              style={{
+                background: "#1a1a1a",
+                color: "#fcf6e2",
+                padding: "16px 24px",
+                borderRadius: 8,
+                border: "none",
+                minHeight: 56,
+              }}
             >
               ¥{SINGLE_REPORT_PRICE.toFixed(1)} 立即解锁完整报告
             </button>
-            <p className="text-[11px] text-[var(--text-muted)] text-center mt-2.5 leading-relaxed">
+            <p className="text-[11px] text-center mt-2.5 leading-relaxed" style={{ color: "#2a2a2a" }}>
               支持{PAYMENT_CONFIG.channels} · 也可以分享 {VALID_SHARES_FOR_FREE_UNLOCK} 位朋友，免费解锁 ↓
             </p>
           </div>
@@ -661,10 +661,10 @@ export default function ResultPage() {
                   </p>
                 </div>
               )}
-              <p className="text-xs text-[var(--text-muted)] mb-5">TA完成后，你们可以在双人报告页查看结果。</p>
+              <p className="text-xs text-[var(--text-muted)] mb-5">TA 完成后，你们可以在契合画像页查看结果。</p>
               {pairId && (
                 <Link href={`/pair/${pairId}`} className="btn-ghost">
-                  查看双人报告 →
+                  解锁我们的契合画像 →
                 </Link>
               )}
             </div>

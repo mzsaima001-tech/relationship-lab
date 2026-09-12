@@ -18,7 +18,7 @@ export default function NotFound() {
           测一测我的人格
         </Link>
         <Link href="/start" className="btn-ghost">
-          测一测我们
+          解锁我们的契合画像
         </Link>
       </div>
     </main>
