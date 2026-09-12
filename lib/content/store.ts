@@ -160,9 +160,10 @@ export function getPersonalityQuestionById(id: string): PersonalityQuestion | un
   return loadPersonalityQuestionStore().items.find(q => q.id === id);
 }
 
-/** 引擎使用：返回启用中的人格题（按 order 升序） */
+/** 引擎使用：返回启用中的人格题（按 order 升序）
+ *  生产环境（Vercel serverless）下直接读 TS seed，跳过 fs 文件读写。
+ */
 export function getActivePersonalityQuestions(): PersonalityQuestion[] {
-  return loadPersonalityQuestionStore().items
-    .filter(q => q.active !== false)
-    .sort((a, b) => a.order - b.order);
+  const items = PERSONALITY_QUESTIONS.filter(q => q.active !== false);
+  return [...items].sort((a, b) => a.order - b.order);
 }
