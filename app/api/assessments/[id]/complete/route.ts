@@ -33,6 +33,11 @@ import { deriveRelationshipState } from "@/lib/assessment/relationship-state";
 import type { Answer, AssessmentContext, AssessmentResult, Question, ReportFacts } from "@/lib/assessment/types";
 import { SHARE_REWARD } from "@/lib/assessment/types";
 
+// 默契测试完整版报告含两人对照 + 多章节 AI 润色，单次 polish 需 30-50s，
+// 显式提到 60s（Hobby 上限），超时则降级模板版（绝不阻塞出报告）。
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 const aiPolishEnabled = () =>
   (process.env.AI_POLISH_ENABLED ?? "").trim().toLowerCase() === "true";
 

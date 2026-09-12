@@ -15,6 +15,12 @@ import {
 } from "@/lib/db";
 import { getActivePersonalityQuestions } from "@/lib/content/store";
 
+// 人格测试完整版报告可能含多个 AI 润色块（叙事 / 维度解读 / 行动建议 / 心声等），
+// 单次 polish 通常需要 30-45s，Hobby 计划默认 10s 会 socket hang up。
+// 显式提到 60s（Hobby 上限），仍超时则降级为模板版（绝不阻塞出报告）。
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/personality/tests/[testId]/complete
  * 完成测试：计算 6 维 + Top3 人格 + 报告快照（含 AI 润色）。
