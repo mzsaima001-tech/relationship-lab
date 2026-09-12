@@ -359,10 +359,15 @@ export async function createShare(
   sourceSessionId: string,
   options: CreateShareOptions = {}
 ): Promise<ShareRecord> {
+  // personality 类型的 share 没有对应的 session 行：source_session_id 必须置空以避开
+  // shares 表上的 sessions(id) 外键约束（schema.sql 里 source_session_id 有 REFERENCES）。
+  const effectiveSessionId =
+    options.shareType === "personality" || !sourceSessionId ? undefined : sourceSessionId;
+
   const record: ShareRecord = {
     id: genId(),
     code: crypto.randomBytes(6).toString("hex"),
-    source_session_id: sourceSessionId,
+    source_session_id: effectiveSessionId as string,
     share_type: options.shareType,
     source_test_id: options.sourceTestId,
     visitor_id: options.visitorId,
