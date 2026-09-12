@@ -31,6 +31,9 @@ export interface ContentFile<T> {
   items: T[];
 }
 
+// Vercel serverless 函数没有可写文件系统：跳过 fs 读写，直接读 TS seed。
+const IS_SERVERLESS = !!process.env.VERCEL;
+
 interface CacheEntry {
   mtimeMs: number;
   data: unknown;
@@ -38,10 +41,19 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 
 function ensureDir() {
+  if (IS_SERVERLESS) return;
   if (!fs.existsSync(CONTENT_DIR)) fs.mkdirSync(CONTENT_DIR, { recursive: true });
 }
 
 function loadFile<T>(file: string, version: string, seed: T[]): ContentFile<T> {
+  if (IS_SERVERLESS) {
+    // 直接返回内存中的 seed（生产环境无文件存储）
+    return {
+      version,
+      updatedAt: new Date().toISOString(),
+      items: seed,
+    };
+  }
   ensureDir();
   if (!fs.existsSync(file)) {
     const data: ContentFile<T> = {
@@ -62,6 +74,12 @@ function loadFile<T>(file: string, version: string, seed: T[]): ContentFile<T> {
 }
 
 function saveFile<T>(file: string, data: ContentFile<T>) {
+  if (IS_SERVERLESS) {
+    // 生产环境不支持写盘：仅更新内存缓存（重启即丢），与 loadFile 对齐
+    data.updatedAt = new Date().toISOString();
+    cache.set(file, { mtimeMs: Date.now(), data });
+    return;
+  }
   ensureDir();
   data.updatedAt = new Date().toISOString();
   fs.writeFileSync(file, JSON.stringify(data, null, 2), "utf-8");
@@ -161,17 +179,9 @@ export function getPersonalityQuestionById(id: string): PersonalityQuestion | un
 }
 
 /** 引擎使用：返回启用中的人格题（按 order 升序）
- *  生产环境（Vercel serverless）下直接读 TS seed，跳过 fs 文件读写。
+ *  loadFile 在 Vercel serverless 下直接返回内存 seed，跳过 fs 文件读写。
  */
 export function getActivePersonalityQuestions(): PersonalityQuestion[] {
   const items = PERSONALITY_QUESTIONS.filter(q => q.active !== false);
-  return [...items].sort((a, b) => a.order - b.order);
-}
-
-/** 引擎使用：返回启用中的 followup 题（按 order 升序）
- *  生产环境（Vercel serverless）下直接读 TS seed。
- */
-export function getFollowupQuestions(): Question[] {
-  const items = seedQuestions.filter(q => q.phase === "followup" && q.active !== false);
   return [...items].sort((a, b) => a.order - b.order);
 }
