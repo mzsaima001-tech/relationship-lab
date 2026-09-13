@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
-import { matchArchetypes } from "@/lib/personality/archetypes";
-import { buildFreeReport, buildFullReport } from "@/lib/personality/report";
+import { matchCards } from "@/lib/personality/match";
+import { PERSONALITY_CARDS } from "@/lib/personality/cards";
+import {
+  PERSONALITY_DIMENSIONS,
+  type PersonalityDimension,
+} from "@/lib/personality/types";
 import { getPersonalityTest } from "@/lib/db";
+import { buildFreeReport, buildFullReport } from "@/lib/personality/report-builder";
 
 /**
  * GET /api/personality/tests/[testId]/result
- * 未付款：返回免费版（优先读缓存，无缓存则现场 build）
- * 已付款：返回免费版 + 完整版（优先读缓存，避免重复 build+polish）
- *
- * 注意：完整版数据由服务器根据 is_paid 字段裁剪下发，前端不能"通过 CSS 隐藏"绕过。
- *
- * 缓存策略：
- * - complete 时已生成 full_report_cache（含 AI 润色结果）→ 直接读，零 LLM 调用
- * - 老数据没有缓存（升级前回填）→ 现场 build 模板版兜底，不重 polish（避免历史报告突变）
+ * V3：返回免费版（已付款返回完整版）。
+ * 缓存：complete 时已写 free_report_cache + full_report_cache，优先读缓存。
  */
 export async function GET(
   _request: Request,
@@ -25,61 +24,67 @@ export async function GET(
       return NextResponse.json({ error: "测试不存在" }, { status: 404 });
     }
     if (test.status !== "completed") {
-      // 透出当前 status 便于排查（前端可基于此区分"在算"vs"真出错"）
       return NextResponse.json(
         { error: "测试未完成", status: test.status },
         { status: 400 }
       );
     }
 
+    // 验证 V3 6 维字段齐全
     if (
-      test.social_score === undefined ||
-      test.rationality_score === undefined ||
-      test.planning_score === undefined ||
-      test.risk_score === undefined ||
-      test.dominance_score === undefined ||
-      test.sensitivity_score === undefined ||
-      !test.primary_type ||
-      !test.secondary_type ||
-      !test.hidden_type
+      test.g_score === undefined ||
+      test.x_score === undefined ||
+      test.i_score === undefined ||
+      test.f_score === undefined ||
+      test.s_score === undefined ||
+      test.e_score === undefined
     ) {
       return NextResponse.json({ error: "报告数据缺失" }, { status: 500 });
     }
 
-    const scores = {
-      social: test.social_score,
-      rationality: test.rationality_score,
-      planning: test.planning_score,
-      risk: test.risk_score,
-      dominance: test.dominance_score,
-      sensitivity: test.sensitivity_score,
+    // V3 6 维分数（强制整数，兜底历史脏数据浮点）
+    const scores: Record<PersonalityDimension, number> = {
+      G: Math.round(test.g_score ?? 50),
+      X: Math.round(test.x_score ?? 50),
+      I: Math.round(test.i_score ?? 50),
+      F: Math.round(test.f_score ?? 50),
+      S: Math.round(test.s_score ?? 50),
+      E: Math.round(test.e_score ?? 50),
     };
-    const top3 = matchArchetypes(scores);
-    const [primary, secondary, hidden] = top3;
 
-    // 免费版：优先缓存，否则现场 build
-    const freeReport = test.free_report_cache ?? buildFreeReport({ scores, primary, secondary, hidden });
+    // 重算 match（如果缓存里有 top1/top2/top3 card_id，直接信任缓存否则重算）
+    const matchResult = matchCards(
+      PERSONALITY_DIMENSIONS.map(d => scores[d]),
+      PERSONALITY_CARDS
+    );
 
-    // 公共元数据（让前端感知润色状态，便于后续按版本回滚或显示角标）
+    const freeReport = (test.free_report_cache as any) ?? buildFreeReport(scores, matchResult);
     const polish = {
       status: test.polish_status ?? "local-template",
+      applied: test.polish_status === "ai-polished",
       model: test.polish_model,
       promptVersion: test.polish_prompt_version,
       elapsedMs: test.polish_elapsed_ms,
+      ...(test.polish_error ? { error: test.polish_error } : {}),
     };
 
-    // 分享奖励：供前端展示进度（解锁后 is_paid 自动为 true）
     const shareCredit = {
       shares: test.shares_count ?? 0,
       unlockedViaShare: !!test.unlocked_via_share,
       shareCode: test.share_code,
     };
 
+    const types = {
+      primary: { id: matchResult.top1.card.id, name: matchResult.top1.card.name, similarity: matchResult.top1.similarity, card: matchResult.top1.card },
+      secondary: { id: matchResult.top2.card.id, name: matchResult.top2.card.name, similarity: matchResult.top2.similarity, card: matchResult.top2.card },
+      hidden: { id: matchResult.top3.card.id, name: matchResult.top3.card.name, similarity: matchResult.top3.similarity, card: matchResult.top3.card },
+    };
+
     if (!test.is_paid) {
       return NextResponse.json({
         testId,
         scores,
-        types: { primary, secondary, hidden },
+        types,
         freeReport,
         paid: false,
         fullReport: null,
@@ -88,13 +93,12 @@ export async function GET(
       });
     }
 
-    // 已付款：完整版优先读缓存，否则现场 build 模板版兜底（不重 polish，避免历史报告突变）
-    const fullReport = test.full_report_cache ?? buildFullReport({ scores, primary, secondary, hidden });
+    const fullReport = (test.full_report_cache as any) ?? buildFullReport(scores, matchResult);
 
     return NextResponse.json({
       testId,
       scores,
-      types: { primary, secondary, hidden },
+      types,
       freeReport,
       paid: true,
       fullReport,

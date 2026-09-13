@@ -1,90 +1,129 @@
 // =====================================================
-// 我到底什么性格 — 评分算法
-// PRD 第十一节：6 维 0-100 分计算
+// 人格测试计分
+//
+// V3 主路径：scoreAnswers(paper, answers[]) → PersonalityUserScore
+// V1 兼容：computeDimensionScores(answerMap, questions) → {social, rationality, ...}
+//           applyScoresToTest(test, scores) → 填充 V3+V1 双轨字段
 // =====================================================
 
-import {
-  PERSONALITY_DIMENSIONS,
-  type AnswerLetter,
-  type PersonalityBand,
-  type PersonalityDimension,
-  type PersonalityTestRecord,
-} from "./types";
-import { ANSWER_VALUES } from "./types";
-import type { PersonalityQuestion } from "./questions";
+import type { PersonalityDimension, PersonalityQuestion, PersonalityTestRecord } from "./types";
+import { PERSONALITY_DIMENSIONS } from "./types";
+import type { PaperId } from "./questionsData";
+import { PERSONALITY_QUESTIONS_1, PERSONALITY_QUESTIONS_2, PERSONALITY_QUESTIONS_3, PERSONALITY_QUESTIONS_4, PERSONALITY_QUESTIONS_5 } from "./questionsData";
+import { PERSONALITY_V3_TO_V1_DIM } from "./types";
 
-/** 单题反向处理 + 转 0-100 分 */
-export function scoreAnswer(
-  question: PersonalityQuestion,
-  letter: AnswerLetter
-): number {
-  // 原始分 1-4
-  const raw = ANSWER_VALUES[letter];
-  // 反向题：4-3-2-1 倒置 → 5-raw
-  const normalized = question.reverse ? 5 - raw : raw;
-  // 每维 6 题：最低 6（= 1×6），最高 24（= 4×6）
-  // 单题贡献：(normalized - 1) / 3，区间 [0,1]
-  return (normalized - 1) / 3;
-}
+/** 给定 paper + 36 道答案（optionIndex 0-4），返回每维得分 */
+export function scoreAnswers(
+  paper: PaperId,
+  answers: { questionId: string; optionIndex: number }[],
+): {
+  raw: Record<PersonalityDimension, number>;
+  norm: Record<PersonalityDimension, number>;
+  z: Record<PersonalityDimension, number>;
+} {
+  const list = paper === "P1" ? PERSONALITY_QUESTIONS_1 :
+    paper === "P2" ? PERSONALITY_QUESTIONS_2 :
+      paper === "P3" ? PERSONALITY_QUESTIONS_3 :
+        paper === "P4" ? PERSONALITY_QUESTIONS_4 : PERSONALITY_QUESTIONS_5;
 
-/**
- * 6 维原始 0-100 分。
- * inputs：每题答案（{questionId: letter}）+ 题库。
- * 缺题按 2.5（中性）处理（容错，避免作废）。
- */
-export function computeDimensionScores(
-  answers: Record<string, AnswerLetter>,
-  questions: PersonalityQuestion[]
-): Record<PersonalityDimension, number> {
-  const scores = {} as Record<PersonalityDimension, number>;
-  for (const dim of PERSONALITY_DIMENSIONS) {
-    const dimQuestions = questions.filter((q) => q.dimension === dim);
-    if (dimQuestions.length === 0) {
-      scores[dim] = 50;
-      continue;
-    }
-    let sum = 0;
-    for (const q of dimQuestions) {
-      const letter = answers[q.id] ?? "C"; // 缺题中性
-      sum += scoreAnswer(q, letter);
-    }
-    const avg = sum / dimQuestions.length; // [0, 1]
-    const pct = Math.round(avg * 100);
-    scores[dim] = Math.max(0, Math.min(100, pct));
+  const raw = { G: 0, X: 0, I: 0, F: 0, S: 0, E: 0 } as Record<PersonalityDimension, number>;
+
+  for (const a of answers) {
+    const q = list.find(x => x.id === a.questionId);
+    if (!q) continue;
+    const idx = Math.max(0, Math.min(4, a.optionIndex | 0)) as 0 | 1 | 2 | 3 | 4;
+    raw[q.dimension] += q.scores[idx];
   }
-  return scores;
+
+  // norm: 6 题 × 1-5 分 → 6-30 归一到 0-100 整数（Math.round 防止 41.6666...）
+  const norm = {} as Record<PersonalityDimension, number>;
+  for (const d of PERSONALITY_DIMENSIONS) {
+    norm[d] = Math.round(((raw[d] - 6) / (30 - 6)) * 100);
+  }
+
+  // z: 6 维标准化（理论分布：单卷每维 6 题 score 1-5 均值 18，std sqrt(12)≈3.464）
+  const dimMean = 18;
+  const dimStd = Math.sqrt(12);
+  const z = {} as Record<PersonalityDimension, number>;
+  for (const d of PERSONALITY_DIMENSIONS) {
+    z[d] = (raw[d] - dimMean) / dimStd;
+  }
+
+  return { raw, norm, z };
 }
 
-/** 分档标签 */
-export function bandOf(score: number): PersonalityBand {
-  if (score >= 75) return "high";
-  if (score >= 60) return "midHigh";
-  if (score >= 40) return "mid";
-  if (score >= 25) return "midLow";
+/** 单题得分 */
+export function scoreOf(question: PersonalityQuestion, optionIndex: 0 | 1 | 2 | 3 | 4): number {
+  return question.scores[optionIndex];
+}
+
+/** band 分档 */
+export function dimensionBand(norm: number): "high" | "midHigh" | "mid" | "midLow" | "low" {
+  if (norm >= 75) return "high";
+  if (norm >= 60) return "midHigh";
+  if (norm >= 40) return "mid";
+  if (norm >= 25) return "midLow";
   return "low";
 }
 
-/** 分档中文标签（用于报告展示） */
-export const BAND_LABELS_CN: Record<PersonalityBand, string> = {
-  high: "高",
-  midHigh: "中高",
-  mid: "中等",
-  midLow: "中低",
-  low: "低",
-};
+// ============================================================
+// V1 兼容层
+// ============================================================
 
-/** 将分数写入测试记录 */
+/**
+ * V1 兼容：computeDimensionScores(answerMap, questions)
+ * answerMap: { [questionId]: "A"|"B"|"C"|"D"|"E" }
+ * questions: PersonalityQuestion[]
+ * 返回: { social, rationality, planning, risk, dominance, sensitivity }（按 V1 dim key，0-100）
+ */
+export function computeDimensionScores(
+  answerMap: Record<string, "A" | "B" | "C" | "D" | "E">,
+  questions?: PersonalityQuestion[],
+): Record<string, number> {
+  const list = questions ?? PERSONALITY_QUESTIONS_1;
+  const raw = { G: 0, X: 0, I: 0, F: 0, S: 0, E: 0 } as Record<PersonalityDimension, number>;
+
+  for (const q of list) {
+    const letter = answerMap[q.id];
+    if (!letter) continue;
+    const idx = "ABCDE".indexOf(letter);
+    if (idx < 0) continue;
+    raw[q.dimension] += q.scores[idx as 0 | 1 | 2 | 3 | 4];
+  }
+
+  const v1: Record<string, number> = {};
+  for (const d of PERSONALITY_DIMENSIONS) {
+    const norm = Math.round(((raw[d] - 6) / (30 - 6)) * 100);
+    v1[PERSONALITY_V3_TO_V1_DIM[d]] = norm;
+  }
+  return v1;
+}
+
+/**
+ * 把分数写入 PersonalityTestRecord（同时填充 V3 + V1 双字段）
+ * 输入 scores: V1 dim key 字典 或 V3 dim key 字典 都接受
+ */
 export function applyScoresToTest(
   test: PersonalityTestRecord,
-  scores: Record<PersonalityDimension, number>
-): PersonalityTestRecord {
+  scores: Record<string, number>,
+): Partial<PersonalityTestRecord> {
+  // 接受 V1 / V3 两种 key
+  const norm = (k: PersonalityDimension) =>
+    typeof scores[k] === "number" ? scores[k]! :
+      typeof scores[PERSONALITY_V3_TO_V1_DIM[k]] === "number" ? scores[PERSONALITY_V3_TO_V1_DIM[k]]! :
+        undefined;
+
+  const g = norm("G");
+  const x = norm("X");
+  const i = norm("I");
+  const f = norm("F");
+  const s = norm("S");
+  const e = norm("E");
+
   return {
-    ...test,
-    social_score: scores.social,
-    rationality_score: scores.rationality,
-    planning_score: scores.planning,
-    risk_score: scores.risk,
-    dominance_score: scores.dominance,
-    sensitivity_score: scores.sensitivity,
+    g_score: g, x_score: x, i_score: i, f_score: f, s_score: s, e_score: e,
+    social_score: g, rationality_score: x, risk_score: i,
+    planning_score: f, dominance_score: s, sensitivity_score: e,
+    updated_at: new Date().toISOString(),
   };
 }

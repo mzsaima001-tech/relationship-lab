@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { isValidAnswer } from "@/lib/personality/questions";
-import { ANSWER_VALUES } from "@/lib/personality/types";
+import { isValidAnswer } from "@/lib/personality/types";
 import { getPersonalityQuestionById } from "@/lib/content/store";
 import { addPersonalityAnswer, getPersonalityTest } from "@/lib/db";
 
 const schema = z.object({
-  questionId: z.string().min(2).max(8),
-  letter: z.enum(["A", "B", "C", "D"]),
+  questionId: z.string().min(2).max(12),
+  letter: z.enum(["A", "B", "C", "D", "E"]),
 });
 
 /**
  * POST /api/personality/tests/[testId]/answers
- * 保存单题答案（自动处理 reverse）。
+ * V3：保存单题答案（5 选项 A-E，分值已绑定在 options 上）
  * 同一 questionId 重复提交会覆盖（用于"上一题修改"功能）。
  */
 export async function POST(
@@ -36,20 +35,22 @@ export async function POST(
     }
 
     const question = getPersonalityQuestionById(questionId);
-    if (!question || !question.active) {
+    if (!question) {
       return NextResponse.json({ error: "题目不存在" }, { status: 404 });
     }
 
-    // reverse 处理：反向题用 5 - raw
-    const raw = ANSWER_VALUES[letter];
-    const calculated = question.reverse ? 5 - raw : raw;
+    // V3：optionIndex 0-4 + score 由 options 直接读
+    const optionIndex = (["A", "B", "C", "D", "E"].indexOf(letter) as 0 | 1 | 2 | 3 | 4);
+    const score = question.scores[optionIndex];
 
     await addPersonalityAnswer(
       testId,
       questionId,
-      letter,
-      calculated,
-      Date.now()
+      test.paper_id ?? question.paper,
+      optionIndex,
+      score,
+      Date.now(),
+      letter
     );
 
     return NextResponse.json({ ok: true });

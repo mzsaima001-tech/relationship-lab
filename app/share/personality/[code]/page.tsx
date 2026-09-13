@@ -9,8 +9,9 @@ import HomeFooter from "@/app/components/HomeFooter";
 import SharePosterActions from "@/app/components/SharePosterActions";
 import { TAROT_CARDS, tarotImage } from "@/lib/reports/tarot";
 import { PERSONALITY_COPY_SETS } from "@/lib/personality-copy";
-import { PERSONALITY_TYPE_META, type PersonalityType } from "@/lib/personality/types";
 import { wrapMystery, FALLBACK_PERSONALITY } from "@/lib/share-mystery";
+import { PERSONALITY_CARD_BY_ID } from "@/lib/personality/cards";
+import { PersonalitySharePoster } from "@/lib/personality/cards/PersonalitySharePoster";
 
 // =====================================================
 // 人格测试分享海报页 /share/personality/[code]
@@ -175,9 +176,7 @@ async function renderPoster(
   const cards = cardIdxs.map((i) => TAROT_CARDS[i]);
   const copy = pickCopy(data.code);
   const mystery = wrapMystery(
-    data.sharer?.primaryType
-      ? PERSONALITY_TYPE_META[data.sharer.primaryType as PersonalityType]?.tagline
-      : null,
+    data.sharer?.tagline ?? null,
     "—— 一位走过默契研究所的 TA",
     FALLBACK_PERSONALITY
   );
@@ -421,6 +420,8 @@ export default function PersonalitySharePosterPage() {
   const [loading, setLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [posterRenderKey, setPosterRenderKey] = useState(0);
+  /** V5 新增：「月相海报模式」开关（true = 显示 React 海报，false = 原 canvas 海报） */
+  const [moonphaseMode, setMoonphaseMode] = useState(false);
 
   // 随机挑一套人格话术 + 3 张塔罗（用 code 作种子，保证 SSR 一致）
   const copy = pickCopy(code);
@@ -578,6 +579,52 @@ export default function PersonalitySharePosterPage() {
             <button onClick={retryRenderPoster} className="text-[11px] text-[var(--accent-dim)] mt-3 underline underline-offset-2">
               渲染失败？点这里重试
             </button>
+          </div>
+        )}
+
+        {/* ===== V5 月相海报模式开关 ===== */}
+        {posterUrl && (
+          <div className="text-center mb-3">
+            <button
+              type="button"
+              onClick={() => setMoonphaseMode(v => !v)}
+              className="text-[11px] tracking-wider transition-colors"
+              style={{
+                color: moonphaseMode ? "rgba(227,188,99,0.55)" : "#E3BC63",
+                background: moonphaseMode ? "rgba(227,188,99,0.08)" : "transparent",
+                border: `0.5px solid ${moonphaseMode ? "rgba(227,188,99,0.45)" : "rgba(227,188,99,0.5)"}`,
+                borderRadius: 999,
+                padding: "4px 12px",
+              }}
+            >
+              {moonphaseMode ? "← 返回原版海报" : "✦ 看看新版月相海报"}
+            </button>
+          </div>
+        )}
+
+        {/* ===== V5 新版月相海报（仅 moonphaseMode=true 时覆盖） ===== */}
+        {moonphaseMode && data?.sharer?.primaryType && (
+          <div className="relative mb-4 fade-in-up" style={{ animationDelay: "0.1s" }}>
+            <PersonalitySharePoster
+              primaryCard={PERSONALITY_CARD_BY_ID[data.sharer.primaryType] || PERSONALITY_CARD_BY_ID.P01}
+              matchScore={Math.round(data.sharer.matchScore)}
+              tagline={data.sharer.tagline}
+              scores={{
+                G: data.sharer.scores.social ?? 50,
+                X: data.sharer.scores.rationality ?? 50,
+                I: data.sharer.scores.risk ?? 50,
+                F: data.sharer.scores.planning ?? 50,
+                S: data.sharer.scores.dominance ?? 50,
+                E: data.sharer.scores.sensitivity ?? 50,
+              }}
+              fileNo={data.sharer.fileNo}
+              shareUrl={typeof window !== "undefined" ? window.location.origin + "/p/" + code : ""}
+              qrCodeDataUrl={qrDataUrl}
+              nickname={data.sharer.nickname}
+            />
+            <p className="text-center text-[10px] mt-3 tracking-wider" style={{ color: "rgba(245,232,200,0.5)" }}>
+              长按或截图保存这张海报
+            </p>
           </div>
         )}
 

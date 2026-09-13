@@ -1,29 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StarMap, CompassDial, OrnamentDivider } from "@/app/components/decor";
 
-// =====================================================
-// /personality — v1 风格的简洁入口页（与首页 CTA 视觉一致）
-//
-// 底层数据走 v2（题库/算法/卡片全是 v5 月相卡）。
-// 入口 URL 仍然是 /personality，确保老链接、历史分享都进得来。
-// v5 专属新入口 /personality-v2 仍可独立访问。
-// =====================================================
+/**
+ * /personality — v1 入口页（人格测试）
+ *
+ * - 调 v1 后端：POST /api/personality/tests → { testId, resumed }
+ * - 跳到 /personality/test?testId=...（v1 答题页，原版 UI/算法/题型）
+ * - 数据/算法走 lib/personality/*（v1 questions/scoring/archetypes/report），一行未改
+ */
 
-const STORAGE_KEY = "personalityVisitorId_v2";
+const STORAGE_KEY = "personalityVisitorId_v1";
 
 function makeVisitorId(): string {
   try {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return `v2_${crypto.randomUUID()}`;
+      return `v1_${crypto.randomUUID()}`;
     }
   } catch {
     /* 某些 webview */
   }
-  return `v2_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  return `v1_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function getOrCreateVisitorId(): string {
@@ -45,10 +45,13 @@ function getOrCreateVisitorId(): string {
   return id;
 }
 
-export default function PersonalityEntry() {
+function PersonalityEntry() {
   const router = useRouter();
+  const sp = useSearchParams();
+  const refCode = sp.get("ref") || "";
   const [creating, setCreating] = useState(false);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setReady(true);
@@ -56,27 +59,32 @@ export default function PersonalityEntry() {
 
   const startTest = async () => {
     setCreating(true);
+    setError("");
     try {
       const visitorId = getOrCreateVisitorId();
-      const res = await fetch(`/api/personality-v2/tests`, {
+      const res = await fetch(`/api/personality/tests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId }),
+        body: JSON.stringify({
+          visitorId,
+          ...(refCode ? { referredByCode: refCode } : {}),
+        }),
       });
       const json = await res.json();
       if (json.testId) {
         router.push(`/personality/test?testId=${json.testId}`);
         return;
       }
-    } catch (err) {
+      throw new Error(json.error || "创建测试失败");
+    } catch (err: any) {
       console.error(err);
+      setError(err?.message || "出错了，请稍后再试");
+      setCreating(false);
     }
-    setCreating(false);
   };
 
   return (
     <main className="relative flex-1 flex flex-col items-center px-5 py-10 sm:px-6 sm:py-14 overflow-hidden">
-      {/* 背景：星图 + 罗盘（与首页同款） */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <StarMap opacity={0.10} seed={7} />
         <div className="absolute left-1/2 top-16 -translate-x-1/2">
@@ -92,14 +100,19 @@ export default function PersonalityEntry() {
         </div>
 
         <h1 className="display-serif text-3xl sm:text-4xl md:text-5xl font-bold text-[var(--text-warm)] leading-tight fade-in-up">
-          你是哪一面镜子？
+          走一段路，
+          <br />
+          看一眼当下的月相
         </h1>
 
-        <p className="mt-5 sm:mt-6 text-sm sm:text-base md:text-lg text-[var(--text-muted)] leading-relaxed fade-in-up px-2" style={{ animationDelay: "0.1s" }}>
-          36 个问题，看清自己最近的样子。
-          <br />
-          不打分，不评价，只如实呈现你当下的轮廓。
-        </p>
+        <div className="mt-5 sm:mt-6 text-sm sm:text-base md:text-lg text-[var(--text-muted)] leading-loose fade-in-up px-2 max-w-sm" style={{ animationDelay: "0.1s" }}>
+          <p>这不是考卷，没有标准答案。</p>
+          <p className="mt-2">接下来是 36 个很普通的生活瞬间——</p>
+          <p className="mt-2">遇到这些事的时候，你多半会怎么做。</p>
+          <p className="mt-3">凭第一反应选就好。</p>
+          <p>那个下意识的答案，最像现在的你。</p>
+          <p className="mt-3 text-[var(--text-warm)]">走完这段路，你会收到一张只属于你的月相卡。</p>
+        </div>
 
         <OrnamentDivider className="mt-7 sm:mt-8 w-44 fade-in-up" />
 
@@ -123,6 +136,9 @@ export default function PersonalityEntry() {
           >
             {creating ? "准备中..." : "开始测试"}
           </button>
+          {error && (
+            <p className="text-xs text-[var(--danger)] mt-2">{error}</p>
+          )}
           <Link
             href="/"
             className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors mt-3 min-h-[44px] inline-flex items-center px-4"
@@ -136,5 +152,16 @@ export default function PersonalityEntry() {
         </p>
       </div>
     </main>
+  );
+}
+
+/**
+ * 顶层默认导出包一层 Suspense(Next.js 要求 useSearchParams 必须位于 Suspense 内)
+ */
+export default function PersonalityEntryPage() {
+  return (
+    <Suspense fallback={<div className="flex-1" />}>
+      <PersonalityEntry />
+    </Suspense>
   );
 }

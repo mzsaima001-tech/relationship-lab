@@ -4,27 +4,36 @@ import { useEffect, useState } from "react";
 
 /**
  * 6 维人格雷达图（纯 SVG，无依赖）
- * - 入参：scores { social, rationality, planning, risk, dominance, sensitivity } 各 0-100
+ * - 入参：scores 接受 V3 维度（G/X/I/F/S/E）或 V1 维度（social/rationality/planning/risk/dominance/sensitivity），
+ *   各 0-100 整数
  * - 等距六边形网格 + 数据多边形 + 数据点
  *
  * Hydration 安全：所有 Math.PI 计算放在 useEffect 之后，
  * 避免 SSR 与 iOS Safari / WeChat WebView 客户端的浮点精度差异触发 hydration mismatch。
  */
+type ScoresV3 = Partial<{ G: number; X: number; I: number; F: number; S: number; E: number }>;
+type ScoresV1 = Partial<{
+  social: number;
+  rationality: number;
+  planning: number;
+  risk: number;
+  dominance: number;
+  sensitivity: number;
+}>;
+
 export interface RadarChartProps {
-  scores: {
-    social: number;
-    rationality: number;
-    planning: number;
-    risk: number;
-    dominance: number;
-    sensitivity: number;
-  };
+  scores: ScoresV3 | ScoresV1 | Record<string, number>;
   labels?: string[]; // 6 个维度标签，默认中文
   size?: number;
   className?: string;
 }
 
-const DEFAULT_LABELS = ["社交能量", "理性决策", "计划倾向", "风险倾向", "主导性", "情绪感知"];
+// 默认标签按 V3 顺序：表达力/应对力/认可需求/方向感/自主性/情绪觉知
+const DEFAULT_LABELS = ["表达力", "应对力", "认可需求", "方向感", "自主性", "情绪觉知"];
+
+// V3 → V1 顺序映射：[G, X, I, F, S, E] → [social, rationality, risk, planning, dominance, sensitivity]
+const V3_TO_V1_KEYS = ["social", "rationality", "risk", "planning", "dominance", "sensitivity"] as const;
+const V3_KEYS = ["G", "X", "I", "F", "S", "E"] as const;
 
 export function RadarChart({
   scores,
@@ -40,14 +49,15 @@ export function RadarChart({
   const cy = size / 2;
   const radius = size * 0.36;
   const sides = 6;
-  const values = [
-    scores.social,
-    scores.rationality,
-    scores.planning,
-    scores.risk,
-    scores.dominance,
-    scores.sensitivity,
-  ];
+
+  // 兼容 V3 key（G/X/I/F/S/E）和 V1 key（social/risk/...）：先按 V3 取，取不到按 V1 映射取
+  const scoresAny = scores as Record<string, number>;
+  const values = V3_KEYS.map((k, i) => {
+    const v3 = scoresAny[k];
+    if (typeof v3 === "number") return v3;
+    const v1 = scoresAny[V3_TO_V1_KEYS[i]];
+    return typeof v1 === "number" ? v1 : 0;
+  });
 
   // 多边形顶点（数据）
   const dataPoints = mounted ? values.map((v, i) => {

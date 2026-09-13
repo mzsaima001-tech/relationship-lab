@@ -4,6 +4,7 @@ import {
   createPersonalityTest,
   listPersonalityTestsByVisitor,
 } from "@/lib/db";
+import { pickPaperId } from "@/lib/personality/questions";
 
 const schema = z.object({
   visitorId: z.string().min(4).max(64),
@@ -16,6 +17,8 @@ const schema = z.object({
  * 同一 visitorId 已有未完成测试时返回它（避免重复创建）。
  *
  * referredByCode：来自分享落地页的 ?ref=CODE，用于被推荐者完成测评时给推荐者 +1 计数。
+ *
+ * paper_id 用 FNV-1a(visitorId) % 5 抽取，同 visitor 复测同卷（保证跨卷锚题可比）。
  */
 export async function POST(request: Request) {
   try {
@@ -23,10 +26,19 @@ export async function POST(request: Request) {
     const existing = await listPersonalityTestsByVisitor(visitorId);
     const inProgress = existing.find((t) => t.status === "started");
     if (inProgress) {
-      return NextResponse.json({ testId: inProgress.id, resumed: true });
+      return NextResponse.json({
+        testId: inProgress.id,
+        resumed: true,
+        paperId: inProgress.paper_id,
+      });
     }
-    const test = await createPersonalityTest(visitorId, referredByCode);
-    return NextResponse.json({ testId: test.id, resumed: false });
+    const paperId = pickPaperId(visitorId);
+    const test = await createPersonalityTest(visitorId, referredByCode, paperId);
+    return NextResponse.json({
+      testId: test.id,
+      resumed: false,
+      paperId: test.paper_id,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "请求参数无效", details: error.issues }, { status: 400 });

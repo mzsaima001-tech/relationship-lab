@@ -1,162 +1,81 @@
 // =====================================================
-// 人格测试卡片预览页 — 只用于本地/UI 调整时人工走查
-// 不走完 36 题，直接渲染 3 个尺寸 × 多种类型的 PersonalityCard
+// 人格测试 v3 月相卡预览页（PNG 静态图，2026-09-13）
+// 替换 v2 PersonalityCard 组件的 SVG 系统 → 直接渲染 30 张 PNG
 // =====================================================
-import { PersonalityCard, PersonalityCardRow } from "@/lib/personality/cards/PersonalityCard";
-import type { PersonalityType } from "@/lib/personality/types";
+import { PERSONALITY_CARDS, PERSONALITY_CARDS_BY_NO } from "@/lib/personality/cards";
+import { PERSONALITY_CARD_BY_ID } from "@/lib/personality/cards";
+import { PersonalityCard } from "@/lib/personality/cards/PersonalityCard";
 
-// 取有代表性的 6 种类型覆盖：主型 + 过渡型 + 主型中段
-const PREVIEW_TYPES = {
-  md_main: "leader__whole" as PersonalityType, // 你之前最关心的过渡型
-  md_balanced: "departure" as PersonalityType, // 中段典型
-  md_extreme: "coordinator" as PersonalityType, // 上一轮的扎堆选手
-  md_observer: "observer" as PersonalityType,
-  md_creator: "creator" as PersonalityType,
-  sm_extreme: "dark_reef" as PersonalityType, // 朔月（初一）
-};
+export const dynamic = "force-dynamic";
 
 const SAMPLE_SCORES = {
-  social: 67,
-  rationality: 50,
-  planning: 50,
-  risk: 50,
-  dominance: 60,
-  sensitivity: 55,
+  G: 55, X: 50, I: 45, F: 60, S: 70, E: 30,
 };
 
 export default function PersonalityCardPreview() {
+  // 取代表性 6 张：3 主卡 + 3 过渡卡
+  const sample = [
+    PERSONALITY_CARD_BY_ID["P01"], // 暗礁无声（朔月）
+    PERSONALITY_CARD_BY_ID["P08"], // 中段主卡
+    PERSONALITY_CARD_BY_ID["P15"], // 望月
+    PERSONALITY_CARD_BY_ID["T01"], // 暗礁·引子
+    PERSONALITY_CARD_BY_ID["T08"], // 中段过渡
+    PERSONALITY_CARD_BY_ID["T15"], // 行动派·全貌
+  ].filter((c): c is NonNullable<typeof c> => Boolean(c));
+
   return (
     <main className="flex-1 px-6 py-10 max-w-6xl mx-auto w-full">
       <div className="text-center mb-12 fade-in-up">
-        <p className="archive-label mb-3">人格卡片 v4 预览</p>
+        <p className="archive-label mb-3">月相卡 v3 预览</p>
         <h1 className="display-serif text-3xl text-[var(--text-warm)] mb-2">
-          PersonalityCard · 元素配色 + 重画图腾
+          30 张月相卡 · 6 维余弦匹配
         </h1>
         <p className="text-sm text-[var(--text-muted)]">
-          六元素配色（水蓝/火红/光金/土棕/风绿/曜深红）· 15 图腾重画加深意象（锚、王冠权杖、火焰、望远镜等）
+          P01–P15 主卡 + T01–T15 过渡卡 · 720×1080 PNG · 月相 / 判词 / 6 维能量
         </p>
       </div>
 
-      {/* Section 0 — 全 15 主型栅格（看配色分布） */}
+      {/* Section 0 — 30 张全览 */}
       <section className="mb-16">
-        <p className="archive-label mb-6">15 主型全览（六元素配色）</p>
-        <div className="flex flex-wrap gap-4 justify-center">
-          <PersonalityCard type="dark_reef" size="sm" />
-          <PersonalityCard type="spark" size="sm" />
-          <PersonalityCard type="departure" size="sm" />
-          <PersonalityCard type="scout" size="sm" />
-          <PersonalityCard type="drifter" size="sm" />
-          <PersonalityCard type="glimmer" size="sm" />
-          <PersonalityCard type="strategist" size="sm" />
-          <PersonalityCard type="observer" size="sm" />
-          <PersonalityCard type="guardian" size="sm" />
-          <PersonalityCard type="coordinator" size="sm" />
-          <PersonalityCard type="creator" size="sm" />
-          <PersonalityCard type="explorer" size="sm" />
-          <PersonalityCard type="doer" size="sm" />
-          <PersonalityCard type="leader" size="sm" />
-          <PersonalityCard type="whole" size="sm" />
+        <p className="archive-label mb-6">30 张全览（按月相顺序）</p>
+        <div className="flex flex-wrap gap-3 justify-center">
+          {PERSONALITY_CARDS_BY_NO.map(c => (
+            <PersonalityCard key={c.id} card={c} size="sm" />
+          ))}
         </div>
       </section>
 
-      {/* Section 0b — 14 过渡型栅格（看对角渐变） */}
+      {/* Section 1 — md 模式（主页面/报告页用法） */}
       <section className="mb-16">
-        <p className="archive-label mb-6">14 过渡型（两端元素对角渐变）</p>
-        <div className="flex flex-wrap gap-4 justify-center">
-          <PersonalityCard type="dark_reef__spark" size="sm" />
-          <PersonalityCard type="spark__departure" size="sm" />
-          <PersonalityCard type="departure__scout" size="sm" />
-          <PersonalityCard type="scout__drifter" size="sm" />
-          <PersonalityCard type="drifter__glimmer" size="sm" />
-          <PersonalityCard type="glimmer__strategist" size="sm" />
-          <PersonalityCard type="strategist__observer" size="sm" />
-          <PersonalityCard type="observer__guardian" size="sm" />
-          <PersonalityCard type="guardian__coordinator" size="sm" />
-          <PersonalityCard type="coordinator__creator" size="sm" />
-          <PersonalityCard type="creator__explorer" size="sm" />
-          <PersonalityCard type="explorer__doer" size="sm" />
-          <PersonalityCard type="doer__leader" size="sm" />
-          <PersonalityCard type="leader__whole" size="sm" />
-        </div>
-      </section>
-      <section className="mb-16">
-        <p className="archive-label mb-6">md 模式（主页面/报告页用法）</p>
+        <p className="archive-label mb-6">md 模式（报告页用法 · 带 label）</p>
         <div className="flex flex-wrap gap-8 justify-center items-start">
-          <PersonalityCard type={PREVIEW_TYPES.md_main} size="md" matchScore={91} label="primary" />
-          <PersonalityCard type={PREVIEW_TYPES.md_balanced} size="md" matchScore={87} label="secondary" />
-          <PersonalityCard type={PREVIEW_TYPES.md_extreme} size="md" matchScore={86} label="hidden" />
+          <PersonalityCard card={sample[0]} size="md" matchScore={0.91} label="primary" userScores={SAMPLE_SCORES} />
+          <PersonalityCard card={sample[1]} size="md" matchScore={0.87} label="secondary" userScores={SAMPLE_SCORES} />
+          <PersonalityCard card={sample[2]} size="md" matchScore={0.86} label="hidden" userScores={SAMPLE_SCORES} />
         </div>
       </section>
 
-      {/* Section 2 — md 模式（无 label，看默认外观） */}
-      <section className="mb-16">
-        <p className="archive-label mb-6">md 模式（无角标版）</p>
-        <div className="flex flex-wrap gap-8 justify-center items-start">
-          <PersonalityCard type="leader" size="md" matchScore={91} />
-          <PersonalityCard type="observer" size="md" matchScore={87} />
-          <PersonalityCard type="creator" size="md" matchScore={86} />
-        </div>
-      </section>
-
-      {/* Section 3 — lg 模式（详情页主图） */}
+      {/* Section 2 — lg 模式（详情页主图） */}
       <section className="mb-16">
         <p className="archive-label mb-6">lg 模式（详情页主图）</p>
         <div className="flex justify-center">
-          <PersonalityCard type="leader__whole" size="lg" matchScore={91} label="primary" />
+          <PersonalityCard card={sample[5]} size="lg" matchScore={0.94} label="primary" userScores={SAMPLE_SCORES} />
         </div>
       </section>
 
-      {/* Section 4 — sm 模式（画廊/海报页） */}
+      {/* Section 3 — sm 模式（画廊/海报页） */}
       <section className="mb-16">
-        <p className="archive-label mb-6">sm 模式（画廊/海报）</p>
+        <p className="archive-label mb-6">sm 模式（画廊 / 海报页）</p>
         <div className="flex flex-wrap gap-6 justify-center">
-          <PersonalityCard type="leader__whole" size="sm" matchScore={91} />
-          <PersonalityCard type="departure" size="sm" matchScore={87} />
-          <PersonalityCard type="coordinator" size="sm" matchScore={86} />
-          <PersonalityCard type="observer" size="sm" matchScore={84} />
-          <PersonalityCard type="creator" size="sm" matchScore={82} />
-          <PersonalityCard type="dark_reef" size="sm" matchScore={70} />
-          <PersonalityCard type="spark__departure" size="sm" matchScore={75} />
-          <PersonalityCard type="strategist__observer" size="sm" matchScore={68} />
-        </div>
-      </section>
-
-      {/* Section 5 — PersonalityCardRow 三联卡 */}
-      <section className="mb-16">
-        <p className="archive-label mb-6">三联卡（primary + secondary + hidden）</p>
-        <PersonalityCardRow
-          primary="leader__whole"
-          secondary="departure"
-          hidden="spark__departure"
-          userScores={SAMPLE_SCORES}
-          size="md"
-        />
-      </section>
-
-      {/* Section 6 — 真实使用场景（userScores 传值效果） */}
-      <section className="mb-16">
-        <p className="archive-label mb-6">实际 usage（用户测试结果 + matchScore）</p>
-        <div className="flex flex-wrap gap-8 justify-center">
-          <PersonalityCard
-            type="strategist"
-            size="md"
-            matchScore={89}
-            label="primary"
-            userScores={SAMPLE_SCORES}
-          />
-          <PersonalityCard
-            type="guardian__coordinator"
-            size="md"
-            matchScore={85}
-            label="secondary"
-            userScores={SAMPLE_SCORES}
-          />
+          {sample.map(c => (
+            <PersonalityCard key={c.id} card={c} size="sm" matchScore={0.85} />
+          ))}
         </div>
       </section>
 
       <div className="text-center text-xs text-[var(--text-muted)] mt-12">
-        <p>※ 当前为 v2 预览，刷新后即可对比上一版</p>
-        <p>※ 反馈"卡片还要：xxx"我立刻批量铺到 result / report / 海报 / 落地 / 后台画廊</p>
+        <p>※ V3 月相卡 · 30 张 hardcoded 来自 C C 卡片元数据 CSV</p>
+        <p>※ 6 维 G/X/I/F/S/E 用余弦相似度匹配 → Top3</p>
       </div>
     </main>
   );

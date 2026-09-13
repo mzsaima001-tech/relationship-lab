@@ -4,6 +4,7 @@ import {
   createPayment,
   createPersonalityOrder,
   getPersonalityTest,
+  updatePaymentGatewayMeta,
 } from "@/lib/db";
 import { PERSONALITY_REPORT_PRICE } from "@/lib/personality/types";
 import { isXingyifuLive, callXingyifuApi, readXingyifuConfig } from "@/lib/payment/xingyifu";
@@ -12,8 +13,9 @@ const schema = z.object({ testId: z.string().min(4) });
 
 /**
  * POST /api/personality/orders
- * 创建人格测试报告订单（复用现有支付底层）。
- * 返回 payment 对象（含支付跳转 URL）和订单信息。
+ * 创建人格测试报告订单（星驿付聚合码）。
+ *
+ * 返回 payUrl / qrCode / gatewayOrderNo，与 single/pair 对齐。
  */
 export async function POST(request: Request) {
   try {
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
       "personality_report",
       testId,
       PERSONALITY_REPORT_PRICE,
-      "weixin"
+      "xingyifu"
     );
     const order = await createPersonalityOrder(
       testId,
@@ -41,8 +43,9 @@ export async function POST(request: Request) {
       payment.id
     );
 
-    // 真网关在线：尝试拿 payUrl（骨架模式下 callXingyifuApi 返回 ok=false）
     let payUrl: string | null = null;
+    let qrCode: string | null = null;
+    let gatewayOrderNo: string | undefined = undefined;
     if (isXingyifuLive()) {
       const config = readXingyifuConfig()!;
       const r = await callXingyifuApi(
@@ -51,7 +54,18 @@ export async function POST(request: Request) {
         "默契研究所 · 人格完整报告",
         config
       );
-      if (r.ok && r.payUrl) payUrl = r.payUrl;
+      if (r.ok) {
+        payUrl = r.payUrl ?? null;
+        qrCode = r.qrCode ?? null;
+        gatewayOrderNo = r.gatewayOrderNo;
+        await updatePaymentGatewayMeta(payment.id, {
+          gatewayOrderNo: r.gatewayOrderNo,
+          payUrl: r.payUrl,
+          qrCode: r.qrCode,
+        });
+      } else {
+        console.warn("[api/personality/orders] xingyifu 下单失败:", r.error);
+      }
     }
 
     return NextResponse.json({
@@ -59,6 +73,8 @@ export async function POST(request: Request) {
       order,
       price: PERSONALITY_REPORT_PRICE,
       payUrl,
+      qrCode,
+      gatewayOrderNo,
       live: isXingyifuLive(),
     });
   } catch (error) {
