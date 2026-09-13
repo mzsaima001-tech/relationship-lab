@@ -5,8 +5,8 @@ import type { Question, ReportRule, PairPattern } from "@/lib/assessment/types";
 import { allQuestions as seedQuestions } from "@/lib/assessment/question-bank";
 import { REPORT_RULES } from "@/lib/reports/rules";
 import { PAIR_PATTERNS } from "@/lib/assessment/pair-patterns";
-import type { PersonalityQuestion } from "@/lib/personality/questions";
-import { PERSONALITY_QUESTIONS } from "@/lib/personality/questions";
+import type { PersonalityQuestion as PersonalityQuestionType } from "@/lib/personality/types";
+import { PERSONALITY_ALL_QUESTIONS } from "@/lib/personality/questionsData";
 
 // =====================================================
 // 内容资产数据仓（可编辑 JSON 存储）
@@ -163,29 +163,63 @@ export function getPairPatterns(): PairPattern[] {
   return loadPatternStore().items.filter(p => p.active !== false);
 }
 
-// ---------- Personality Questions ----------
+// ---------- Personality Questions (V3 read-only 投影) ----------
+//
+// V3 题库是 hardcoded TS（180 题，5 卷 × 36 题），不可写。
+// 旧 admin CRUD 接口以"投影"形式提供：维度 dim、题干 text 来自 V3，order/active/reverse 等旧字段保留。
+// 增删改写操作直接 403（保留接口以避免 admin 菜单 404，但语义改为只读）。
 
-export function loadPersonalityQuestionStore(): ContentFile<PersonalityQuestion> {
-  return loadFile(PERSONALITY_QUESTIONS_FILE, PERSONALITY_QUESTION_BANK_VERSION, [...PERSONALITY_QUESTIONS]);
+interface AdminPersonalityQuestionView {
+  id: string;
+  order: number;
+  question: string;
+  dimension: PersonalityQuestionType["dimension"];
+  reverse: false; // V3 全部正向
+  active: true;
+  paper_id: PersonalityQuestionType["paper"];
+  mother_question_id: string;
 }
 
-export function savePersonalityQuestionStore(store: ContentFile<PersonalityQuestion>) {
-  saveFile(PERSONALITY_QUESTIONS_FILE, store);
+function projectToAdminView(q: PersonalityQuestionType, order: number): AdminPersonalityQuestionView {
+  return {
+    id: q.id,
+    order,
+    question: q.text,
+    dimension: q.dimension,
+    reverse: false,
+    active: true,
+    paper_id: q.paper,
+    mother_question_id: q.mother_question_id,
+  };
 }
 
-/** 引擎使用：返回全部人格题（含 inactive，由调用方按 active 过滤） */
-export function getAllPersonalityQuestions(): PersonalityQuestion[] {
-  return loadPersonalityQuestionStore().items;
+const PERSONALITY_ADMIN_VIEW: AdminPersonalityQuestionView[] = PERSONALITY_ALL_QUESTIONS.map(
+  (q, i) => projectToAdminView(q, i + 1)
+);
+
+export function loadPersonalityQuestionStore(): ContentFile<AdminPersonalityQuestionView> {
+  return {
+    version: PERSONALITY_QUESTION_BANK_VERSION,
+    updatedAt: new Date().toISOString(),
+    items: PERSONALITY_ADMIN_VIEW,
+  };
 }
 
-export function getPersonalityQuestionById(id: string): PersonalityQuestion | undefined {
-  return loadPersonalityQuestionStore().items.find(q => q.id === id);
+export function savePersonalityQuestionStore(_store: ContentFile<AdminPersonalityQuestionView>): void {
+  // V3 题库为只读 TS seed，admin 写操作一律不落地。
+  // （admin 菜单的 PUT/DELETE 由 API route 拦截并返回 410）
 }
 
-/** 引擎使用：返回启用中的人格题（按 order 升序）
- *  loadFile 在 Vercel serverless 下直接返回内存 seed，跳过 fs 文件读写。
- */
-export function getActivePersonalityQuestions(): PersonalityQuestion[] {
-  const items = PERSONALITY_QUESTIONS.filter(q => q.active !== false);
-  return [...items].sort((a, b) => a.order - b.order);
+/** 引擎使用：返回全部人格题（V3 全部启用，按卷+id 排序） */
+export function getAllPersonalityQuestions(): PersonalityQuestionType[] {
+  return PERSONALITY_ALL_QUESTIONS.slice();
+}
+
+export function getPersonalityQuestionById(id: string): PersonalityQuestionType | undefined {
+  return PERSONALITY_ALL_QUESTIONS.find(q => q.id === id);
+}
+
+/** 引擎使用：返回启用中的人格题（V3 全部启用，按 paper+id 排序） */
+export function getActivePersonalityQuestions(): PersonalityQuestionType[] {
+  return PERSONALITY_ALL_QUESTIONS.slice();
 }

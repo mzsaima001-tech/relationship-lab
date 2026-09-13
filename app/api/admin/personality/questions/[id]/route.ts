@@ -1,9 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  loadPersonalityQuestionStore,
-  savePersonalityQuestionStore,
-} from "@/lib/content/store";
-import type { PersonalityQuestion } from "@/lib/personality/questions";
+import { loadPersonalityQuestionStore } from "@/lib/content/store";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -16,36 +12,12 @@ export async function GET(_request: Request, { params }: Ctx) {
   return NextResponse.json({ item });
 }
 
-// PUT /api/admin/personality/questions/[id]  整体更新
-export async function PUT(request: Request, { params }: Ctx) {
-  try {
-    const { id } = await params;
-    const body = (await request.json()) as PersonalityQuestion;
-    const store = loadPersonalityQuestionStore();
-    const index = store.items.findIndex(q => q.id === id);
-    if (index < 0) return NextResponse.json({ error: "题目不存在" }, { status: 404 });
-    if (!body.question || !body.dimension) {
-      return NextResponse.json(
-        { error: "question / dimension 为必填" },
-        { status: 400 }
-      );
-    }
-    store.items[index] = { ...body, id };
-    savePersonalityQuestionStore(store);
-    return NextResponse.json({ ok: true, item: store.items[index] });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "保存失败，请检查数据格式" }, { status: 400 });
-  }
+// PUT/DELETE 已停用：V3 题库为 hardcoded TS seed，不可编辑。
+async function readOnly(_request: Request, _ctx: Ctx) {
+  return NextResponse.json(
+    { error: "V3 题库为只读 TS seed，请修改 lib/personality/questionsData.ts 并通过版本号统一升级。" },
+    { status: 410 }
+  );
 }
-
-// DELETE /api/admin/personality/questions/[id]  删除（停用题建议用 PUT active=false）
-export async function DELETE(_request: Request, { params }: Ctx) {
-  const { id } = await params;
-  const store = loadPersonalityQuestionStore();
-  const index = store.items.findIndex(q => q.id === id);
-  if (index < 0) return NextResponse.json({ error: "题目不存在" }, { status: 404 });
-  const removed = store.items.splice(index, 1)[0];
-  savePersonalityQuestionStore(store);
-  return NextResponse.json({ ok: true, removed: removed.id });
-}
+export const PUT = readOnly;
+export const DELETE = readOnly;

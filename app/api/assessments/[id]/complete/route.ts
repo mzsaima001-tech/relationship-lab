@@ -8,6 +8,7 @@ import {
   getCreditAccount,
   getShareByCode,
   getPairBySession,
+  getReportByPair,
   addCredits,
 } from "@/lib/db";
 import type { ResultRecord, SessionRecord } from "@/lib/db";
@@ -296,11 +297,16 @@ export async function GET(
     // 被分享人（B）也会拿到，让对方在结果页直接进入契合画像。
     let pairId: string | null = null;
     let pairRole: "a" | "b" | null = null;
+    let pairPaid = false;
     try {
       const pair = await getPairBySession(id);
       if (pair) {
         pairId = pair.id;
         pairRole = pair.session_a === id ? "a" : "b";
+        // 反查该 pair 的契合画像是否已解锁（¥19.9），
+        // 用于结果页按钮文案分支：未解锁→「解锁契合画像 ¥19.9」；已解锁→「查看契合画像」
+        const pairReport = await getReportByPair(pair.id);
+        pairPaid = Boolean(pairReport?.unlocked);
       }
     } catch {
       // 反查失败不阻塞主流程
@@ -327,6 +333,7 @@ export async function GET(
       credits,
       pairId,
       pairRole,
+      pairPaid,
       context: {
         relationshipType: session.relationship_type,
         relationshipStage: session.relationship_stage,

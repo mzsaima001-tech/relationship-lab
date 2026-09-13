@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSession, updateSession } from "@/lib/db";
 import { buildInitialQuestionsFromSeed } from "@/lib/assessment/assemble";

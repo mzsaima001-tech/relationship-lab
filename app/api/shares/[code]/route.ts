@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   getShareByCode,
   getSession,
@@ -6,18 +6,16 @@ import {
   getPersonalityTest,
   incrementShareVisits,
 } from "@/lib/db";
-import { matchArchetypes } from "@/lib/personality/archetypes";
-import { PERSONALITY_TYPE_META, type PersonalityType } from "@/lib/personality/types";
+import { matchCards } from "@/lib/personality/match";
+import { PERSONALITY_CARDS } from "@/lib/personality/cards";
+import { PERSONALITY_DIMENSIONS, type PersonalityDimension } from "@/lib/personality/types";
 
 /**
- * 普通分享落地页数据：返回分享者的公开 teaser（昵称/原型/标签/一句话），
- * 访问计数 +1。
+ * 普通分享落地页数据：返回分享者的公开 teaser。
  *
- * 同接口支持两个分享类型（向后兼容默认 couple）：
- * - share_type=undefined / "couple" → 双人默契（返回 nickname/archetype/tags/oneLiner）
- * - share_type="personality" → 人格测试（返回 primaryCn/matchScore/scores/topDimensions）
- *
- * 不含维度分等敏感细节，不暴露 sessionId 之外的来源 ID。
+ * 同接口支持两个分享类型：
+ * - share_type=undefined / "couple" → 双人默契
+ * - share_type="personality" → 人格测试（V3：6 维 G/X/I/F/S/E + 30 张月相卡）
  */
 export async function GET(
   _request: Request,
@@ -32,7 +30,6 @@ export async function GET(
 
     await incrementShareVisits(code);
 
-    // 分支：人格测试分享
     if (share.share_type === "personality") {
       if (!share.source_test_id) {
         return NextResponse.json({ error: "分享内容不可用" }, { status: 404 });
@@ -41,22 +38,25 @@ export async function GET(
       if (!test || test.status !== "completed") {
         return NextResponse.json({ error: "分享内容不可用" }, { status: 404 });
       }
-      const scores = {
-        social: test.social_score ?? 0,
-        rationality: test.rationality_score ?? 0,
-        planning: test.planning_score ?? 0,
-        risk: test.risk_score ?? 0,
-        dominance: test.dominance_score ?? 0,
-        sensitivity: test.sensitivity_score ?? 0,
-      };
-      const top3 = matchArchetypes(scores);
-      const primary = top3[0];
-      const primaryType = primary?.type as PersonalityType | undefined;
-      const primaryMeta = primaryType ? PERSONALITY_TYPE_META[primaryType] : null;
 
-      // 从缓存读 free tagline（如果完成了完整测试，缓存里有一条 primaryTagline）
+      // V3 6 维
+      const scores: Record<PersonalityDimension, number> = {
+        G: test.g_score ?? 50,
+        X: test.x_score ?? 50,
+        I: test.i_score ?? 50,
+        F: test.f_score ?? 50,
+        S: test.s_score ?? 50,
+        E: test.e_score ?? 50,
+      };
+
+      const matchResult = matchCards(
+        PERSONALITY_DIMENSIONS.map(d => scores[d]),
+        PERSONALITY_CARDS
+      );
+      const primary = matchResult.top1;
+
       const cachedFree = (test as any).free_report_cache as
-        | { primaryTagline: string }
+        | { primaryTagline?: string; main_card?: { name: string; line: string } }
         | undefined;
 
       const fileNo = share.source_test_id.slice(-6).toUpperCase();
@@ -67,21 +67,22 @@ export async function GET(
         shareType: "personality" as const,
         testId: share.source_test_id,
         sharer: {
-          // 隐私：人格测试无昵称（游客模式），用占位符
           nickname: "一位测试者",
-          primaryCn: primaryMeta?.cn ?? primary?.type ?? "",
-          primaryEn: primaryMeta?.en ?? "",
-          primaryType: primaryType ?? "",
+          primaryCn: primary.card.name,
+          primaryEn: primary.card.phase_en,
+          primaryType: primary.card.id,
           tagline:
-            cachedFree?.primaryTagline ?? primaryMeta?.tagline ?? "",
-          matchScore: primary?.matchScore ?? 0,
+            cachedFree?.primaryTagline
+            ?? cachedFree?.main_card?.line
+            ?? primary.card.line,
+          matchScore: primary.similarity,
           scores,
           fileNo,
         },
       });
     }
 
-    // 分支：双人默契分享（默认，向后兼容）
+    // 分支：双人默契分享
     const [session, result] = await Promise.all([
       getSession(share.source_session_id),
       getResult(share.source_session_id),

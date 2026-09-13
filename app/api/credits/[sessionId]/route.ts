@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSession, getCreditAccount } from "@/lib/db";
 import { SINGLE_REPORT_PRICE, SHARE_REWARD } from "@/lib/assessment/types";
 

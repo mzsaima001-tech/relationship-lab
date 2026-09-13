@@ -10,6 +10,7 @@ const NAV = [
   { href: "/admin/rules", label: "报告规则" },
   { href: "/admin/patterns", label: "双人模式" },
   { href: "/admin/archetypes", label: "原型卡牌" },
+  { href: "/admin/cards", label: "月相卡牌" },
   { href: "/admin/debug", label: "调试工具" },
   { href: "/admin/operations", label: "运营数据" },
 ];

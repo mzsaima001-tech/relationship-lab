@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getPair, getSession, getResult, updatePair } from "@/lib/db";
 import {
   calculatePairScores,

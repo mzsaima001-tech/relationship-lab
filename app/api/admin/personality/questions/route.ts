@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  loadPersonalityQuestionStore,
-  savePersonalityQuestionStore,
-} from "@/lib/content/store";
-import type { PersonalityQuestion } from "@/lib/personality/questions";
+import { loadPersonalityQuestionStore } from "@/lib/content/store";
 import { PERSONALITY_DIMENSIONS } from "@/lib/personality/types";
 
 // GET /api/admin/personality/questions?dimension=&active=&q=&page=&pageSize=
+// V3 题库 read-only：admin 可浏览，不可编辑（PUT/DELETE/POST 在 [id] route 拦截）
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const dimension = searchParams.get("dimension") ?? "";
@@ -19,8 +16,7 @@ export async function GET(request: Request) {
   let items = store.items.slice();
 
   if (dimension) items = items.filter(item => item.dimension === dimension);
-  if (active === "true") items = items.filter(item => item.active !== false);
-  if (active === "false") items = items.filter(item => item.active === false);
+  // V3 题库全部 active=true（hardcoded TS seed），active 查询参数已不再生效
   if (q) {
     items = items.filter(item =>
       item.id.toLowerCase().includes(q) || item.question.toLowerCase().includes(q)
@@ -40,42 +36,14 @@ export async function GET(request: Request) {
     items: pageItems,
     version: store.version,
     updatedAt: store.updatedAt,
+    readOnly: true,
   });
 }
 
-// POST /api/admin/personality/questions  新增题目
-export async function POST(request: Request) {
-  try {
-    const body = (await request.json()) as PersonalityQuestion;
-    if (!body.id || !body.question || !body.dimension) {
-      return NextResponse.json(
-        { error: "id / question / dimension 为必填" },
-        { status: 400 }
-      );
-    }
-    if (!PERSONALITY_DIMENSIONS.includes(body.dimension as never)) {
-      return NextResponse.json(
-        { error: `dimension 必须为 ${PERSONALITY_DIMENSIONS.join("/")} 之一` },
-        { status: 400 }
-      );
-    }
-    const store = loadPersonalityQuestionStore();
-    if (store.items.some(item => item.id === body.id)) {
-      return NextResponse.json(
-        { error: `ID ${body.id} 已存在` },
-        { status: 409 }
-      );
-    }
-    const next: PersonalityQuestion = {
-      ...body,
-      active: body.active ?? true,
-      order: typeof body.order === "number" ? body.order : store.items.length + 1,
-    };
-    store.items.push(next);
-    savePersonalityQuestionStore(store);
-    return NextResponse.json({ ok: true, item: next });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "新增失败，请检查数据格式" }, { status: 400 });
-  }
+// POST 已停用：V3 题库为 hardcoded TS seed，不可编辑。
+export async function POST() {
+  return NextResponse.json(
+    { error: "V3 题库为只读 TS seed，请修改 lib/personality/questionsData.ts 并通过版本号统一升级。" },
+    { status: 410 }
+  );
 }

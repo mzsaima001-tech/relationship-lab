@@ -1,15 +1,25 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCreditAccount, createPayment } from "@/lib/db";
+import {
+  getCreditAccount,
+  createPayment,
+  updatePaymentGatewayMeta,
+} from "@/lib/db";
 import { SINGLE_REPORT_PRICE } from "@/lib/assessment/types";
 import { isXingyifuLive, callXingyifuApi, readXingyifuConfig } from "@/lib/payment/xingyifu";
 
 const schema = z.object({ sessionId: z.string().min(1) });
 
 /**
+ * POST /api/payments/single
  * 创建单人报告解锁订单（星驿付聚合码）。
- * 积分按 1:1 抵扣：应付金额 = max(0, 3.9 - 积分余额)。
- * 应付为 0 时前端应直接走积分解锁接口。
+ *
+ * 行为：
+ *  - 积分按 1:1 抵扣：应付金额 = max(0, 3.9 - 积分余额)
+ *  - 应付为 0 → method="credits"，前端直接走积分解锁接口
+ *  - 应付 > 0  → method="xingyifu"，调真网关（live 时）拿 payUrl/qrCode
+ *
+ * 返回字段新增 qrCode / gatewayOrderNo / live，让前端决定显示二维码图还是跳转链接。
  */
 export async function POST(request: Request) {
   try {
@@ -23,20 +33,34 @@ export async function POST(request: Request) {
       "single_report",
       sessionId,
       payable,
-      payable === 0 ? "credits" : "weixin"
+      payable === 0 ? "credits" : "xingyifu"
     );
 
-    // 真网关在线：尝试拿 payUrl（骨架模式下 callXingyifuApi 会返回 ok=false）
+    // 真网关在线：尝试拿 payUrl / qrCode
     let payUrl: string | null = null;
+    let qrCode: string | null = null;
+    let gatewayOrderNo: string | undefined = undefined;
     if (payable > 0 && isXingyifuLive()) {
       const config = readXingyifuConfig()!;
       const r = await callXingyifuApi(
-        Math.round(payable * 100), // 真实接入时按上游文档换单位（分/元）
+        Math.round(payable * 100), // 分
         payment.id,
         "默契研究所 · 单人完整报告",
         config
       );
-      if (r.ok && r.payUrl) payUrl = r.payUrl;
+      if (r.ok) {
+        payUrl = r.payUrl ?? null;
+        qrCode = r.qrCode ?? null;
+        gatewayOrderNo = r.gatewayOrderNo;
+        // 把网关回写信息落到 payment 记录（前端刷新页面也看得到）
+        await updatePaymentGatewayMeta(payment.id, {
+          gatewayOrderNo: r.gatewayOrderNo,
+          payUrl: r.payUrl,
+          qrCode: r.qrCode,
+        });
+      } else {
+        console.warn("[api/payments/single] xingyifu 下单失败:", r.error);
+      }
     }
 
     return NextResponse.json({
@@ -48,6 +72,8 @@ export async function POST(request: Request) {
       },
       payable,
       payUrl,
+      qrCode,
+      gatewayOrderNo,
       live: isXingyifuLive(),
     });
   } catch (error) {

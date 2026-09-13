@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSession, getAnswers, getResult } from "@/lib/db";
 import { getQuestionById } from "@/lib/content/store";
 import { calculateScores, calculateDimensionResults } from "@/lib/assessment/score";

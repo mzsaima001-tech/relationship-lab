@@ -101,6 +101,11 @@ export default function ShareLandingPage() {
   // 分支：人格测试分享（不出现塔罗）
   if (data.shareType === "personality") {
     const sharer = data.sharer;
+  // shares/code API 已切到 V3 6 维 G/X/I/F/S/E；PersonalityCard 直接接受 V3 dim
+  const personalityScores = "scores" in sharer
+    ? sharer.scores as unknown as Partial<Record<"G"|"X"|"I"|"F"|"S"|"E", number>>
+    : undefined;
+  const primaryType = "primaryType" in sharer ? sharer.primaryType : undefined;
     if (!("primaryCn" in sharer)) return null;
     return (
       <main className="night-sky flex-1 px-5 py-6 max-w-sm mx-auto w-full">
@@ -133,11 +138,11 @@ export default function ShareLandingPage() {
 
           {/* 核心人格卡 */}
           <div className="flex justify-center mb-4 fade-in-up" style={{ animationDelay: "0.14s" }}>
-            {sharer.primaryType && sharer.scores && sharer.matchScore !== undefined && (
+            {primaryType && "matchScore" in sharer && (
               <PersonalityCard
-                type={sharer.primaryType as Parameters<typeof PersonalityCard>[0]["type"]}
-                userScores={sharer.scores}
-                matchScore={sharer.matchScore}
+                type={primaryType}
+                userScores={personalityScores}
+                matchScore={"matchScore" in sharer ? sharer.matchScore : undefined}
                 size="sm"
                 label="primary"
               />
