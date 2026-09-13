@@ -37,6 +37,7 @@ export default function TestPage() {
   useEffect(() => {
     async function fetchSession() {
       try {
+        // 1. 取 session（含 initial 题 + 已答记录）
         const res = await fetch(`/api/assessments/${sessionId}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error);
@@ -46,17 +47,32 @@ export default function TestPage() {
           return;
         }
 
+        // 2. 【关键】开答前把 followup 题也拿齐：
+        //    session 已有 followup_ids（老 session 恢复）则直接用；
+        //    否则调 followups API 生成。全部题一次性到位，
+        //    答题过程中绝不出现"中间等待页 + 二次发卷"。
+        let followups: Question[] = json.followupQuestions || [];
+        if (followups.length === 0) {
+          const fuRes = await fetch(`/api/assessments/${sessionId}/followups`);
+          const fuJson = await fuRes.json();
+          if (!fuRes.ok) throw new Error(fuJson.error || "追加题加载失败");
+          followups = fuJson.followups || [];
+        }
+
+        const all: Question[] = [...json.initialQuestions, ...followups];
         setData(json);
-        // 一次性展示全部题：先把 initial 全部展示，followup 在答完前预取无缝追加
-        setAllQuestions([...json.initialQuestions]);
+        setAllQuestions(all);
+
+        // 恢复已答记录，并直接跳到第一题未答的位置（断点续答）
         const existingAnswers: Record<string, number> = {};
         json.answeredIds.forEach((id: string) => {
           existingAnswers[id] = -1;
         });
         setAnswers(existingAnswers);
-
-        // 预取 follow-ups，等用户答到第 20 题时已经就绪，避免切换跳跃
-        prefetchFollowups(json.initialQuestions.length);
+        const firstUnanswered = all.findIndex(
+          (q) => !json.answeredIds.includes(q.id)
+        );
+        setCurrentIdx(firstUnanswered === -1 ? all.length : firstUnanswered);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -69,25 +85,6 @@ export default function TestPage() {
   useEffect(() => {
     setQuestionShownAt(Date.now());
   }, [currentIdx]);
-
-  // —— 无感预取 follow-ups：fire-and-forget，不阻塞当前题 ——
-  const prefetchFollowups = async (initialLen: number) => {
-    try {
-      const res = await fetch(`/api/assessments/${sessionId}/followups`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      if (json.followups && json.followups.length > 0) {
-        // 直接追加到 allQuestions 尾部；UI 不显示任何 banner/loading
-        setAllQuestions((prev) => {
-          if (prev.length > initialLen) return prev; // 已加过
-          return [...prev, ...json.followups];
-        });
-      }
-    } catch (err: any) {
-      console.warn("[followups prefetch failed]", err?.message);
-      // 不打扰用户：保留 initialQuestions 让答题继续；错误会在最终 result 页显示
-    }
-  };
 
   const handleAnswer = useCallback(async (value: number) => {
     if (!allQuestions[currentIdx] || submitting) return;
