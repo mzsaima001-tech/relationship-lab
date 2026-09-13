@@ -31,7 +31,8 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com",
               "style-src 'self' 'unsafe-inline'",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https://api.lk888.ai https://cloudflareinsights.com https://*.cloudflareinsights.com",
+              // 同时白名单裸域/www 域：Vercel 308 redirect + 用户从老链接进入时，CSP 才能放行
+              "connect-src 'self' https://api.lk888.ai https://cloudflareinsights.com https://*.cloudflareinsights.com https://moqilab.top https://www.moqilab.top",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

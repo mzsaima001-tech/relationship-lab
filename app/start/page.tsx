@@ -95,15 +95,19 @@ export default function StartPage() {
     setError("");
 
     try {
+      // 可选字段空字符串 → undefined（避免后端 zod enum 报错）
+      const payload = {
+        ...form,
+        partnerGender: form.partnerGender || undefined,
+        lifeStage: form.lifeStage || undefined,
+        // 从分享落地页 /s/[code] 带来的归因码（无则为 undefined，后端自动忽略）
+        ref: new URLSearchParams(window.location.search).get("ref") || undefined,
+      };
+
       const res = await fetch("/api/assessments/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          partnerGender: form.partnerGender || undefined,
-          // 从分享落地页 /s/[code] 带来的归因码（无则为 undefined，后端自动忽略）
-          ref: new URLSearchParams(window.location.search).get("ref") || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();

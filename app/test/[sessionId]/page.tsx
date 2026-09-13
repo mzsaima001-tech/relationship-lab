@@ -56,8 +56,12 @@ export default function TestPage() {
     async function fetchSession() {
       try {
         const res = await fetch(`/api/assessments/${sessionId}`);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error);
+        const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        if (!res.ok) {
+          // 拼接 server 返回的 detail，便于排查
+          const msg = json.detail ? `${json.error}（${json.detail}）` : (json.error || `HTTP ${res.status}`);
+          throw new Error(msg);
+        }
 
         if (json.hasResult) {
           router.push(`/result/${sessionId}`);

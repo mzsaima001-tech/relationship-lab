@@ -39,7 +39,12 @@ export async function GET(
       hasResult: Boolean(result),
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to fetch session" }, { status: 400 });
+    console.error("[assessments/[id] GET] error:", error);
+    const message = error instanceof Error ? error.message : "未知错误";
+    // 暴露错误细节便于排查（生产环境保留字段供前端调试显示，不泄露堆栈）
+    return NextResponse.json(
+      { error: "Failed to fetch session", detail: message },
+      { status: 400 }
+    );
   }
 }

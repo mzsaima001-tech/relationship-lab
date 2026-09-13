@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSession, updateSession } from "@/lib/db";
 import { buildInitialQuestionsFromSeed } from "@/lib/assessment/assemble";
@@ -32,7 +32,11 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const body = schema.parse(await request.json());
+    // 先 normalize：把可选字段的空字符串转成 undefined，避免 zod enum 拒绝 ""
+    const raw = await request.json();
+    if (typeof raw.partnerGender === "string" && raw.partnerGender === "") delete raw.partnerGender;
+    if (typeof raw.lifeStage === "string" && raw.lifeStage === "") delete raw.lifeStage;
+    const body = schema.parse(raw);
 
     const guestToken = createGuestToken();
 
