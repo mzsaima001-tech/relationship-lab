@@ -1,0 +1,736 @@
+《默契研究所 V2.0》
+一致性校验题 + 回答质量控制系统
+版本：V2.0-QC-001
+目标：
+一致性校验不负责判断：
+“用户诚不诚实。”
+它负责判断：
+“我们应该多大程度相信当前这组测量结果。”
+因此系统最终输出的不是：
+“你答错了。”
+而是：
+response_quality
+score_confidence
+pattern_confidence
+context_dependency
+一、一致性校验要检查什么
+主要检查 6 类问题：
+前后回答方向明显冲突
+用户对不同场景反应高度依赖情境
+社会期望型作答
+连续机械选择同一个选项
+极端答题偏好
+完成速度异常
+二、校验题不是额外塞 20 道“测谎题”
+正式 24 题里建议：
+真正承担一致性验证作用的题：
+4–6 道。
+但其中很多本身就是正常题。
+也就是说：
+用户不会感觉系统突然问：
+“你刚才是不是撒谎？”
+而是通过：
+相同心理变量，不同场景和不同措辞再次测量。
+三、校验机制一：正反向一致性
+例如母题：
+SP-01
+正向：
+即使关系很亲近，我也需要属于自己的时间。
+用户选：
+5。
+后面另一题：
+只要我真的喜欢一个人，我通常希望大部分空闲时间都和 TA 待在一起。
+这是反向项目。
+如果用户也选 5：
+不能直接判定矛盾。
+系统先检查：
+是否存在 high_response + high_space
+是否是热恋阶段
+是否一个题测“需要独处”，另一个测“喜欢陪伴”
+如果真正语义互斥，再记为 inconsistency。
+四、第一批 20 道一致性校验题
+正式测试不会全部出现。
+从中根据已有题目选择：
+2–4 道交叉校验。
+A｜回应需求校验
+QC-RN-01
+校验：
+response_need
+题目：
+如果我非常确定一段关系是稳定的，短时间联系减少通常不会让我怀疑关系本身。
+1–5。
+方向：
+高分 = 低 response_need / 或高稳定容忍。
+交叉：
+RN-02、RN-08、RN-09。
+QC-RN-02
+题目：
+真正让我难受的很多时候不是消息少，而是不知道“为什么突然变少”。
+1–5。
+作用：
+校验：
+clarity_over_frequency
+与普通高联系需求。
+QC-RN-03
+题目：
+即使 TA 一天联系我很多次，如果我始终不知道自己在 TA 心里是什么位置，我还是可能不安心。
+1–5。
+作用：
+再次区分：
+频率
+vs
+确定感。
+B｜表达校验
+QC-EX-01
+题目：
+即使我很不舒服，如果我还没想清楚原因，我通常不会马上表达。
+1–5。
+交叉：
+EX-01、EX-10。
+QC-EX-02
+题目：
+对真正重要的事情，我宁愿表达得不够完美，也不希望对方完全靠猜。
+1–5。
+高分：
+表达倾向高。
+QC-EX-03
+题目：
+我有时嘴上说“没事”，其实心里还是希望对方继续问。
+1–5。
+信号：
+indirect_reassurance_bidding
+这不是简单低表达。
+C｜空间需求校验
+QC-SP-01
+题目：
+有时候我想独处，并不是因为关系出了问题，只是单纯想恢复自己的状态。
+1–5。
+校验：
+restorative_space
+QC-SP-02
+题目：
+如果 TA 明确告诉我“你安心做自己的事情就好”，我通常能更舒服地享受个人空间。
+1–5。
+校验：
+autonomy_with_reassurance
+QC-SP-03
+题目：
+即使一整天和喜欢的人相处得很开心，我仍然可能在晚上想自己待一会儿。
+1–5。
+校验：
+真实空间需求。
+D｜情绪敏感校验
+QC-ES-01
+题目：
+我经常能发现别人状态发生变化，但并不会马上认为那一定和我有关。
+1–5。
+区分：
+敏感
+vs
+自我归因。
+QC-ES-02
+题目：
+如果没有明显线索，我通常不会因为一条简单的消息就判断关系出了问题。
+1–5。
+和：
+ES 高分项目交叉。
+QC-ES-03
+题目：
+我对语气和态度变化很敏感，但很多时候我也知道自己的第一解释未必正确。
+1–5。
+信号：
+high_awareness_with_interpretive_restraint
+E｜冲突节奏校验
+QC-CU-01
+题目：
+我希望问题尽快解决，但如果双方情绪已经很糟，我仍然可以接受有明确时间的暂停。
+1–5。
+校验：
+true_conflict_urgency
+vs
+needs_reconnection_time
+QC-CU-02
+题目：
+对我来说，“暂停一下”本身不可怕，真正难受的是不知道对方还会不会回来继续谈。
+1–5。
+QC-CU-03
+题目：
+即使问题很重要，只要我确定第二天一定会继续讨论，我通常不会坚持必须当晚解决。
+1–5。
+反向校验 CU。
+F｜修复校验
+QC-RP-01
+题目：
+我愿意给关系修复机会，但这不代表同一个问题可以无限次重复。
+1–5。
+校验：
+高修复 + 有边界。
+QC-RP-02
+题目：
+如果 TA 真的持续改变了行为，我愿意根据新的表现重新评价 TA，而不是永远只看过去。
+1–5。
+QC-RP-03
+题目：
+对我来说，道歉和真正改变不是一回事。
+1–5。
+校验：
+behavior_change_required
+G｜互惠 / 边界校验
+QC-BD-01
+题目：
+我可以接受关系里不是每件事情都五五分，只要长期来看双方都觉得自己的付出被看见。
+1–5。
+校验：
+fairness_model
+QC-BD-02
+题目：
+和重要的人保持边界，并不代表我不信任或不重视对方。
+1–5。
+校验：
+privacy / autonomy。
+五、校验机制二：语义近似重复
+同一个母题不要原句重复。
+例如：
+第一次：
+TA 回复变慢，你会不会怀疑关系变化？
+后面校验：
+如果你已经知道 TA 最近工作特别忙，回复减少是否仍会改变你对关系的判断？
+两道都测同一主题。
+但第二道增加：
+已知原因。
+这样可以判断：
+用户是：
+真正高回应需求，
+还是：
+主要对“不确定”敏感。
+六、校验机制三：情境稳定性
+同一个维度可以跨 3 个场景。
+例如：
+response_need
+场景 A：
+聊天回复。
+场景 B：
+取消约会。
+场景 C：
+忙碌阶段联系下降。
+如果：
+A = 5
+B = 5
+C = 5
+说明：
+稳定高。
+如果：
+A = 5
+B = 1
+C = 2
+不能简单认为“不一致”。
+可能说明：
+用户只对“消息回复”敏感。
+因此增加：
+context_dependency
+七、Context Dependency Score
+建议：
+每个维度同时计算：
+trait_score
+context_dependency_score
+例如：
+{
+"response_need": {
+"score": 61,
+"context_dependency": 82
+}
+}
+解释：
+用户平均回应需求只是中等，
+但不同情境差异非常大。
+报告不要写：
+你是高回应需求的人。
+应该写：
+你的回应需求很依赖情境。
+在关系本身明确时，你通常比较放松；真正容易让你不安的是突然变化且没有解释。
+这类报告会明显更准。
+八、校验机制四：社会期望偏差
+有些题存在明显“正确答案”。
+例如：
+我愿意沟通，而不是冷战。
+大多数用户知道：
+5 看起来更成熟。
+所以必须加入：
+没有明显正确答案的两难题。
+九、社会期望型校验题
+SD-01
+发生冲突时，下面哪一种对你更容易？
+A.
+继续把问题说清楚，即使情绪还没有完全稳定。
+B.
+先停下来，即使问题暂时没有结论。
+两边都合理。
+SD-02
+关系里你更难接受：
+A.
+对方不够主动。
+B.
+对方太频繁要求回应。
+SD-03
+如果对方很爱你，但不太擅长表达；和很会表达但行动不够稳定相比，你更难接受哪一种？
+无标准答案。
+SD-04
+对你来说，亲密关系里更重要的是：
+A.
+知道彼此大部分事情。
+B.
+即使不知道所有事情，也相信彼此。
+SD-05
+哪一种更容易让你累？
+A.
+一直照顾对方的感受。
+B.
+一直猜对方到底在想什么。
+十、Social Desirability Flag
+不要简单计算：
+“总选成熟答案 = 装。”
+而是检测：
+用户是否几乎所有题都选择：
+我会沟通
+我会理解
+我有边界
+我不嫉妒
+我不生气
+我总是理性
+我总能修复
+我完全不需要确认
+如果 24 题呈现：
+“几乎没有任何正常人类脆弱性”
+可以记：
+social_desirability_flag = elevated
+但是最终不告诉用户：
+你在装。
+而是：
+降低部分结论置信度。
+十一、校验机制五：机械答题检测
+需要记录：
+answer_sequence
+检测：
+Straight-lining
+例如连续 15 题都选：
+3。
+或者：
+全部 5。
+但不能仅凭这个判定无效。
+因为某些用户确实可能偏高。
+所以必须与：
+反向题
+题型变化
+结合判断。
+十二、机械选择指标
+longest_same_answer_run
+例如：
+连续相同选项 ≥ 8：
+轻度 flag。
+≥ 12：
+明显 flag。
+同时如果：
+正向 / 反向语义题也全部同分，
+质量风险进一步升高。
+十三、极端作答检测
+用户可能所有题只选：
+1 或 5。
+这不一定是乱答。
+有些人的确偏极端。
+但增加：
+extreme_response_ratio
+例如：
+24 道 Likert 中：
+22 道都是 1/5。
+记录：
+extreme_style_high
+报告中：
+降低细微差异解释。
+十四、中间选项依赖
+另一种是：
+24 道几乎全部选 3。
+记录：
+midpoint_response_ratio
+如果：
+3 分占比 > 70%
+系统可能很难形成稳定画像。
+最终页面可以温和写：
+你的很多回答比较依赖具体情况，因此这份结果更适合看“倾向”，而不是强结论。
+十五、答题速度检测
+每道题记录：
+shown_at
+answered_at
+response_time_ms
+不要设：
+“少于 3 秒就是乱答。”
+太粗暴。
+应该看：
+用户个人基准。
+例如：
+前 10 题中位数：
+8.2 秒。
+最后 10 题突然全部：
+0.7 秒。
+可能代表：
+fatigue / rushing。
+十六、Speed Anomaly Score
+建议：
+personal_median_response_time
+然后：
+relative_speed = response_time / personal_median
+连续多题：
+relative_speed < 0.20
+增加：
+rapid_answering_flag
+十七、答题疲劳检测
+如果：
+前半段：
+平均 8 秒。
+后半段：
+平均 1.5 秒。
+同时：
+后半段相同选项增多。
+记录：
+late_test_fatigue
+这也可以帮助产品优化：
+如果大量用户第 18 题后疲劳，
+说明题目太长或太重复。
+十八、逻辑冲突检测
+只检查真正逻辑互斥的项目。
+例如：
+Q1：
+即使关系稳定，我仍然必须每天高频联系，否则就会不安。
+5。
+Q2：
+即使连续几天没联系，只要关系稳定我也完全不会在意。
+5。
+这是明显冲突。
+但：
+我喜欢独处。
+5。
+和：
+我喜欢和伴侣长时间相处。
+5。
+不是逻辑冲突。
+人可以两者都喜欢。
+这一点程序必须非常谨慎。
+十九、Consistency Pair 数据结构
+interface ConsistencyPair {
+id: string;
+questionA: string;
+questionB: string;
+relationship:
+| "same_direction"
+| "opposite_direction"
+| "contextual";
+expectedTolerance: number;
+severityWeight: number;
+}
+二十、一致性差异公式
+对于 1–5：
+同向题：
+difference = abs(A - B)
+反向题：
+先：
+reverseB = 6 - B
+然后：
+difference = abs(A - reverseB)
+建议：
+0–1：
+高度一致。
+2：
+可接受差异。
+3：
+明显差异。
+4：
+强冲突。
+但最终还要检查 context。
+二十一、不要因为 1 对矛盾就降低整个报告
+建议：
+inconsistency_score
+综合计算：
+高严重性逻辑矛盾
+多组重复矛盾
+机械答题
+极端反应
+速度异常
+单次不一致：
+影响很小。
+二十二、回答质量总分
+内部：
+Response Quality Index
+RQI
+0–100。
+建议：
+RQI =
+semantic_consistency * 0.35
++
+attention_quality * 0.20
++
+response_variability_quality * 0.15
++
+timing_quality * 0.10
++
+context_coherence * 0.20
+注意：
+不要向用户展示：
+你只有 63 分诚实度。
+RQI 只供内部。
+二十三、建议 RQI 等级
+85–100
+high_confidence
+回答整体稳定。
+70–84
+good_confidence
+正常。
+55–69
+moderate_confidence
+存在明显情境依赖或部分矛盾。
+<55
+low_confidence
+结果需要谨慎解释。
+但不要直接说：
+“无效。”
+二十四、RQI 如何影响报告
+例如模式：
+silent_monitor
+原 confidence：
+88。
+但：
+RQI = 62。
+最终：
+adjusted_confidence =
+88 × 0.80
+≈ 70
+仍然可以写。
+但措辞降低确定性：
+不是：
+“你就是……”
+而是：
+“你的回答比较明显地呈现出……”
+如果：
+adjusted confidence = 54：
+写：
+“你的一部分回答显示……”
+或者不作为主结论。
+二十五、模式置信度建议公式
+final_pattern_confidence =
+raw_pattern_confidence
+×
+response_quality_modifier
+×
+evidence_diversity_modifier
+其中：
+response_quality_modifier
+0.65–1.0。
+evidence_diversity_modifier
+如果结论来自：
+4 道不同场景题，
+比：
+4 道几乎一样的题
+更可信。
+二十六、Evidence Diversity
+例如：
+response_need 高。
+证据全部来自：
+“回复消息”。
+那不能强推到：
+整个关系风格。
+如果证据来自：
+回复变化
+取消约会
+关系定义
+优先级变化
+说明跨场景更稳定。
+记录：
+evidence_context_count
+二十七、Attention Check 要不要做？
+不要做传统这种题：
+“为了证明你认真作答，请选择第二个选项。”
+用户体验很差。
+除非预测试阶段需要研究。
+商业正式版建议：
+不用。
+我们已有：
+速度
+逻辑一致性
+反向题
+机械答题检测
+已经足够。
+二十八、用户报告如何表达“不确定”
+优秀：
+你在不同情境下的反应差异比较大。
+这意味着你可能并不是一个固定需要高频回应的人。
+当关系稳定、有明确解释时，你的反应明显更放松；真正容易触发你的，是突然变化和信息不足。
+很差：
+“测试显示你前后矛盾。”
+禁止。
+二十九、“矛盾”有时本身就是最好的结论
+例如：
+高 response_need。
+高 space_need。
+不是数据问题。
+它可能就是人格/关系需求结构：
+既需要空间，也需要关系安全。
+所以系统检测到矛盾后顺序应该是：
+Possible meaningful dual-need
+↓
+Dynamic follow-up
+↓
+Context check
+↓
+Only then consider inconsistency
+不能反过来。
+三十、核心原则
+系统必须区分三种“前后不一样”：
+1. Meaningful Contradiction
+真实的双重需求。
+应该写进报告。
+例如：
+高空间 + 高确定。
+2. Context Dependency
+不同场景下反应不同。
+应该解释：
+“什么情况下会触发”。
+3. Measurement Inconsistency
+真正无法合理解释的前后冲突。
+才降低 confidence。
+这是整个质量控制最关键的逻辑。
+三十一、后台调试示例
+{
+"response_quality": {
+"rqi": 86,
+"level": "high_confidence",
+"semantic_consistency": 91,
+"timing_quality": 87,
+"context_coherence": 89,
+"extreme_response_ratio": 0.21,
+"midpoint_response_ratio": 0.17,
+"rapid_answering_flag": false,
+"straight_lining_flag": false
+}
+}
+三十二、单维度调试示例
+{
+"dimension": "space_need",
+"score": 74,
+"confidence": 91,
+"context_dependency": 28,
+"evidence": [
+"SP-01",
+"NEW-SP-04",
+"FU-SP-03",
+"QC-SP-01"
+],
+"consistency": "high"
+}
+另一个用户：
+{
+"dimension": "response_need",
+"score": 58,
+"confidence": 78,
+"context_dependency": 84,
+"interpretation": "uncertainty_sensitive_not_globally_high_need"
+}
+这类结构对最终 AI 报告非常重要。
+三十三、数据库字段
+建议 session 增加：
+response_quality_score
+response_quality_level
+straight_lining_score
+rapid_answering_score
+extreme_response_ratio
+midpoint_response_ratio
+semantic_consistency_score
+context_dependency_score
+social_desirability_score
+每个 dimension result：
+score
+confidence
+context_dependency
+evidence_count
+evidence_context_count
+每个 pattern：
+raw_confidence
+adjusted_confidence
+supporting_question_ids
+contradicting_question_ids
+三十四、校验题出现规则
+正式 24 题结构可以调整为：
+12 核心场景题
+4 关系专属题
+4 生活阶段题
+4 动态追问
+但其中：
+核心/关系/生活题里至少：
+3 道承担交叉校验功能。
+动态追问里：
+可能再有 1 道帮助确认矛盾。
+这样不需要变成：
+28 题。
+三十五、预测试阶段要重点看哪些校验指标
+每一道题上线以后统计：
+与同维度题相关性
+反向题一致性
+平均答题时间
+选项分布
+中间选项比例
+极端比例
+哪些题经常产生无法解释的冲突
+哪些题更容易受场景影响
+哪些题似乎存在明显社会期望答案
+如果一题持续导致异常：
+不是马上怪用户。
+优先检查：
+题写得是不是有问题。
+三十六、一致性系统真正的产品价值
+它不会成为用户宣传页上的核心卖点。
+但是它会决定：
+用户为什么觉得：
+“这个结果没有因为我偶尔一个答案就乱下结论。”
+也决定后续预测试是否能够真正优化题库。
+三十七、完成情况
+现在完成：
+异地恋题库 ✓
+长期伴侣 / 已婚 ✓
+关系紧张 ✓
+朋友关系 ✓
+40 道统一动态追问题 ✓
+25 个双人互动模式 ✓
+年龄 / 生活阶段变体 ✓
+一致性校验与回答质量系统 ✓
+下一块进入：
+9. 报告规则映射
+这会是另外一个极其关键的核心资产。
+因为现在我们已经有：
+题目
+↓
+六维分数
+↓
+隐藏信号
+↓
+动态追问
+↓
+置信度
+↓
+双人模式
+但下一步必须回答：
+这些数据到底什么时候应该生成哪一句报告？
+正式报告不能把全部结构数据直接扔给 AI 然后说：
+“帮我分析一下。”
+我们需要建立：
+Report Rule Engine
+也就是：
+结构化数据先决定“应该说什么”，AI 最后只决定“怎么把它说得自然”。
+下一阶段建议直接建立完整的：
+单人报告规则
+双人报告规则
+优势规则
+风险规则
+矛盾规则
+关系紧张规则
+建议规则
+沟通话术规则
+Confidence 语言强度规则
+禁止结论规则
+这样整个产品的“准”，才不会依赖一次 AI 随机发挥。

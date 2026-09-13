@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新分享海报 — 预览（移动端）</title>
+<style>
+  :root {
+    --bg-dark: #16130f;
+    --bg-darker: #100e0a;
+    --paper: #f5ede0;
+    --text-warm: #e8e0d4;
+    --text-muted: #9a9080;
+    --accent: #c9a96e;
+    --accent-dim: #a08850;
+    --border-dim: #3a3528;
+    --highlight: #f5b942;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg-dark);
+    color: var(--text-warm);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    padding: 20px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .device {
+    width: 390px;
+    max-width: 100%;
+    border: 8px solid #222;
+    border-radius: 36px;
+    padding: 8px;
+    background: #000;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    margin-top: 12px;
+  }
+  .screen {
+    width: 100%;
+    background: linear-gradient(180deg, #16130f, #100e0a);
+    border-radius: 28px;
+    padding: 20px 18px;
+    min-height: 800px;
+    position: relative;
+    overflow: hidden;
+  }
+  /* 仿星空 */
+  .screen::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(2px 2px at 20% 30%, #c9a96e80 100%, transparent),
+      radial-gradient(1px 1px at 60% 15%, #c9a96e60 100%, transparent),
+      radial-gradient(1.5px 1.5px at 80% 40%, #c9a96e90 100%, transparent),
+      radial-gradient(1px 1px at 30% 60%, #c9a96e40 100%, transparent),
+      radial-gradient(1px 1px at 70% 70%, #c9a96e70 100%, transparent),
+      radial-gradient(1.5px 1.5px at 45% 80%, #c9a96e60 100%, transparent),
+      radial-gradient(1px 1px at 15% 45%, #c9a96e50 100%, transparent);
+    pointer-events: none;
+  }
+  .archive-label {
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    color: var(--accent);
+  }
+  .file-number {
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+  }
+  .display-serif {
+    font-family: Georgia, "Noto Serif SC", serif;
+  }
+  .title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .title-bar .line {
+    width: 32px;
+    height: 1px;
+    background: var(--border-dim);
+  }
+  .brand {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--text-warm);
+    font-family: Georgia, serif;
+    line-height: 1.2;
+  }
+  .poster {
+    border: 1px solid var(--accent-dim);
+    border-radius: 4px;
+    padding: 18px 18px;
+    margin-bottom: 14px;
+    background: linear-gradient(180deg, #16130f, #100e0a);
+    position: relative;
+  }
+  .file-line {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .hook {
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  .hook .main {
+    font-family: Georgia, serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-warm);
+    line-height: 1.6;
+  }
+  .hook .sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .divider .line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-dim), var(--accent));
+    opacity: 0.6;
+  }
+  .divider .diamond {
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--accent);
+    transform: rotate(45deg);
+    position: relative;
+  }
+  .divider .diamond::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  .compass {
+    width: 170px;
+    height: 170px;
+    margin: 0 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .compass-ring {
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    opacity: 0.16;
+  }
+  .compass-ring.inner {
+    inset: 18px;
+    border-style: dashed;
+  }
+  .compass-ring.innermost {
+    inset: 50px;
+    border-style: dashed;
+    border-width: 0.5px;
+  }
+  .radar {
+    width: 180px;
+    height: 180px;
+    position: relative;
+  }
+  .radar svg { width: 100%; height: 100%; }
+  .card-mock {
+    width: 130px;
+    height: 180px;
+    background: radial-gradient(ellipse at center, #1a1814 30%, #100e0a 80%);
+    border: 1px solid #5e7e6b88;
+    border-radius: 14px;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 30px rgba(94, 126, 107, 0.3);
+  }
+  .card-mock::before {
+    content: "";
+    position: absolute;
+    inset: -50px;
+    background: radial-gradient(circle at top left, #7e9e8a44 0%, transparent 60%);
+  }
+  .card-mock .moon {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #7e9e8a;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  .card-mock .moon-glyph {
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    color: #7e9e8a;
+    font-size: 22px;
+  }
+  .card-mock .totem {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 2px solid #7e9e8a;
+    position: relative;
+  }
+  .card-mock .totem::before,
+  .card-mock .totem::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 36px;
+    height: 36px;
+    border: 1.5px solid #7e9e8a;
+    border-radius: 50%;
+  }
+  .card-mock .name {
+    font-family: Georgia, serif;
+    font-weight: bold;
+    font-size: 17px;
+    color: #d8e0d4;
+    margin-top: 50px;
+  }
+  .card-mock .descriptor {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 0.5px solid #7e9e8a;
+    padding: 1px 8px;
+    border-radius: 3px;
+    font-family: "Courier New", monospace;
+    font-size: 8px;
+    color: #7e9e8a;
+    white-space: nowrap;
+  }
+  .tag {
+    text-align: center;
+    font-family: Georgia, serif;
+    font-size: 14px;
+    color: var(--text-warm);
+    font-weight: 500;
+    margin: 16px 0 14px;
+  }
+  .qr-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 4px;
+  }
+  .qr-text {
+    flex: 1;
+    font-size: 12px;
+    font-family: Georgia, serif;
+    color: var(--text-warm);
+    line-height: 1.4;
+    font-weight: 500;
+  }
+  .qr-text .desc {
+    color: var(--text-muted);
+    font-size: 9px;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .qr-img {
+    background: var(--paper);
+    padding: 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .qr-img .qr {
+    width: 88px;
+    height: 88px;
+    background: repeating-conic-gradient(#2a2418 0% 25%, #f5ede0 0% 50%) 50% / 8px 8px;
+    border: 1px solid #2a2418;
+  }
+  .btn-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg-dark);
+    font-weight: 600;
+    padding: 14px 16px;
+    border-radius: 4px;
+    text-align: center;
+    border: none;
+    font-size: 13px;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-dim);
+    padding: 12px 14px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 12px;
+    flex: 1;
+  }
+  .btn-pair {
+    display: flex;
+    gap: 8px;
+  }
+  .meta-hint {
+    text-align: center;
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 14px;
+    line-height: 1.6;
+  }
+  .footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .footer a { color: var(--text-muted); text-decoration: none; margin: 0 6px; }
+  .cta-pill {
+    display: inline-block;
+    background: var(--highlight);
+    color: var(--bg-dark);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 10px;
+    margin-left: 6px;
+  }
+  .label {
+    color: var(--accent);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="label">NEW DESIGN · 新分享海报预览</div>
+  <div class="device">
+    <div class="screen">
+      <!-- 顶部品牌头 -->
+      <div class="title-bar">
+        <span class="archive-label">Relationship Lab</span>
+        <span class="line"></span>
+        <span class="file-number">No. 1BE642</span>
+      </div>
+      <h1 class="brand">默契研究所</h1>
+
+      <!-- 海报卡 -->
+      <div class="poster">
+        <div class="file-line">
+          <span class="file-number">FILE · 1BE642</span>
+        </div>
+
+        <div class="hook">
+          <div class="main">你们之间，有没有一种问题，<br>总是在重复发生？</div>
+          <div class="sub">也许问题不是谁对谁错——<br>只是你们理解「在乎」的方式不一样。</div>
+        </div>
+
+        <div class="divider">
+          <span class="line"></span>
+          <span class="diamond"></span>
+          <span class="line"></span>
+        </div>
+
+        <div class="compass">
+          <div class="compass-ring"></div>
+          <div class="compass-ring inner"></div>
+          <div class="compass-ring innermost"></div>
+          <div class="radar">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="50,15 80,35 75,75 25,75 20,35" fill="#c9a96e30" stroke="#c9a96e" stroke-width="1.2" />
+              <line x1="50" y1="10" x2="50" y2="90" stroke="#c9a96e40" stroke-width="0.4" />
+              <line x1="10" y1="50" x2="90" y2="50" stroke="#c9a96e40" stroke-width="0.4" />
+              <line x1="22" y1="22" x2="78" y2="78" stroke="#c9a96e40" stroke-width="0.4" />
+              <line x1="78" y1="22" x2="22" y2="78" stroke="#c9a96e40" stroke-width="0.4" />
+              <circle cx="50" cy="15" r="1.5" fill="#c9a96e" />
+              <circle cx="80" cy="35" r="1.5" fill="#c9a96e" />
+              <circle cx="75" cy="75" r="1.5" fill="#c9a96e" />
+              <circle cx="25" cy="75" r="1.5" fill="#c9a96e" />
+              <circle cx="20" cy="35" r="1.5" fill="#c9a96e" />
+              <circle cx="50" cy="50" r="1.5" fill="#c9a96e" />
+            </svg>
+          </div>
+        </div>
+
+        <div style="margin: 18px 0; display:flex; justify-content:center;">
+          <div class="card-mock">
+            <div class="moon">第1序</div>
+            <div class="moon-glyph">●</div>
+            <div class="totem"></div>
+            <div class="name">慢火相融者</div>
+            <div class="descriptor">守护 · 为值得者</div>
+          </div>
+        </div>
+
+        <p class="tag">我是「慢火相融者」——你呢？</p>
+
+        <div class="divider">
+          <span class="line"></span>
+          <span class="diamond"></span>
+          <span class="line"></span>
+        </div>
+
+        <div class="qr-row">
+          <div class="qr-text">
+            长按二维码，<br>看看你是哪一种
+            <div class="desc">· 36 题 · 约 5 分钟<br>· 无需注册 · 基础免费</div>
+          </div>
+          <div class="qr-img">
+            <div class="qr"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn-primary">保存海报图片（长按图片也可保存）→</button>
+        <div class="btn-pair">
+          <button class="btn-ghost">复制分享链接</button>
+          <button class="btn-ghost">复制给微信好友</button>
+        </div>
+        <div style="text-align:center; margin-top:6px;">
+          <a style="font-size:10px; color: var(--text-muted);">← 回到我的完整报告</a>
+        </div>
+      </div>
+
+      <div class="meta-hint">
+        💡 手机端可长按上方海报图片，<br>
+        保存到相册或转发给朋友（微信会自动识别二维码）
+      </div>
+
+      <div class="footer">
+        <a>← 回到首页</a>·<a>测一测我的人格</a><span class="cta-pill">💞 测一测我们</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

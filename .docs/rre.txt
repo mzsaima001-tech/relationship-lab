@@ -1,0 +1,1010 @@
+《默契研究所 V2.0》
+报告规则映射系统
+Report Rule Engine｜RRE V1
+版本：
+V2.0-RRE-001
+一、这一层解决什么问题
+目前系统已经有：
+题目
+↓
+六维分数
+↓
+隐藏信号
+↓
+动态追问
+↓
+一致性校验
+↓
+Confidence
+↓
+双人互动模式
+但如果最终直接这样调用 AI：
+这是用户的数据，请帮我分析。
+会出现非常严重的问题：
+同样的数据，不同时间生成不同结论
+AI 可能夸大弱信号
+AI 可能漏掉最重要模式
+报告结构不稳定
+AI 容易使用心理诊断式语言
+双人报告容易变成两个单人报告拼起来
+付费报告难以持续迭代
+无法 A/B Test 某一条分析规则
+无法解释“为什么报告这么写”
+所以正式系统必须变成：
+数据决定“说什么”
+AI 决定“怎么说”
+二、正式报告流水线
+Assessment Data
+↓
+Score Engine
+↓
+Signal Engine
+↓
+Consistency / Confidence
+↓
+Pattern Engine
+↓
+Report Rule Engine
+↓
+Report Facts
+↓
+Narrative Composer
+↓
+AI Language Layer
+↓
+Safety Validator
+↓
+Final Report
+其中：
+Report Rule Engine
+是真正的大脑。
+三、Report Facts
+AI 不直接读取几百个原始答案。
+先由规则系统生成一个中间层：
+{
+"primary_needs": [],
+"secondary_needs": [],
+"strengths": [],
+"internal_tensions": [],
+"stress_patterns": [],
+"relationship_patterns": [],
+"risk_patterns": [],
+"repair_resources": [],
+"recommendations": [],
+"communication_scripts": [],
+"suppressed_findings": []
+}
+AI 只允许根据这个结构写文章。
+四、规则对象统一结构
+建议：
+interface ReportRule {
+id: string;
+category:
+| "need"
+| "strength"
+| "tension"
+| "stress"
+| "pair_pattern"
+| "risk"
+| "repair"
+| "recommendation"
+| "script"
+| "suppression";
+priority: number;
+conditions: RuleCondition[];
+exclusions?: RuleCondition[];
+minConfidence?: number;
+relationshipTypes?: string[];
+relationshipStages?: string[];
+output: ReportFactTemplate;
+}
+五、Rule Condition
+interface RuleCondition {
+source:
+| "dimension"
+| "signal"
+| "pair_pattern"
+| "quality"
+| "context"
+| "relationship_state";
+key: string;
+operator:
+| ">"
+| ">="
+| "<"
+| "<="
+| "=="
+| "!="
+| "exists"
+| "between";
+value?: any;
+}
+六、报告规则的优先级
+不要把所有命中的规则全部写进去。
+建议：
+Priority 100
+安全风险。
+90–99
+核心互动循环 / 关系状态。
+80–89
+主要需求 / 内部矛盾。
+70–79
+高价值隐藏模式。
+60–69
+优势。
+50–59
+次要偏好。
+<50
+一般不进入正式报告。
+七、单人报告模块
+建议最终报告固定包含：
+01｜一句话画像
+不是人格标签。
+而是：
+你在关系里最明显的需求组合是什么。
+02｜你真正需要什么
+2–3 个核心需求。
+03｜你最容易被什么触发
+压力条件。
+04｜你会怎么保护自己
+行为模式。
+05｜你的内部矛盾
+例如：
+需要空间 + 需要确定。
+06｜你的优势
+避免全是问题。
+07｜容易被误解的地方
+非常适合提高“准感”。
+08｜关系建议
+具体行为建议。
+09｜可以直接使用的话
+2–3 个沟通脚本。
+八、六维基础映射规则
+Dimension A｜Response Need
+RRE-RN-01｜低回应需求
+触发：
+response_need <= 35
+confidence >= 70
+Report Fact：
+你通常不需要通过高频联系持续确认一段关系是否稳定。
+禁止写：
+你很冷淡。
+优势：
+你能够在关系稳定时容纳相对独立的生活节奏。
+风险：
+如果对方回应需求很高：
+你的“没问题”可能被对方体验成“你不在意”。
+RRE-RN-02｜中等回应需求
+触发：
+36 <= response_need <= 69
+不要强行写成明显人格特点。
+如果没有额外信号：
+降低优先级。
+RRE-RN-03｜高回应需求
+触发：
+response_need >= 70
+confidence >= 70
+基础表达：
+关系中的回应和连接变化，对你的影响通常比较明显。
+但必须进一步看：
+clarity_over_frequency
+priority_over_immediacy
+reassurance_then_calm
+之后才能决定真正解释。
+九、高回应需求细分
+RRE-RN-04｜需要确定，不是需要黏
+条件：
+response_need >= 70
+space_need >= 60
+clarity_over_frequency = true
+reassurance_then_calm = true
+核心结论：
+你真正需要的可能不是更多联系，而是更少的不确定。
+解释：
+当关系状态明确、变化有解释时，你其实能够接受彼此各自生活。
+内部模式：
+SECURITY_BEFORE_AUTONOMY
+RRE-RN-05｜真正高频连接需求
+条件：
+response_need >= 70
+clarity_over_frequency = false
+persistent_contact_need = true
+结论：
+即使关系本身很稳定，高频连接对你来说仍然具有真实价值。
+不要解释成：
+“缺安全感”。
+RRE-RN-06｜优先级需求
+条件：
+priority_sensitivity = high
+priority_over_immediacy = true
+结论：
+你真正关注的可能不是“回复得快不快”，而是自己有没有被放进对方的现实安排里。
+十、Expression 映射
+RRE-EX-01｜高表达
+条件：
+expression >= 70
+结论：
+你通常比较愿意把自己的需求和感受说出来。
+优势：
+降低猜测成本。
+但如果：
+expression_specificity 低
+则不能写：
+沟通能力强。
+应该写：
+你愿意表达，但情绪强的时候，表达可能仍然容易停留在评价而不是具体需求。
+RRE-EX-02｜低表达
+条件：
+expression <= 45
+不要直接写：
+你不善沟通。
+进一步看：
+expression_block_source
+RRE-EX-03｜怕给压力
+条件：
+expression_block_source = fear_of_burdening
+结论：
+你不是没有需求，而是经常会先判断：“说出来会不会给对方增加负担？”
+RRE-EX-04｜希望对方自己懂
+条件：
+mind_reading_expectation high
+结论：
+越是重要的人，你有时越容易期待“TA 应该能看出来”。
+风险：
+熟悉感可能替代真实表达。
+RRE-EX-05｜觉得说了没用
+条件：
+expression_block_source = communication_futility
+这是关系状态问题，
+不是普通人格低表达。
+必须提升优先级。
+十一、Space Need 映射
+RRE-SP-01｜高自主
+条件：
+space_need >= 70
+基础：
+你在亲密关系中仍然需要明显的个人空间。
+禁止：
+回避亲密。
+RRE-SP-02｜恢复型空间
+条件：
+restorative_space = true
+结论：
+你需要的空间更像“恢复”，而不是退出关系。
+RRE-SP-03｜确定以后才能放松
+条件：
+autonomy_with_reassurance = true
+结论：
+对你来说，空间最舒服的前提是：你知道这段距离不会被误解成关系变化。
+RRE-SP-04｜可能正在撤离
+如果：
+space_need high
+但同时：
+relief_in_disconnection high
+active_connection_withdrawal high
+不能继续解释为：
+“你只是需要空间”。
+切换：
+RELATIONSHIP_WITHDRAWAL_RULE
+十二、Emotional Sensitivity 映射
+RRE-ES-01｜高敏感
+条件：
+emotional_sensitivity >= 70
+基础：
+你通常很容易捕捉关系里的细微变化。
+RRE-ES-02｜高敏感 + 低自我归因
+条件：
+perceptive_without_personalizing = true
+优势：
+你能够发现变化，但不一定马上把变化解释成“都是因为我”。
+这是非常高价值的正面模式。
+RRE-ES-03｜高敏感 + 低表达
+条件：
+emotional_sensitivity >= 70
+expression <= 45
+silent_monitor = true
+结论：
+你比较容易先察觉，再观察，而不是马上问。
+循环：
+发现变化
+→
+继续观察
+→
+不愿显得太在意
+→
+信息不足
+→
+猜测增加
+这是核心报告模式。
+RRE-ES-04｜情绪感染
+条件：
+emotional_contagion high
+结论：
+对方的情绪比较容易进入你的状态。
+如果同时：
+responsibility_for_partner_emotion high
+则：
+你不仅容易感受到对方的情绪，还可能习惯性地觉得自己需要负责让对方好起来。
+十三、Conflict Urgency 映射
+RRE-CU-01｜高即时解决需求
+条件：
+conflict_urgency >= 70
+必须进一步看：
+uncertain_reconnection_trigger
+RRE-CU-02｜实际上怕的是失去连接
+条件：
+conflict_urgency >= 70
+uncertain_reconnection_trigger = true
+结论：
+你未必需要所有问题立刻解决。
+你真正难以承受的可能是：“暂停以后，我不知道我们还会不会回来继续。”
+RRE-CU-03｜真正立即解决型
+条件：
+conflict_urgency >= 70
+true_immediate_resolution_need = true
+结论：
+即使你知道关系仍然稳定，你也更倾向尽快把问题处理清楚。
+RRE-CU-04｜低紧迫但会回来
+条件：
+conflict_urgency <= 40
+healthy_pause_return = true
+结论：
+你更倾向先整理自己，但并不会把暂停变成逃避。
+RRE-CU-05｜暂停可能变成回避
+条件：
+conflict_urgency <= 40
+healthy_pause_return = false
+谨慎表达：
+你在压力中倾向退开，而真正需要注意的是：冷静以后有没有主动回到问题里。
+十四、Repair Orientation 映射
+RRE-RP-01｜高修复
+条件：
+repair_orientation >= 70
+优势：
+你通常不会把一次冲突自动理解成关系结束。
+RRE-RP-02｜高修复 + 有边界
+条件：
+repair_orientation >= 70
+repair_with_boundaries = true
+结论：
+你愿意给关系修复空间，但并不认为“愿意原谅”等于同一个问题可以无限重复。
+RRE-RP-03｜高修复 + 无边界风险
+条件：
+repair_orientation >= 70
+repair_with_boundaries = false
+repeated_pattern_erosion high
+风险：
+你的修复能力可能很强，但也需要注意是否把“还能和好”误当成“问题正在改善”。
+RRE-RP-04｜行为改变导向
+条件：
+behavior_change_required high
+结论：
+对你来说，真正的道歉最终需要落到行为变化上。
+十五、内部矛盾规则
+这是报告最有“准感”的部分。
+TENSION-01｜高回应 + 高空间
+条件：
+response_need >= 70
+space_need >= 70
+先检查：
+autonomy_with_reassurance
+如果 true：
+结论：
+你需要空间，但你不喜欢突然被留下。
+展开：
+当关系确定时，你能很好地拥有自己的生活；真正让你不舒服的，是不知道距离意味着什么。
+TENSION-02｜高敏感 + 低表达
+条件：
+emotional_sensitivity >= 70
+expression <= 45
+结论：
+你经常比别人更早发现变化，却未必比别人更早把它说出来。
+TENSION-03｜高修复 + 高疲劳
+条件：
+repair_orientation >= 70
+repair_fatigue high
+结论：
+你并不是一个轻易放弃的人，但也正因为已经修复过很多次，你可能越来越难仅靠“再谈一次”恢复信心。
+TENSION-04｜高独立 + 高未来承诺
+条件：
+space_need >= 70
+future_clarity_need high
+结论：
+想保留自己的生活，并不等于你不认真。
+你更理想的关系可能是“高度承诺，但不过度融合”。
+TENSION-05｜高嫉妒 + 高信任
+条件：
+jealousy high
+trust high
+结论：
+你可以会吃醋，同时仍然相信对方。
+情绪本身并不自动等于不信任。
+十六、优势规则库
+正式报告至少必须输出：
+2 个优势。
+避免产品变成“问题扫描器”。
+STRENGTH-01｜高感知 + 解释克制
+条件：
+emotional_sensitivity >= 70
+perceptive_without_premature_interpretation = true
+输出：
+你既能捕捉变化，又能提醒自己“第一解释不一定就是事实”。
+STRENGTH-02｜表达 + 边界
+条件：
+expression >= 65
+expression_without_control high
+输出：
+你能够表达自己的需要，同时也能接受“表达清楚不意味着对方必须同意”。
+STRENGTH-03｜高修复 + 行为导向
+条件：
+repair_orientation >= 65
+behavior_change_required high
+输出：
+你既愿意修复，也重视真正发生改变。
+STRENGTH-04｜自主 + 稳定连接
+条件：
+space_need >= 65
+autonomy_with_commitment high
+输出：
+你比较能够同时容纳“我们很重要”和“我们不需要时时刻刻黏在一起”。
+STRENGTH-05｜冲突暂停能力
+条件：
+conflict_urgency <= 55
+healthy_pause_return high
+输出：
+你具备一种很有价值的能力：在情绪高点暂停，但之后仍然回来处理问题。
+十七、关系紧张状态报告规则
+如果：
+relationship_stage = tense
+必须优先使用关系状态指标：
+connection_remaining
+trust_stability
+repair_capacity
+relationship_exhaustion
+mutuality
+不要优先输出六维人格。
+十八、关系紧张状态分类
+STATE-01｜疲惫但连接仍在
+条件：
+relationship_exhaustion >= 70
+connection_remaining >= 65
+repair_capacity >= 65
+输出：
+高疲劳 · 连接仍在 · 修复意愿存在
+核心：
+现在的问题更像方法失效，而不是关系完全失去连接。
+STATE-02｜爱还在，信任下降
+条件：
+connection_remaining >= 65
+trust_stability <= 45
+输出：
+连接仍在 · 信任受损
+重点：
+行为稳定性。
+STATE-03｜修复单边化
+条件：
+mutuality <= 40
+one_sided_repair high
+输出：
+关系维护正在明显集中在一方。
+STATE-04｜保护性撤离
+条件：
+sharing_withdrawal high
+relief_in_disconnection high
+desire_after_problem_resolution >= 65
+输出：
+撤离更像保护，而不是明确失去继续关系的意愿。
+STATE-05｜明显情感脱离
+条件：
+sharing_withdrawal high
+shared_future_imagery low
+desire_after_problem_resolution low
+positive_connection_remaining low
+输出：
+当前的关系参与感正在明显下降。
+禁止：
+你应该分手。
+十九、双人报告映射规则
+双人报告优先级：
+Safety
+↓
+Primary Pair Pattern
+↓
+Secondary Pair Patterns
+↓
+Shared Strengths
+↓
+A Experience
+↓
+B Experience
+↓
+Interaction Cycle
+↓
+Repair Leverage
+↓
+Scripts
+二十、Pair Pattern Rule 示例
+PAIR-RULE-01｜追逐—撤离
+触发：
+APPROACH_WITHDRAW
+Confidence：
+=70
+报告标题候选：
+一个人在找确定，一个人在找空间
+不要：
+焦虑型 × 回避型。
+A 部分：
+当关系不确定时，A 会通过靠近、讨论和确认恢复稳定。
+B 部分：
+当压力升高时，B 更需要先整理自己的状态。
+Cycle：
+A 察觉距离
+→
+增加靠近
+→
+B 感到压力
+→
+B 后退
+→
+A 更不确定
+→
+进一步靠近
+建议：
+改变“谁有问题”的叙事。
+二十一、共享优势规则
+例如：
+PAIR-STRENGTH-01
+双方：
+repair_orientation >= 70
+输出：
+你们一个很明显的共同优势是：双方都还愿意重新进入问题，而不是把冲突直接理解成关系结束。
+PAIR-STRENGTH-02
+双方：
+future_clarity_need 接近
+输出：
+你们对关系未来方向的期待比较接近。
+PAIR-STRENGTH-03
+双方：
+space_need >= 65
+都高 commitment
+输出：
+你们都比较容易理解“亲密和独立可以同时存在”。
+二十二、报告建议规则
+建议不能是：
+多沟通。
+完全禁止这种空建议。
+每条建议必须包含：
+Trigger
+↓
+Behavior
+↓
+Replacement Behavior
+例如：
+问题：
+A 在不确定时连续追问。
+建议：
+当你发现自己连续第二次追问同一个问题时，不要继续问“你到底怎么了”，改成一次性说清需求：
+“我现在主要是不知道我们什么时候再继续谈。你能不能告诉我一个时间？”
+这是可执行建议。
+二十三、建议模板结构
+interface Recommendation {
+trigger: string;
+avoid: string;
+replacement: string;
+rationale: string;
+}
+二十四、沟通脚本规则
+每份付费报告建议至少输出：
+3 个脚本。
+分别覆盖：
+1
+关系稳定确认。
+2
+冲突暂停。
+3
+需求表达。
+二十五、Script 01｜高回应 × 高空间
+“我不是需要我们一直联系。我更需要知道，如果你暂时想自己待着，这不是因为我们的关系出了问题。”
+二十六、Script 02｜靠近—撤离
+“我现在有点想马上说清楚，但我知道你可能需要时间。你能告诉我什么时候我们继续吗？有这个时间点，我会更容易先停下来。”
+二十七、Script 03｜低表达
+“我还没有完全想明白，但这件事确实让我有感觉。我不想等到情绪积累以后才告诉你。”
+二十八、Script 04｜修复疲劳
+“我愿意继续谈，但这一次我需要的不只是道歉。我更想知道，我们之后具体会怎么做得不一样。”
+二十九、Script 05｜朋友主动失衡
+“我不是在计算谁联系得多，只是如果一直都是我主动，我会慢慢不确定这段友情对你是不是也一样重要。”
+三十、Confidence 对语言强度的影响
+这是必须程序化的。
+Confidence >= 85
+可以使用：
+“你的回答很明显地显示……”
+“你更倾向于……”
+70–84
+使用：
+“你的回答比较明显地呈现出……”
+55–69
+使用：
+“你的部分回答显示……”
+“你可能更容易……”
+<55
+禁止作为主要结论。
+只可作为：
+辅助观察。
+三十一、Context Dependency 对文案的影响
+如果：
+context_dependency >= 70
+禁止：
+“你是一个高回应需求的人。”
+应该：
+“你的回应需求很依赖具体情境。”
+然后继续：
+“当关系明确时，你比较放松；当联系突然变化而没有解释时，你的需求会明显升高。”
+三十二、规则冲突处理
+例如：
+Rule A：
+高空间 → 喜欢独立。
+Rule B：
+关系紧张撤离 → 正在减少连接。
+用户同时触发。
+不能两个都写。
+设置：
+RRE-SP-04
+priority = 92
+RRE-SP-01
+priority = 70
+高优先级覆盖基础规则。
+三十三、Suppression Rules
+必须建立“禁止输出条件”。
+SUPPRESS-01
+如果：
+relationship_stage = tense
+active_connection_withdrawal high
+则：
+不要只把高 space_need 写成：
+你需要独立。
+SUPPRESS-02
+如果：
+confidence < 55
+不进入主报告。
+SUPPRESS-03
+如果：
+RQI < 55
+禁止生成过于精细的人格解释。
+SUPPRESS-04
+如果安全风险触发：
+禁止：
+默契匹配分
+“双方各退一步”
+“双方都有责任”
+鼓励直接共同沟通作为默认建议
+三十四、安全风险报告规则
+如果检测：
+恐吓、暴力、强迫、持续控制、明显人身风险。
+切换：
+SAFETY_PRIORITY_MODE
+报告不继续娱乐化。
+输出：
+你的回答中出现了一些可能超出普通关系磨合范围的情况。
+当关系涉及恐吓、暴力、强迫或持续控制时，重点不是提高“默契分”，而是优先考虑现实安全和可信赖支持。
+不要做：
+双方责任平衡分析。
+三十五、报告事实去重
+很多规则会说同一件事。
+例如：
+clarity_over_frequency
+autonomy_with_reassurance
+response_need high + space_need high
+其实属于一个主题。
+所以需要：
+semantic_group = "security_before_autonomy"
+同一 semantic group：
+最多输出一个主结论。
+三十六、Report Fact 数据结构
+interface ReportFact {
+id: string;
+semanticGroup: string;
+category: string;
+priority: number;
+confidence: number;
+headline: string;
+evidence: string[];
+meaning: string;
+risk?: string;
+strength?: string;
+recommendationIds?: string[];
+scriptIds?: string[];
+}
+三十七、单人报告事实示例
+输入：
+{
+"response_need": 78,
+"space_need": 74,
+"emotional_sensitivity": 85,
+"expression": 39,
+"conflict_urgency": 61,
+"repair_orientation": 72,
+"clarity_over_frequency": true,
+"autonomy_with_reassurance": true,
+"silent_monitor": true
+}
+RRE 输出：
+{
+"primary_needs": [
+{
+"id": "security_before_autonomy",
+"confidence": 91,
+"headline": "你需要的不是更黏，而是更确定"
+}
+],
+"internal_tensions": [
+{
+"id": "sensitive_but_silent",
+"confidence": 89,
+"headline": "你通常比别人更早察觉，却更晚开口"
+}
+],
+"strengths": [
+{
+"id": "repair_orientation_strength",
+"confidence": 81
+}
+]
+}
+AI 不得自行发明：
+“童年经历导致……”
+因为数据里没有。
+三十八、双人报告事实示例
+A：
+高回应
+高冲突紧迫
+B：
+高空间
+低冲突紧迫
+Pair：
+APPROACH_WITHDRAW
+RRE：
+{
+"primary_pair_pattern": {
+"pattern": "APPROACH_WITHDRAW",
+"confidence": 92,
+"severity": 78,
+"headline":
+"一个人在寻找确定，一个人在寻找空间",
+"person_a_experience":
+"距离增加时，A 会通过靠近恢复稳定",
+"person_b_experience":
+"压力升高时，B 会通过暂停恢复状态",
+"cycle": [
+"A 察觉距离",
+"A 增加靠近",
+"B 感到压力",
+"B 后退",
+"A 更不确定"
+]
+}
+}
+然后 AI 写自然语言。
+三十九、AI 输入禁止使用全部原始答案
+正式生产建议 AI 只收到：
+用户基本上下文
+RRE 输出的 Report Facts
+允许使用的建议
+Confidence
+语气规范
+不要直接给：
+全部答题记录。
+原因：
+减少 AI 擅自重新解释数据。
+四十、AI Prompt 核心规则
+System Prompt：
+You are the narrative layer of Relationship Lab.
+You do not perform psychological scoring.
+All scoring and interpretations have already been determined by the Report Rule Engine.
+Use only the supplied report facts.
+Do not invent causes, childhood history, attachment diagnoses, psychiatric labels, personality disorders, trauma histories, or future predictions.
+Do not state that a relationship will succeed, fail, marry, break up, cheat, or last.
+Describe interaction patterns rather than diagnosing people.
+When confidence is moderate, use appropriately tentative language.
+Recommendations must be specific, practical, and directly tied to the supplied pattern.
+Do not assign blame.
+四十一、AI 输出结构
+建议要求 Structured Output：
+interface SingleReport {
+headline: string;
+overview: string;
+coreNeeds: ReportSection[];
+hiddenTensions: ReportSection[];
+strengths: ReportSection[];
+stressPattern: ReportSection;
+misunderstoodTraits: ReportSection[];
+recommendations: RecommendationSection[];
+communicationScripts: string[];
+}
+双人：
+interface PairReport {
+headline: string;
+relationshipSummary: string;
+strengths: ReportSection[];
+mainInteractionPattern: {
+title: string;
+overview: string;
+personAExperience: string;
+personBExperience: string;
+cycle: string[];
+};
+secondaryPatterns: ReportSection[];
+amplificationConditions: string[];
+adviceForA: string[];
+adviceForB: string[];
+sharedActions: string[];
+communicationScripts: string[];
+}
+四十二、免费报告和付费报告规则
+免费不能什么都不给。
+否则邀请/付费率差。
+免费单人
+展示：
+一句话关系画像
+六维图
+1 个核心需求
+1 个优势
+1 个模糊掉的隐藏模式标题
+例如：
+还有一个很明显的“高感知 × 慢表达”模式。
+点击：
+查看完整解释。
+付费单人
+完整：
+核心需求
+内部矛盾
+压力模式
+优势
+易被误解点
+建议
+沟通脚本
+生活阶段解释
+免费双人
+展示：
+两个人六维对比
+1 个共同优势
+主互动模式名称
+循环图前半部分
+付费双人
+完整：
+主模式
+A 体验
+B 体验
+循环
+触发条件
+优势
+风险
+3 个次模式
+双方建议
+直接话术
+可保存分享卡
+四十三、报告不能写成“评分裁判”
+不要：
+你们匹配度 72，所以比较适合。
+更推荐：
+你们的整体差异不算小，但真正影响关系的不是差异数量，而是哪几个差异会形成循环。
+如果一定要有数字：
+可以叫：
+interaction_fit
+但必须作为娱乐性指标，
+不能主导结论。
+四十四、规则版本控制
+每一条规则需要：
+rule_id
+rule_version
+created_at
+updated_at
+status
+例如：
+RRE-RN-04
+v1.2
+这样未来数据发现规则不准，
+可以单独修改。
+四十五、报告生成必须记录规则证据
+后台保存：
+{
+"report_id": "...",
+"triggered_rules": [
+{
+"rule": "RRE-RN-04",
+"version": "1.2",
+"confidence": 91,
+"evidence": [
+"RN-08",
+"FU-RN-01",
+"SP-06"
+]
+}
+]
+}
+这是未来调试“为什么用户说不准”的关键。
+四十六、用户反馈也要映射到规则
+完整报告底部：
+哪一部分最像你？
+用户可以选择：
+核心需求
+隐藏矛盾
+冲突模式
+建议
+都不太像
+然后进一步：
+哪一段最不准确？
+把反馈绑定：
+report_rule_id
+而不是只收一个：
+“准 / 不准”。
+四十七、未来可以做规则准确率
+例如：
+RRE-RN-04
+用户认同率 87%
+RRE-ES-03
+用户认同率 81%
+PAIR-APPROACH-WITHDRAW
+双人认同率 91%
+低认同规则：
+优先重新验证。
+这会逐渐变成真正的数据护城河。
+四十八、Report Rule Engine 的最终原则
+整个系统以后必须坚持：
+Question Bank
+决定：
+“我们问什么。”
+Scoring Engine
+决定：
+“答案意味着什么。”
+Adaptive Engine
+决定：
+“还需要确认什么。”
+Quality Engine
+决定：
+“我们有多确定。”
+Pair Engine
+决定：
+“两个人如何互相触发。”
+Report Rule Engine
+决定：
+“最终应该说什么。”
+AI
+只负责：
+“怎样把这些真实结论说得清楚、有温度、像人在理解。”
+而不是让 AI 自己决定心理结论。
+四十九、目前完整系统
+现在已经完成：
+异地恋题库 ✓
+长期伴侣 / 已婚 ✓
+关系紧张 ✓
+朋友关系 ✓
+40 道动态追问题 ✓
+25 个双人互动模式 ✓
+年龄 / 生活阶段变体 ✓
+一致性校验系统 ✓
+Report Rule Engine ✓
+还剩最后一块：
+10. 预测试与题目淘汰体系
+这一步会把我们现在的“设计出来的好题”，进一步变成：
+经过真实用户数据验证以后留下来的好题。
+下一阶段需要完整定义：
+第一批测试多少人
+怎么招募
+不付费阶段怎么测试
+每一道题记录哪些指标
+Item Difficulty
+Item Variance
+Item-Total Correlation
+Cronbach's Alpha / Omega
+反向题表现
+Drop-off
+平均响应时间
+“说不清”比例
+动态追问是否真的提升 Confidence
+哪些题应该删除
+哪些题应该重写
+哪些维度需要补题
+双人模式怎么验证
+报告“准感”怎么量化
+什么时候可以从 Beta 进入正式收费
+这最后一层补完以后，《默契研究所》的 V2.0 测评体系从“产品构思”到“可验证的测评系统”基本就完整闭环了。

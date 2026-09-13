@@ -1,0 +1,582 @@
+@import "tailwindcss";
+
+:root {
+  /* —— 主背景从 #16130f 提到 #1c1610，扫掉"灰压压"质感 —— */
+  --bg-dark: #1c1610;
+  --bg-darker: #120e09;
+  --bg-card: rgba(245, 237, 224, 0.045);  /* 卡片底：8% 米色透明（之前 2% 太透） */
+  --paper: #f5ede0;
+  --paper-dim: #e8dfd0;
+  --ink: #2a2418;
+  --ink-light: #5c5343;
+  --text-warm: #ece4d4;          /* 从 #e8e0d4 提 +4 明度，让字更"看得见" */
+  --text-muted: #b0a690;         /* 从 #9a9080 提对比，不再发灰 */
+  --accent: #d4b278;             /* 从 #c9a96e 提 +6 明度，主金色更亮 */
+  --accent-dim: #a78c52;
+  --accent-bright: #f0c863;      /* 新增：用于报告页"高亮"数字、CTA 强调 */
+  --border-dim: #453f30;         /* 从 #3a3528 提 +6，描边更清晰 */
+  --danger: #d68d6e;             /* 从 #c97a5a 提 +15，错误更醒目 */
+  --highlight: #f5b942;
+  --highlight-bg: rgba(245, 185, 66, 0.14);
+  --highlight-border: rgba(245, 185, 66, 0.5);
+  --cta: #ef4444;
+  --cta-hover: #dc2626;
+}
+
+@theme inline {
+  --color-background: var(--bg-dark);
+  --color-foreground: var(--text-warm);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
+  --color-muted: var(--text-muted);
+  --color-border-dim: var(--border-dim);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background: var(--bg-dark);
+  color: var(--text-warm);
+  font-family: var(--font-geist-sans), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* 防止双击放大 + 防止滑动时输入框被 zoom */
+  touch-action: manipulation;
+  /* iOS 触点高亮色关闭，沿用品牌色 */
+  -webkit-tap-highlight-color: rgba(245, 185, 66, 0.18);
+}
+
+/* iOS 安全区适配 — 全面屏底部留白 */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* 防止正文段落在 < 360px 极窄屏溢出 */
+html { overflow-x: hidden; }
+body { overflow-x: hidden; }
+
+/* Paper texture */
+.paper-bg {
+  background-color: var(--paper);
+  color: var(--ink);
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(0,0,0,0.02) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0,0,0,0.02) 0%, transparent 50%);
+}
+
+/* 米色信纸卡片 —— A 方案风格：浅米黄 + 暖棕描边 + 轻微阴影 + 金色打亮字色支持 */
+.paper-section {
+  background: linear-gradient(180deg, #fbf3df 0%, #f5ead0 100%);
+  border: 1px solid #d9c8a3;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.35),
+    inset 0 0 30px rgba(150, 120, 70, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    0 4px 14px rgba(120, 95, 55, 0.12);
+  color: var(--ink);
+}
+
+/* Archive label */
+.archive-label {
+  font-family: var(--font-geist-mono), "Courier New", monospace;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: var(--accent);
+}
+
+/* File number */
+.file-number {
+  font-family: var(--font-geist-mono), "Courier New", monospace;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+/* Display serif */
+.display-serif {
+  font-family: "Georgia", "Noto Serif SC", "Songti SC", "SimSun", serif;
+}
+
+/* Subtle fade-in animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 底部 Action Sheet 上滑入场（手机端原生气质感） */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Progress bar */
+.progress-track {
+  background: var(--border-dim);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  background: var(--accent);
+  transition: width 0.4s ease-out;
+}
+
+/* Dimension bar */
+.dim-bar-track {
+  background: var(--border-dim);
+  border-radius: 2px;
+  overflow: hidden;
+  height: 6px;
+}
+
+.dim-bar-fill {
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  transition: width 0.8s ease-out;
+}
+
+/* Option card hover + active */
+.option-card {
+  border: 1px solid var(--border-dim);
+  background: rgba(255,255,255,0.02);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  /* 触摸目标 ≥ 56px（题目答案更宽松；移动用户友好） */
+  min-height: 56px;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: rgba(245, 185, 66, 0.18);
+}
+
+.option-card:hover {
+  border-color: var(--accent-dim);
+  background: rgba(201,169,110,0.05);
+}
+
+.option-card:active {
+  /* 手机触摸按下：用 touch feedback 替代 hover */
+  background: rgba(201, 169, 110, 0.12);
+  transform: scale(0.99);
+}
+
+.option-card.selected {
+  border-color: var(--accent);
+  background: rgba(201,169,110,0.1);
+}
+
+/* Input field */
+.input-field {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  color: var(--text-warm);
+  /* 移动端 padding 加大；字号 ≥ 16px 防止 iOS Safari 自动缩放 */
+  padding: 14px 16px;
+  transition: border-color 0.2s ease;
+  font-size: 16px;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 48px;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+/* Select field */
+.select-field {
+  appearance: none;
+  -webkit-appearance: none;
+  background: rgba(255,255,255,0.03) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 5L6 8L9 5' stroke='%23c9a96e' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 16px center;
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  color: var(--text-warm);
+  /* 移动端 padding 加大；字号 ≥ 16px 防止 iOS Safari 自动缩放 */
+  padding: 14px 40px 14px 16px;
+  font-size: 16px;
+  width: 100%;
+  cursor: pointer;
+  min-height: 48px;
+}
+
+.select-field:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.select-field option {
+  background: var(--bg-dark);
+  color: var(--text-warm);
+}
+
+/* Button */
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg-dark);
+  font-weight: 600;
+  padding: 14px 32px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  /* 触摸目标 ≥ 48px (HIG/Material) */
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.btn-primary:hover {
+  background: #d4b87a;
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  /* 移动端触摸按下反馈：替代缺失的 :hover */
+  background: #b8965a;
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-dim);
+  padding: 12px 28px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-size: 14px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.btn-ghost:hover {
+  border-color: var(--accent-dim);
+  color: var(--text-warm);
+}
+
+.btn-ghost:active {
+  background: rgba(201, 169, 110, 0.08);
+  color: var(--text-warm);
+}
+
+/* 查看契合画像 —— 亮金实心渐变按钮，暗色页面最强反差 */
+.btn-view-pair {
+  background: linear-gradient(135deg, #f7dc9a 0%, #eec36a 55%, #dfa844 100%);
+  color: #241502;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 52px;
+  -webkit-user-select: none;
+  user-select: none;
+  box-shadow: 0 0 18px rgba(238, 195, 106, 0.45), 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.btn-view-pair:hover {
+  background: linear-gradient(135deg, #fbe3ab 0%, #f3cd7d 55%, #e6b253 100%);
+  box-shadow: 0 0 26px rgba(238, 195, 106, 0.65), 0 3px 8px rgba(0, 0, 0, 0.4);
+  transform: translateY(-1px);
+}
+.btn-view-pair:active {
+  background: linear-gradient(135deg, #eecf85 0%, #e2b453 55%, #d29a35 100%);
+  transform: translateY(0);
+  box-shadow: 0 0 12px rgba(238, 195, 106, 0.4), 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* Card */
+.card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+}
+
+/* 深色面板 —— 浅色页中的深色重点区块（如性格测试报告的原型卡区 / 性格DNA），与 night-sky 主色一致 */
+.panel-dark {
+  background: linear-gradient(180deg, #1b1712 0%, #131009 100%);
+  border: 1px solid rgba(201, 169, 110, 0.28);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 40px rgba(201, 169, 110, 0.05),
+    0 4px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-dim);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
+}
+
+/* =====================================================
+   信纸质感 + 塔罗/星图装饰层
+   ===================================================== */
+
+/* 信纸：方案 A —— 米黄信纸（保留手感）+ 金色打亮 */
+.paper-sheet {
+  position: relative;
+  color: var(--ink);
+  background:
+    radial-gradient(ellipse at 15% 85%, rgba(140, 110, 60, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(140, 110, 60, 0.06) 0%, transparent 55%),
+    linear-gradient(180deg, #f8f1e2 0%, #f3e9d5 55%, #efe3cc 100%);
+  border: 1px solid #d9c9a8;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 255, 255, 0.35),
+    inset 0 0 40px rgba(150, 120, 70, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* 信纸顶部金色双细线 */
+.paper-sheet::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 8px;
+  height: 5px;
+  border-top: 1px solid rgba(160, 136, 80, 0.55);
+  border-bottom: 1px solid rgba(160, 136, 80, 0.3);
+  pointer-events: none;
+}
+
+/* 信纸内字色修正 —— 纯黑/深灰路线（不再用金棕色 var 覆盖） */
+.paper-sheet .text-\[var\(--text-warm\)\] {
+  color: #0a0a0a !important;          /* 近黑 */
+}
+.paper-sheet .text-\[var\(--text-muted\)\] {
+  color: #333333 !important;          /* 深灰，副标对比度 9.4:1 */
+}
+.paper-sheet .text-\[var\(--accent\)\] {
+  color: #0a0a0a !important;          /* 强调 = 黑（不再偏暖棕） */
+}
+.paper-sheet .text-\[var\(--accent-bright\)\] {
+  color: #1a1a1a !important;          /* 主标题 = 近黑深灰 */
+}
+.paper-sheet .archive-label {
+  color: #1a1a1a;
+}
+.paper-sheet .dim-bar-track {
+  background: #d6c8a8;
+}
+.paper-sheet .progress-track {
+  background: #d6c8a8;
+}
+.paper-sheet .card {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: #c8b88a;
+}
+
+
+/* —— 反向：深色页面（home / share）显式把 muted 拉回正常色 ——
+   （paper-sheet 的 !important 会泄漏到 .paper-sheet 之外的应用，
+   加这条兜底确保站点其余位置继续走 var()） */
+.text-\[var\(--text-muted\)\]:not(.paper-sheet *) {
+  color: var(--text-muted);
+}
+
+/* 罗盘缓慢自转 */
+@keyframes compassSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.compass-spin {
+  animation: compassSpin 90s linear infinite;
+}
+
+/* 塔罗牌阵缓慢悬浮（神秘感） */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+.floaty {
+  animation: floatY 7s ease-in-out infinite;
+}
+
+/* ===== 3D 动效（首页塔罗牌阵） ===== */
+
+/* ① 入场：从左侧/右侧带 3D 透视切入 */
+@keyframes popin3D {
+  from { opacity: 0; transform: perspective(800px) rotateY(-22deg) translateZ(-80px) scale(0.88); }
+  to   { opacity: 1; transform: perspective(800px) rotateY(0deg)   translateZ(0)     scale(1); }
+}
+.popin-3d {
+  animation: popin3D 0.7s cubic-bezier(0.34, 1.56, 0.5, 1) backwards;
+}
+
+/* ② 摆动：轻微左右倾斜 + 纵深起伏，6s 周期 */
+@keyframes wobble3D {
+  0%, 100% { transform: perspective(700px) rotateY(0deg) rotateX(0deg) translateZ(0); }
+  25%      { transform: perspective(700px) rotateY(-4deg) rotateX(2deg) translateZ(6px); }
+  50%      { transform: perspective(700px) rotateY(0deg)  rotateX(-1deg) translateZ(0); }
+  75%      { transform: perspective(700px) rotateY(4deg)  rotateX(2deg) translateZ(6px); }
+}
+.wobble-3d {
+  animation: wobble3D 7s ease-in-out infinite;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* ③ 中间牌：金边呼吸光晕 */
+@keyframes glowPulse {
+  0%, 100% {
+    filter:
+      drop-shadow(0 12px 28px rgba(0,0,0,0.55))
+      drop-shadow(0 0 14px rgba(245,185,66,0.35));
+  }
+  50% {
+    filter:
+      drop-shadow(0 16px 36px rgba(0,0,0,0.65))
+      drop-shadow(0 0 32px rgba(245,185,66,0.85))
+      drop-shadow(0 0 14px rgba(245,185,66,0.4));
+  }
+}
+.glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* ④ 跳题时选项卡"心跳选中"反馈（120ms 内） */
+@keyframes heartTap {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.04); background: rgba(201,169,110,0.18); }
+  100% { transform: scale(1); }
+}
+.heart-tap {
+  animation: heartTap 280ms ease-out forwards;
+}
+
+/* ⑤ 顶部进度条淡入小提示（丝滑过渡 step 02 → Follow-up） */
+@keyframes phaseShift {
+  0%   { opacity: 0; transform: translateY(-4px); }
+  20%  { opacity: 1; transform: translateY(0); }
+  80%  { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+.phase-shift {
+  animation: phaseShift 3.2s ease-in-out forwards;
+}
+
+/* 首页塔罗牌阵：金边小牌 + 柔光 */
+.tarot-mini {
+  border: 1px solid var(--accent);
+  outline: 3px solid rgba(201, 162, 75, 0.18);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 24px rgba(201, 162, 75, 0.12);
+  filter: brightness(0.95) saturate(1.05);
+  border-radius: 8px;
+}
+
+/* 塔罗牌卡：双层花框 + 悬浮微倾 */
+.tarot-card {
+  display: inline-block;
+}
+.tarot-card-inner {
+  position: relative;
+  border-radius: 10px;
+  padding: 5px;
+  background: linear-gradient(160deg, #d8bd85 0%, #9a7b40 45%, #e6cf9a 100%);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 14px 34px rgba(0, 0, 0, 0.45);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+.tarot-card-inner::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border: 1px solid rgba(248, 241, 226, 0.65);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.tarot-card-inner img {
+  border-radius: 6px;
+}
+.tarot-card:hover .tarot-card-inner {
+  transform: translateY(-4px) rotate(-1deg);
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.5),
+    0 20px 44px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(201, 169, 110, 0.25);
+}
+.tarot-card-elevated .tarot-card-inner {
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.5),
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 0 34px rgba(201, 169, 110, 0.3);
+}
+
+/* 顶部星空区（报告页头部背景） */
+.night-sky {
+  position: relative;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -8%, rgba(43, 52, 90, 0.55) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 85% 10%, rgba(60, 46, 90, 0.35) 0%, transparent 65%),
+    var(--bg-dark);
+}

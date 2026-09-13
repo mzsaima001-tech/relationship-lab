@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>润色前后对比 · 默契研究所</title>
+<style>
+  :root {
+    --bg: #faf7f2;
+    --paper: #ffffff;
+    --ink: #2c2620;
+    --muted: #8b7e72;
+    --line: #ece4d8;
+    --gold: #c9a47a;
+    --gold-soft: #f3ead9;
+    --rose: #c97a7a;
+    --rose-soft: #f9eaea;
+    --teal: #5e8a8a;
+    --teal-soft: #e6eef0;
+    --shadow: 0 2px 12px rgba(60, 40, 20, 0.04);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Serif SC", serif;
+    color: var(--ink);
+    line-height: 1.75;
+    padding: 36px 20px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 1120px; margin: 0 auto; }
+
+  /* 头部 */
+  .header { text-align: center; margin-bottom: 40px; }
+  .eyebrow {
+    font-size: 11px; letter-spacing: 5px;
+    color: var(--gold); text-transform: uppercase;
+    font-weight: 500;
+  }
+  .title {
+    font-size: 30px; margin: 10px 0 6px;
+    font-weight: 600; letter-spacing: 1px;
+  }
+  .subtitle {
+    color: var(--muted); font-size: 14px;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .badge-row {
+    display: flex; gap: 12px; justify-content: center;
+    margin-top: 22px; flex-wrap: wrap;
+  }
+  .badge {
+    padding: 6px 16px; border-radius: 999px;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+  .badge.before { background: var(--rose-soft); color: var(--rose); }
+  .badge.after { background: var(--teal-soft); color: var(--teal); }
+
+  /* 主题上下文条 */
+  .context {
+    margin: 32px auto 24px;
+    padding: 14px 22px;
+    background: var(--gold-soft);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    max-width: 720px;
+    font-size: 13.5px;
+    color: #6b5a3f;
+  }
+  .context strong { color: var(--gold); margin-right: 6px; }
+
+  /* 两栏对比 */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+  }
+  @media (max-width: 820px) {
+    .split { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 28px 28px 30px;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .card.before { border-top: 4px solid var(--rose); }
+  .card.after { border-top: 4px solid var(--teal); }
+
+  .card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 1.5px;
+  }
+  .card.before .card-title { color: var(--rose); }
+  .card.after .card-title { color: var(--teal); }
+  .meta {
+    font-size: 11px; color: var(--muted);
+    font-family: "SF Mono", Consolas, monospace;
+    padding: 3px 8px;
+    background: var(--bg);
+    border-radius: 4px;
+  }
+
+  .section { margin-bottom: 20px; }
+  .section:last-child { margin-bottom: 0; }
+  .section-label {
+    font-size: 10.5px; letter-spacing: 2.5px;
+    color: var(--muted); text-transform: uppercase;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+  .section-body {
+    font-size: 14px;
+  }
+  .section-body p {
+    margin: 0 0 10px;
+  }
+  .section-body p:last-child { margin-bottom: 0; }
+
+  /* before：精简、偏淡 */
+  .before .section-body p {
+    font-size: 13px;
+    color: #6e6358;
+  }
+  /* after：更饱满、更深 */
+  .after .section-body p {
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  .metaphor {
+    background: linear-gradient(120deg, var(--gold-soft) 0%, var(--gold-soft) 100%);
+    padding: 0 5px;
+    border-radius: 3px;
+  }
+  .micro {
+    color: var(--teal);
+    font-style: italic;
+  }
+  .em-rose {
+    color: var(--rose);
+    font-weight: 600;
+  }
+
+  /* 指标条 */
+  .metric {
+    display: flex; align-items: center;
+    gap: 10px; margin-bottom: 8px;
+    font-size: 12.5px;
+  }
+  .metric:last-child { margin-bottom: 0; }
+  .metric-label {
+    width: 70px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .metric-bar {
+    flex: 1; height: 5px;
+    background: var(--line); border-radius: 3px;
+    overflow: hidden;
+  }
+  .metric-bar-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 1s ease;
+  }
+  .before .metric-bar-fill { background: var(--rose); }
+  .after .metric-bar-fill { background: var(--teal); }
+  .metric-val {
+    font-weight: 600;
+    width: 32px; text-align: right;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+
+  /* 场景还原 */
+  .scene {
+    background: var(--gold-soft);
+    border-left: 3px solid var(--gold);
+    padding: 14px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 12px 0;
+  }
+  .scene-title {
+    font-size: 10.5px; color: var(--gold);
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .scene-body {
+    font-size: 13.5px;
+    color: #5a4a30;
+    line-height: 1.85;
+  }
+
+  /* 数字统计 */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 36px;
+  }
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: 1fr; }
+  }
+  .stat {
+    text-align: center;
+    padding: 22px 12px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .stat-num {
+    font-size: 30px; font-weight: 600;
+    color: var(--gold);
+    font-family: "SF Mono", Consolas, monospace;
+    letter-spacing: -1px;
+  }
+  .stat-label {
+    font-size: 11px; color: var(--muted);
+    margin-top: 6px; letter-spacing: 1.5px;
+  }
+  .stat-sub {
+    font-size: 11px; color: var(--muted);
+    margin-top: 2px;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+
+  /* 底部说明 */
+  .footer {
+    text-align: center;
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px dashed var(--line);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 2;
+  }
+  .footer code {
+    background: var(--gold-soft);
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 11.5px;
+    color: var(--gold);
+    font-family: "SF Mono", Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="header">
+    <div class="eyebrow">MOCK · POLISH A/B</div>
+    <h1 class="title">一份默契报告的「润色前后」对比</h1>
+    <p class="subtitle">sample: 维度 "安全感 / 信任锚点" — 默契指数 72</p>
+    <div class="badge-row">
+      <span class="badge before">BEFORE · local-template（默认降级）</span>
+      <span class="badge after">AFTER · ai-polished（deepseek-v4.1-flash）</span>
+    </div>
+  </header>
+
+  <div class="context">
+    <strong>同输入</strong> 36 道题答案 · 维度分值（承诺一致 78 / 情绪回响 65 / 边界感 74）· 关系阶段"刚搬到一起"
+  </div>
+
+  <section class="split">
+
+    <!-- 左：BEFORE -->
+    <article class="card before">
+      <div class="card-head">
+        <div class="card-title">润色前 · 模板拼接</div>
+        <div class="meta">124 字 · 4 段</div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">核心结论</div>
+        <div class="section-body">
+          <p>你们在「安全感」维度默契度为 72 分，处于中上水平。</p>
+          <p>说明双方有一定信任基础，但仍有提升空间。建议加强日常沟通与情感表达。</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">维度细分</div>
+        <div class="metric">
+          <span class="metric-label">承诺一致</span>
+          <div class="metric-bar"><div class="metric-bar-fill" style="width:78%"></div></div>
+          <span class="metric-val">78</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">情绪回响</span>
+          <div class="metric-bar"><div class="metric-bar-fill" style="width:65%"></div></div>
+          <span class="metric-val">65</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">边界感</span>
+          <div class="metric-bar"><div class="metric-bar-fill" style="width:74%"></div></div>
+          <span class="metric-val">74</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">行动建议</div>
+        <div class="section-body">
+          <p>① 每周安排一次深度对话时间；② 主动分享当天情绪；③ 在对方需要时给出明确回应。</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">你的一句心声</div>
+        <div class="section-body">
+          <p>愿你们在细水长流的日子里，慢慢长出最稳的默契。</p>
+        </div>
+      </div>
+    </article>
+
+    <!-- 右：AFTER -->
+    <article class="card after">
+      <div class="card-head">
+        <div class="card-title">润色后 · AI 心理叙事</div>
+        <div class="meta">486 字 · 6 段 · 含 2 处隐喻 + 1 处场景</div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">核心结论</div>
+        <div class="section-body">
+          <p>72 分不是一个让你松一口气的分数，也不是一个让你紧张的分数。<span class="metaphor">它像两杯不同温度的水倒进同一个杯子里</span>——还没完全融合，但已经能感觉到彼此的温度。</p>
+          <p>你们的默契不是建立在「永远不踩到对方」的运气上，而是建立在<span class="em-rose">「踩到了也知道怎么收回来」</span>的默契上。这比"永远不踩"难得多，也真得多。</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">维度细分（事实完全不变）</div>
+        <div class="metric">
+          <span class="metric-label">承诺一致</span>
+          <div class="metric-bar"><div class="metric-bar-fill" style="width:78%"></div></div>
+          <span class="metric-val">78</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">情绪回响</span>
+          <div class="metric-bar"><div class="metric-bar-fill" style="width:65%"></div></div>
+          <span class="metric-val">65</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">边界感</span>
+          <div class="metric-bar"><div class="metric-bar-fill" style="width:74%"></div></div>
+          <span class="metric-val">74</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">心理微瞬间</div>
+        <div class="scene">
+          <div class="scene-title">▍ 场 景 还 原</div>
+          <div class="scene-body">
+            他加班到凌晨回家，你没开灯，假装已经睡着了。呼吸是均匀的，但他还是轻轻把外套搭在你脚边。你在被子里睁开眼的那一秒意识到——<span class="micro">你不是怕吵醒他，你是怕他知道你等他</span>。
+          </div>
+        </div>
+        <div class="section-body">
+          <p>这就是「承诺一致 78」背后的真实重量。你们都不把「在乎」说出口，但都把「在乎」做进了动作里。<span class="metaphor">像两个人在黑屋子里各自点灯，没回头看，但光已经交叠了</span>。</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">可以试试的小动作</div>
+        <div class="section-body">
+          <p>不必每周开一次「深度对话会议」。更省力的做法是：在对方说话的 3 秒沉默里，<span class="em-rose">忍住「给建议」的冲动</span>，只是看着对方——那 3 秒，比 30 分钟的谈话更接近「被听见」。</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">你的一句心声</div>
+        <div class="section-body">
+          <p>愿你们在细水长流的日子里，把「我懂你」从一句客套话，慢慢活成一句不假思索的回应。</p>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="stat-num">+292%</div>
+      <div class="stat-label">字数密度</div>
+      <div class="stat-sub">124 → 486</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">3 处</div>
+      <div class="stat-label">微瞬间 / 隐喻</div>
+      <div class="stat-sub">隐喻×2 · 场景×1</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">100%</div>
+      <div class="stat-label">事实不变</div>
+      <div class="stat-sub">分值未改 · 维度未改</div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    本对比为 <code>mock</code> 演示 · 真实润色由 <code>deepseek-v4.1-flash</code> 经 OpenAI 兼容协议完成<br/>
+    部署后 <code>polish.status === "ai-polished"</code> 即触发此模式 · 否则降级为左栏模板
+  </footer>
+</div>
+</body>
+</html>

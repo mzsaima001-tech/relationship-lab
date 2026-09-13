@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>默契测试分享海报 — 改造对比</title>
+<style>
+  :root {
+    --bg-dark: #16130f;
+    --bg-darker: #100e0a;
+    --paper: #f5ede0;
+    --text-warm: #e8e0d4;
+    --text-muted: #9a9080;
+    --accent: #c9a96e;
+    --accent-dim: #a08850;
+    --border-dim: #3a3528;
+    --highlight: #f5b942;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: linear-gradient(180deg, #0a0907 0%, #1a1610 100%);
+    color: var(--text-warm);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 40px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    font-family: Georgia, serif;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 800px) {
+    .container { grid-template-columns: 1fr; }
+  }
+  .panel { display: flex; flex-direction: column; align-items: center; }
+  .panel-header { margin-bottom: 16px; text-align: center; }
+  .panel-header .label {
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .old .label { color: #fca5a5; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); }
+  .new .label { color: var(--highlight); background: rgba(245, 185, 66, 0.15); border: 1px solid rgba(245, 185, 66, 0.4); }
+  .panel-header .title {
+    font-family: Georgia, serif;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  .panel-header .desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+  .device {
+    width: 360px;
+    max-width: 100%;
+    border: 8px solid #222;
+    border-radius: 36px;
+    padding: 8px;
+    background: #000;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .screen {
+    width: 100%;
+    background: linear-gradient(180deg, #16130f, #100e0a);
+    border-radius: 28px;
+    padding: 20px 18px;
+    min-height: 800px;
+    position: relative;
+    overflow: hidden;
+  }
+  .archive-label {
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    color: var(--accent);
+  }
+  .file-number {
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+  }
+  .display-serif { font-family: Georgia, "Noto Serif SC", serif; }
+  .divider {
+    display: flex; align-items: center; gap: 12px; margin: 14px 0;
+  }
+  .divider .line {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-dim), var(--accent));
+    opacity: 0.6;
+  }
+  .divider .diamond {
+    width: 12px; height: 12px; border: 1px solid var(--accent);
+    transform: rotate(45deg); position: relative;
+  }
+  .divider .diamond::after {
+    content: ""; position: absolute; inset: 3px;
+    background: var(--accent); border-radius: 50%;
+  }
+
+  /* OLD */
+  .old .title-bar {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; margin-bottom: 20px;
+  }
+  .old .title-bar .line { width: 32px; height: 1px; background: var(--border-dim); }
+  .old .old-poster {
+    border: 1px solid var(--accent-dim);
+    border-radius: 4px;
+    padding: 16px;
+    background: linear-gradient(180deg, #16130f, #100e0a);
+  }
+  .old .single-card {
+    width: 130px;
+    height: 180px;
+    margin: 0 auto 12px;
+    background: linear-gradient(160deg, #1a3658 0%, #0f1c30 100%);
+    border: 2px solid #c9a96e;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #d8bd85;
+    font-size: 12px;
+    font-family: Georgia, serif;
+  }
+  .old .motto {
+    text-align: center; font-size: 11px;
+    color: var(--text-muted); font-style: italic;
+    margin-bottom: 12px;
+  }
+  .old .nickname {
+    text-align: center; font-family: Georgia, serif;
+    font-size: 14px; color: var(--text-warm);
+    margin-bottom: 8px;
+  }
+  .old .tags {
+    display: flex; gap: 4px; justify-content: center;
+    margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .old .tag-pill {
+    font-size: 9px; color: var(--text-muted);
+    border: 1px solid var(--border-dim);
+    border-radius: 999px;
+    padding: 2px 8px;
+  }
+  .old .qr-block {
+    text-align: center; margin-top: 12px;
+  }
+  .old .qr-block .qr {
+    display: inline-block; background: var(--paper); padding: 6px;
+  }
+  .old .qr-block .qr-img {
+    width: 96px; height: 96px;
+    background: repeating-conic-gradient(#2a2418 0% 25%, #f5ede0 0% 50%) 50% / 8px 8px;
+  }
+  .old .qr-block .hint {
+    font-size: 10px; color: var(--text-muted); margin-top: 8px;
+  }
+
+  /* NEW */
+  .new .title-bar {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; margin-bottom: 16px;
+  }
+  .new .title-bar .line { width: 32px; height: 1px; background: var(--border-dim); }
+  .new .brand {
+    text-align: center; font-size: 24px;
+    font-weight: bold; color: var(--text-warm);
+    font-family: Georgia, serif; line-height: 1.2;
+    margin-bottom: 16px;
+  }
+  .new .poster {
+    border: 1px solid var(--accent-dim);
+    border-radius: 4px;
+    padding: 16px;
+    background: linear-gradient(180deg, #16130f, #100e0a);
+  }
+  .new .file-line { text-align: center; margin-bottom: 14px; }
+  .new .hook { text-align: center; margin-bottom: 16px; }
+  .new .hook .main {
+    font-family: Georgia, serif;
+    font-size: 14px; font-weight: 500;
+    color: var(--text-warm); line-height: 1.6;
+  }
+  .new .hook .sub {
+    font-size: 10px; color: var(--text-muted);
+    line-height: 1.6; margin-top: 8px;
+  }
+  .new .compass {
+    width: 170px; height: 170px;
+    margin: 0 auto;
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .new .compass-ring {
+    position: absolute; inset: 0;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    opacity: 0.16;
+  }
+  .new .compass-ring.inner {
+    inset: 18px; border-style: dashed;
+  }
+  .new .tarot-spread {
+    display: flex; align-items: end; justify-content: center;
+    width: 220px; height: 130px;
+    position: relative;
+  }
+  .new .tarot-card {
+    width: 70px; height: 100px;
+    border: 1.5px solid var(--accent);
+    border-radius: 6px;
+    background: linear-gradient(160deg, #1a3658 0%, #0f1c30 100%);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+    flex-shrink: 0;
+    position: relative;
+  }
+  .new .tarot-card.left { transform: rotate(-9deg); margin-right: -10px; }
+  .new .tarot-card.middle { transform: translateY(-12px); z-index: 10; }
+  .new .tarot-card.right { transform: rotate(9deg); margin-left: -10px; }
+  .new .mirror-caption {
+    text-align: center; font-size: 10px;
+    color: var(--text-muted); letter-spacing: 0.1em;
+    margin: 8px 0 12px;
+  }
+  .new .invite {
+    text-align: center; font-family: Georgia, serif;
+    font-size: 13px; color: var(--text-warm);
+    font-weight: 500; line-height: 1.5;
+    margin: 14px 0 12px;
+  }
+  .new .qr-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    gap: 12px; padding: 0 4px;
+  }
+  .new .qr-text {
+    flex: 1;
+    font-size: 11px;
+    font-family: Georgia, serif;
+    color: var(--text-warm);
+    line-height: 1.4;
+    font-weight: 500;
+  }
+  .new .qr-text .desc {
+    color: var(--text-muted);
+    font-size: 8px;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .new .qr-img {
+    background: var(--paper);
+    padding: 5px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .new .qr-img .qr {
+    width: 88px; height: 88px;
+    background: repeating-conic-gradient(#2a2418 0% 25%, #f5ede0 0% 50%) 50% / 7px 7px;
+    border: 1px solid #2a2418;
+  }
+  .new .buttons {
+    margin-top: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .new .btn-primary {
+    background: var(--accent);
+    color: var(--bg-dark);
+    font-weight: 600;
+    padding: 12px;
+    border-radius: 4px;
+    text-align: center;
+    border: none;
+    font-size: 11px;
+  }
+  .new .btn-pair { display: flex; gap: 8px; }
+  .new .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-dim);
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 10px;
+    flex: 1;
+  }
+  .new .meta-hint {
+    text-align: center;
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+
+  /* 通用 */
+  .key-points {
+    margin-top: 16px;
+    max-width: 360px;
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-dim);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .key-points .h {
+    font-size: 11px;
+    color: var(--accent);
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .key-points ul { list-style: none; padding: 0; margin: 0; }
+  .key-points li {
+    font-size: 11px;
+    color: var(--text-warm);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-dim);
+  }
+  .key-points li:last-child { border-bottom: none; }
+  .key-points li .dot { color: var(--accent); margin-right: 6px; }
+  .old .key-points li .dot { color: #fca5a5; }
+</style>
+</head>
+<body>
+  <h1>默契测试分享海报 — 改造对比</h1>
+  <p class="subtitle">左：当前线上版本（含分享人信息） ｜ 右：改造后版本（无分享人信息 + 主页塔罗阵）</p>
+
+  <div class="container">
+    <!-- OLD -->
+    <div class="panel old">
+      <div class="panel-header">
+        <span class="label">当前线上</span>
+        <div class="title">原版分享海报</div>
+        <div class="desc">塔罗牌 + 分享人昵称 + 原型 + 标签</div>
+      </div>
+      <div class="device">
+        <div class="screen">
+          <div class="title-bar">
+            <span class="archive-label">Relationship Lab</span>
+            <span class="line"></span>
+            <span class="file-number">No. 1BE642</span>
+          </div>
+
+          <div class="old-poster">
+            <div class="single-card">塔罗牌面</div>
+            <p class="motto">「锚在自己手里，风浪就不算风浪。」</p>
+
+            <div class="divider">
+              <span class="line"></span>
+              <span class="diamond"></span>
+              <span class="line"></span>
+            </div>
+
+            <p class="nickname">打发撒旦 <span style="color: var(--accent);">「恒温相伴者」</span></p>
+            <div class="tags">
+              <span class="tag-pill">低回应需求</span>
+              <span class="tag-pill">低空间需求</span>
+              <span class="tag-pill">低情绪敏感</span>
+            </div>
+
+            <p style="text-align:center; font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">
+              每个人在关系里的样子都不一样——
+            </p>
+            <p style="text-align:center; font-size: 12px; color: var(--text-warm); font-family: Georgia, serif; margin-bottom: 14px;">
+              你的，会是什么模样？
+            </p>
+
+            <div class="qr-block">
+              <div class="qr">
+                <div class="qr-img"></div>
+              </div>
+              <p class="hint">长按识别二维码，看看你在关系里的样子</p>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <button class="new btn-primary" style="width:100%;">保存海报图片 →</button>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="new btn-ghost" style="flex:1;">复制链接</button>
+              <button class="new btn-ghost" style="flex:1;">回到结果</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="key-points">
+        <div class="h">问题</div>
+        <ul>
+          <li><span class="dot">×</span>暴露分享人昵称 + 原型名 + 标签，隐私风险</li><li><span class="dot">×</span>塔罗牌只展示 1 张，且与分享人绑定</li><li><span class="dot">×</span>没有品牌头，看上去像私人邀请</li><li><span class="dot">×</span>没有钩子话术，收到的人没冲动</li><li><span class="dot">×</span>二维码 96px 较大</li><li><span class="dot">×</span>没有「复制给微信好友」按钮</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- NEW -->
+    <div class="panel new">
+      <div class="panel-header">
+        <span class="label">改造后</span>
+        <div class="title">新版分享海报</div>
+        <div class="desc">借鉴主页布局 + 首页塔罗阵 + 钩子话术</div>
+      </div>
+      <div class="device">
+        <div class="screen">
+          <div class="title-bar">
+            <span class="archive-label">Relationship Lab</span>
+            <span class="line"></span>
+            <span class="file-number">No. 1BE642</span>
+          </div>
+          <h1 class="brand">默契研究所</h1>
+
+          <div class="poster">
+            <div class="file-line">
+              <span class="file-number">FILE · 1BE642</span>
+            </div>
+
+            <div class="hook">
+              <div class="main">你们之间，有没有一种问题，<br>总是在重复发生？</div>
+              <div class="sub">也许问题不是谁对谁错——<br>只是你们理解「在乎」的方式不一样。</div>
+            </div>
+
+            <div class="divider">
+              <span class="line"></span>
+              <span class="diamond"></span>
+              <span class="line"></span>
+            </div>
+
+            <!-- 罗盘 + 首页塔罗阵 -->
+            <div class="compass">
+              <div class="compass-ring"></div>
+              <div class="compass-ring inner"></div>
+              <div class="tarot-spread">
+                <div class="tarot-card left"></div>
+                <div class="tarot-card middle"></div>
+                <div class="tarot-card right"></div>
+              </div>
+            </div>
+
+            <p class="mirror-caption">ELEVEN MIRRORS · 十一面镜像</p>
+            <p style="text-align:center; font-family: Georgia, serif; font-size: 12px; color: var(--text-warm); font-weight: bold; margin-bottom: 4px;">
+              总有一面，是你。
+            </p>
+
+            <div class="divider">
+              <span class="line"></span>
+              <span class="diamond"></span>
+              <span class="line"></span>
+            </div>
+
+            <p class="invite">看 TA 的关系牌——<br>你的，会是哪一张？</p>
+
+            <div class="divider">
+              <span class="line"></span>
+              <span class="diamond"></span>
+              <span class="line"></span>
+            </div>
+
+            <div class="qr-row">
+              <div class="qr-text">
+                长按二维码，<br>看看你的关系牌
+                <div class="desc">· 36 题 · 约 3 分钟<br>· 无需注册 · TA 看不到答案</div>
+              </div>
+              <div class="qr-img">
+                <div class="qr"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="buttons">
+            <button class="btn-primary">保存海报图片（长按图片也可保存）→</button>
+            <div class="btn-pair">
+              <button class="btn-ghost">复制分享链接</button>
+              <button class="btn-ghost">复制给微信好友</button>
+            </div>
+          </div>
+
+          <div class="meta-hint">
+            💡 手机端可长按上方海报图片，<br>
+            保存到相册或转发给朋友（微信会自动识别二维码）
+          </div>
+        </div>
+      </div>
+      <div class="key-points">
+        <div class="h">改进</div>
+        <ul>
+          <li><span class="dot">✓</span>完全去除分享人信息（昵称/原型/标签）</li><li><span class="dot">✓</span>主图改用首页「十一面镜像」塔罗阵（3 张扇形）</li><li><span class="dot">✓</span>顶部「默契研究所」品牌头一眼认知</li><li><span class="dot">✓</span>主页同款钩子话术，勾起好奇心</li><li><span class="dot">✓</span>「看 TA 的关系牌——你的，会是哪一张？」邀请对比</li><li><span class="dot">✓</span>二维码 88px，左文右码布局</li><li><span class="dot">✓</span>「复制给微信好友」一键复制文案+链接</li><li><span class="dot">✓</span>长按图片可保存到相册（浏览器原生）</li><li><span class="dot">✓</span>微信识别图中二维码自动跳转</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width: 800px; margin: 40px auto 0; padding: 20px; border: 1px solid var(--border-dim); border-radius: 8px; background: rgba(245,185,66,0.05);">
+    <h3 style="font-size: 14px; color: var(--highlight); margin-bottom: 10px;">⏰ 部署状态</h3>
+    <p style="font-size: 12px; color: var(--text-warm); line-height: 1.6;">
+      代码已 push 到 GitHub main（<code style="background: rgba(0,0,0,0.3); padding: 1px 6px; border-radius: 3px;">716c958</code>）。但 Vercel 24h 100/100 限额仍未解除，要等 <strong>2026-09-13 12:04 GMT+8</strong>。
+      <br><br>
+      已设置一次性 automation <code style="background: rgba(0,0,0,0.3); padding: 1px 6px; border-radius: 3px;">7bb0b2b8</code>，reset 后会自动触发生产部署。部署成功后，访问 <code style="background: rgba(0,0,0,0.3); padding: 1px 6px; border-radius: 3px;">https://www.moqilab.top/share/[sessionId]</code> 即可看到新设计。
+    </p>
+  </div>
+</body>
+</html>

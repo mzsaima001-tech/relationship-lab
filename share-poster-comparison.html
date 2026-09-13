@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分享海报重设计对比</title>
+<style>
+  :root {
+    --bg-dark: #16130f;
+    --bg-darker: #100e0a;
+    --paper: #f5ede0;
+    --text-warm: #e8e0d4;
+    --text-muted: #9a9080;
+    --accent: #c9a96e;
+    --accent-dim: #a08850;
+    --border-dim: #3a3528;
+    --highlight: #f5b942;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: linear-gradient(180deg, #0a0907 0%, #1a1610 100%);
+    color: var(--text-warm);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+    padding: 24px 16px 40px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    font-family: Georgia, serif;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: var(--accent);
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+  }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 800px) {
+    .container { grid-template-columns: 1fr; }
+  }
+  .panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .panel-header {
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .panel-header .label {
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .old .label {
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+  }
+  .new .label {
+    color: var(--highlight);
+    background: rgba(245, 185, 66, 0.15);
+    border: 1px solid rgba(245, 185, 66, 0.4);
+  }
+  .panel-header .title {
+    font-family: Georgia, serif;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  .panel-header .desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+  .device {
+    width: 360px;
+    max-width: 100%;
+    border: 8px solid #222;
+    border-radius: 36px;
+    padding: 8px;
+    background: #000;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .screen {
+    width: 100%;
+    background: linear-gradient(180deg, #16130f, #100e0a);
+    border-radius: 28px;
+    padding: 20px 18px;
+    min-height: 760px;
+    position: relative;
+    overflow: hidden;
+  }
+  .archive-label {
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    color: var(--accent);
+  }
+  .file-number {
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.2em;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+  }
+  .display-serif {
+    font-family: Georgia, "Noto Serif SC", serif;
+  }
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .divider .line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-dim), var(--accent));
+    opacity: 0.6;
+  }
+  .divider .diamond {
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--accent);
+    transform: rotate(45deg);
+    position: relative;
+  }
+  .divider .diamond::after {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  /* === OLD === */
+  .old .title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .old .title-bar .line { width: 32px; height: 1px; background: var(--border-dim); }
+  .old .radar-block {
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 12px;
+    background: radial-gradient(circle, rgba(201,169,110,0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .old .card-mock {
+    width: 130px;
+    height: 180px;
+    background: linear-gradient(160deg, #d8bd85 0%, #9a7b40 45%, #e6cf9a 100%);
+    border-radius: 12px;
+    margin: 12px auto;
+    position: relative;
+    box-shadow: 0 14px 34px rgba(0,0,0,0.45);
+  }
+  .old .card-mock .img {
+    position: absolute;
+    inset: 5px;
+    background: linear-gradient(160deg, #1a3658 0%, #0f1c30 100%);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #d8bd85;
+    font-size: 14px;
+    font-family: Georgia, serif;
+  }
+  .old .qr-block {
+    text-align: center;
+    margin-top: 12px;
+  }
+  .old .qr-block .qr {
+    display: inline-block;
+    background: var(--paper);
+    padding: 6px;
+  }
+  .old .qr-block .qr-img {
+    width: 96px;
+    height: 96px;
+    background: repeating-conic-gradient(#2a2418 0% 25%, #f5ede0 0% 50%) 50% / 8px 8px;
+  }
+  .old .qr-block .hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+
+  /* === NEW === */
+  .new .title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .new .title-bar .line { width: 32px; height: 1px; background: var(--border-dim); }
+  .new .brand {
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--text-warm);
+    font-family: Georgia, serif;
+    line-height: 1.2;
+    margin-bottom: 16px;
+  }
+  .new .poster {
+    border: 1px solid var(--accent-dim);
+    border-radius: 4px;
+    padding: 16px;
+    background: linear-gradient(180deg, #16130f, #100e0a);
+  }
+  .new .file-line {
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .new .hook {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .new .hook .main {
+    font-family: Georgia, serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-warm);
+    line-height: 1.6;
+  }
+  .new .hook .sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+  .new .compass {
+    width: 170px;
+    height: 170px;
+    margin: 0 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .new .compass-ring {
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    opacity: 0.16;
+  }
+  .new .compass-ring.inner {
+    inset: 18px;
+    border-style: dashed;
+  }
+  .new .radar {
+    width: 180px;
+    height: 180px;
+  }
+  .new .card-mock {
+    width: 120px;
+    height: 170px;
+    background: radial-gradient(ellipse at center, #1a1814 30%, #100e0a 80%);
+    border: 1px solid #5e7e6b88;
+    border-radius: 14px;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .new .card-mock::before {
+    content: "";
+    position: absolute;
+    inset: -50px;
+    background: radial-gradient(circle at top left, #7e9e8a44 0%, transparent 60%);
+  }
+  .new .card-mock .moon {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    color: #7e9e8a;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+  .new .card-mock .moon-glyph {
+    position: absolute;
+    top: 4px;
+    right: 8px;
+    color: #7e9e8a;
+    font-size: 18px;
+  }
+  .new .card-mock .totem {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid #7e9e8a;
+    position: relative;
+  }
+  .new .card-mock .totem::before,
+  .new .card-mock .totem::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 30px;
+    height: 30px;
+    border: 1.5px solid #7e9e8a;
+    border-radius: 50%;
+  }
+  .new .card-mock .name {
+    font-family: Georgia, serif;
+    font-weight: bold;
+    font-size: 14px;
+    color: #d8e0d4;
+    margin-top: 50px;
+  }
+  .new .tag {
+    text-align: center;
+    font-family: Georgia, serif;
+    font-size: 13px;
+    color: var(--text-warm);
+    font-weight: 500;
+    margin: 14px 0 12px;
+  }
+  .new .qr-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 4px;
+  }
+  .new .qr-text {
+    flex: 1;
+    font-size: 11px;
+    font-family: Georgia, serif;
+    color: var(--text-warm);
+    line-height: 1.4;
+    font-weight: 500;
+  }
+  .new .qr-text .desc {
+    color: var(--text-muted);
+    font-size: 8px;
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .new .qr-img {
+    background: var(--paper);
+    padding: 5px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .new .qr-img .qr {
+    width: 88px;
+    height: 88px;
+    background: repeating-conic-gradient(#2a2418 0% 25%, #f5ede0 0% 50%) 50% / 7px 7px;
+    border: 1px solid #2a2418;
+  }
+  .new .buttons {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .new .btn-primary {
+    background: var(--accent);
+    color: var(--bg-dark);
+    font-weight: 600;
+    padding: 12px;
+    border-radius: 4px;
+    text-align: center;
+    border: none;
+    font-size: 11px;
+  }
+  .new .btn-pair {
+    display: flex;
+    gap: 8px;
+  }
+  .new .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-dim);
+    padding: 10px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 10px;
+    flex: 1;
+  }
+  .new .meta-hint {
+    text-align: center;
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-top: 12px;
+    line-height: 1.6;
+  }
+
+  /* 通用 */
+  .key-points {
+    margin-top: 16px;
+    max-width: 360px;
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border-dim);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .key-points .h {
+    font-size: 11px;
+    color: var(--accent);
+    font-family: "Courier New", monospace;
+    letter-spacing: 0.15em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .key-points ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .key-points li {
+    font-size: 11px;
+    color: var(--text-warm);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border-dim);
+  }
+  .key-points li:last-child { border-bottom: none; }
+  .key-points li .dot {
+    color: var(--accent);
+    margin-right: 6px;
+  }
+  .old .key-points li .dot { color: #fca5a5; }
+</style>
+</head>
+<body>
+  <h1>分享海报改造对比</h1>
+  <p class="subtitle">左：当前线上版本 ｜ 右：改造后版本</p>
+
+  <div class="container">
+    <!-- OLD -->
+    <div class="panel old">
+      <div class="panel-header">
+        <span class="label">当前线上</span>
+        <div class="title">原版分享海报</div>
+        <div class="desc">黑色块状 + 大二维码，无品牌感</div>
+      </div>
+      <div class="device">
+        <div class="screen">
+          <div class="title-bar">
+            <span class="archive-label">Relationship Lab</span>
+            <span class="line"></span>
+            <span class="file-number">No. 1BE642</span>
+          </div>
+
+          <div class="radar-block">
+            <div style="font-size:11px; color: var(--text-muted);">雷达主图</div>
+          </div>
+          <p style="text-align:center; font-size:11px; color: var(--text-muted); font-style:italic; margin-bottom: 12px;">
+            「让情绪先落灰，活才有温度。」
+          </p>
+
+          <div class="divider">
+            <span class="line"></span>
+            <span class="diamond"></span>
+            <span class="line"></span>
+          </div>
+
+          <div class="card-mock">
+            <div class="img">慢火相融者</div>
+          </div>
+
+          <div style="text-align:center; margin-top: 14px;">
+            <p style="font-family: Georgia, serif; color: var(--accent); font-size: 13px;">「慢火相融者」</p>
+            <p style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">暂停处理型</p>
+          </div>
+
+          <p style="text-align:center; font-size: 10px; color: var(--text-muted); margin: 12px 0;">
+            每个人在关系里的样子都不一样——<br>
+            <strong style="color: var(--text-warm);">你的，会是什么模样？</strong>
+          </p>
+
+          <div class="qr-block">
+            <div class="qr">
+              <div class="qr-img"></div>
+            </div>
+            <p class="hint">长按识别二维码，看看你是哪一种</p>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <button class="new btn-primary" style="width:100%;">保存海报图片 →</button>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="new btn-ghost" style="flex:1;">复制链接</button>
+              <button class="new btn-ghost" style="flex:1;">回到报告</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="key-points">
+        <div class="h">问题</div>
+        <ul>
+          <li><span class="dot">×</span>没有品牌头，不告诉用户这是什么</li><li><span class="dot">×</span>二维码 96px，占整页 1/4 位置</li><li><span class="dot">×</span>无钩子话术，收到的人没有冲动</li><li><span class="dot">×</span>没有「复制给微信好友」入口</li><li><span class="dot">×</span>没有长按保存到相册提示</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- NEW -->
+    <div class="panel new">
+      <div class="panel-header">
+        <span class="label">改造后</span>
+        <div class="title">新版分享海报</div>
+        <div class="desc">借鉴主页布局 + 钩子话术 + 缩小二维码</div>
+      </div>
+      <div class="device">
+        <div class="screen">
+          <div class="title-bar">
+            <span class="archive-label">Relationship Lab</span>
+            <span class="line"></span>
+            <span class="file-number">No. 1BE642</span>
+          </div>
+          <h1 class="brand">默契研究所</h1>
+
+          <div class="poster">
+            <div class="file-line">
+              <span class="file-number">FILE · 1BE642</span>
+            </div>
+
+            <div class="hook">
+              <div class="main">你们之间，有没有一种问题，<br>总是在重复发生？</div>
+              <div class="sub">也许问题不是谁对谁错——<br>只是你们理解「在乎」的方式不一样。</div>
+            </div>
+
+            <div class="divider">
+              <span class="line"></span>
+              <span class="diamond"></span>
+              <span class="line"></span>
+            </div>
+
+            <div class="compass">
+              <div class="compass-ring"></div>
+              <div class="compass-ring inner"></div>
+              <div class="radar">
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                  <polygon points="50,15 80,35 75,75 25,75 20,35" fill="#c9a96e30" stroke="#c9a96e" stroke-width="1.2" />
+                  <line x1="50" y1="10" x2="50" y2="90" stroke="#c9a96e40" stroke-width="0.4" />
+                  <line x1="10" y1="50" x2="90" y2="50" stroke="#c9a96e40" stroke-width="0.4" />
+                  <line x1="22" y1="22" x2="78" y2="78" stroke="#c9a96e40" stroke-width="0.4" />
+                  <line x1="78" y1="22" x2="22" y2="78" stroke="#c9a96e40" stroke-width="0.4" />
+                  <circle cx="50" cy="15" r="1.5" fill="#c9a96e" />
+                  <circle cx="80" cy="35" r="1.5" fill="#c9a96e" />
+                  <circle cx="75" cy="75" r="1.5" fill="#c9a96e" />
+                  <circle cx="25" cy="75" r="1.5" fill="#c9a96e" />
+                  <circle cx="20" cy="35" r="1.5" fill="#c9a96e" />
+                  <circle cx="50" cy="50" r="1.5" fill="#c9a96e" />
+                </svg>
+              </div>
+            </div>
+
+            <div style="margin: 14px 0; display:flex; justify-content:center;">
+              <div class="card-mock">
+                <div class="moon">第1序</div>
+                <div class="moon-glyph">●</div>
+                <div class="totem"></div>
+                <div class="name">慢火相融者</div>
+              </div>
+            </div>
+
+            <p class="tag">我是「慢火相融者」——你呢？</p>
+
+            <div class="divider">
+              <span class="line"></span>
+              <span class="diamond"></span>
+              <span class="line"></span>
+            </div>
+
+            <div class="qr-row">
+              <div class="qr-text">
+                长按二维码，<br>看看你是哪一种
+                <div class="desc">· 36 题 · 约 5 分钟<br>· 无需注册 · 基础免费</div>
+              </div>
+              <div class="qr-img">
+                <div class="qr"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="buttons">
+            <button class="btn-primary">保存海报图片（长按图片也可保存）→</button>
+            <div class="btn-pair">
+              <button class="btn-ghost">复制分享链接</button>
+              <button class="btn-ghost">复制给微信好友</button>
+            </div>
+          </div>
+
+          <div class="meta-hint">
+            💡 手机端可长按上方海报图片，<br>
+            保存到相册或转发给朋友（微信会自动识别二维码）
+          </div>
+        </div>
+      </div>
+      <div class="key-points">
+        <div class="h">改进</div>
+        <ul>
+          <li><span class="dot">✓</span>顶部品牌头「默契研究所」一眼认知</li><li><span class="dot">✓</span>主页同款钩子话术，勾起好奇心</li><li><span class="dot">✓</span>二维码 88px，左文右码布局</li><li><span class="dot">✓</span>「复制给微信好友」一键复制文案+链接</li><li><span class="dot">✓</span>长按图片可保存到相册（浏览器原生）</li><li><span class="dot">✓</span>微信识别图中二维码自动跳转</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width: 800px; margin: 40px auto 0; padding: 20px; border: 1px solid var(--border-dim); border-radius: 8px; background: rgba(245,185,66,0.05);">
+    <h3 style="font-size: 14px; color: var(--highlight); margin-bottom: 10px;">⏰ 部署状态</h3>
+    <p style="font-size: 12px; color: var(--text-warm); line-height: 1.6;">
+      代码已 push 到 GitHub main（<code style="background: rgba(0,0,0,0.3); padding: 1px 6px; border-radius: 3px;">fafcc0a</code>）。但 Vercel 24h 100/100 限额已用尽（之前 mobile-responsive 多文件推送触发的）。
+      <br><br>
+      <strong>预计 reset 时间：2026-09-13 12:04 GMT+8</strong>
+      <br><br>
+      已设置一次性 automation 在 reset 后自动触发生产部署（<code style="background: rgba(0,0,0,0.3); padding: 1px 6px; border-radius: 3px;">7bb0b2b8</code>）。
+    </p>
+  </div>
+</body>
+</html>

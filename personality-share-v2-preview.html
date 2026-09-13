@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>人格分享海报 V2 预览</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Noto Serif SC", serif;
+    background: #0a0806;
+    color: #e8e0d4;
+    padding: 16px;
+    min-height: 100vh;
+  }
+  .header { text-align: center; padding: 12px 0 20px; }
+  .header h1 { font-size: 18px; color: #c9a96e; letter-spacing: 2px; margin-bottom: 6px; }
+  .header p { font-size: 12px; color: #9a9080; }
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  @media (max-width: 720px) { .compare { grid-template-columns: 1fr; } }
+
+  .card {
+    border: 1px solid #3a3024;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #16130f;
+  }
+  .label {
+    background: linear-gradient(180deg,#1c1814,#14110d);
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #9a9080;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border-bottom: 1px solid #3a3024;
+    text-align: center;
+  }
+  .label.old { color: #a08850; }
+  .label.new { color: #5bc78a; }
+
+  .phone {
+    padding: 14px;
+  }
+
+  /* ===== 旧版样式（基于用户截图还原） ===== */
+  .old-poster {
+    background: linear-gradient(180deg,#16130f,#100e0a);
+    border: 1px solid #a08850;
+    border-radius: 4px;
+    padding: 14px 12px;
+    color: #e8e0d4;
+  }
+  .old-poster .radar-title {
+    font-size: 11px;
+    color: #9a9080;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .old-poster .radar-wrap {
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  .old-poster .radar-svg {
+    width: 120px;
+    height: 120px;
+  }
+  .old-poster .risk {
+    text-align: center;
+    color: #9a9080;
+    font-size: 9px;
+    margin-bottom: 6px;
+  }
+  .old-poster .risk-title { color: #c9a96e; font-size: 10px; letter-spacing: 2px; }
+  .old-poster .quote {
+    font-size: 9.5px;
+    color: #c9a96e;
+    font-style: italic;
+    text-align: center;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .old-poster .avatar-circle {
+    width: 26px;
+    height: 26px;
+    border: 1.5px solid #c9a96e;
+    border-radius: 50%;
+    margin: 0 auto 6px;
+  }
+  .old-poster .card-num {
+    text-align: center;
+    color: #c9a96e;
+    font-size: 9px;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+  .old-poster .icon-tower {
+    text-align: center;
+    margin: 10px 0;
+    color: #5e8b6e;
+    font-size: 18px;
+  }
+  .old-poster .name {
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: #e8e0d4;
+    margin-bottom: 4px;
+  }
+  .old-poster .label-small {
+    text-align: center;
+    color: #c9a96e;
+    font-size: 9px;
+    margin-bottom: 4px;
+  }
+  .old-poster .tagline {
+    text-align: center;
+    color: #5e8b6e;
+    font-size: 9px;
+    margin-bottom: 8px;
+  }
+  .old-poster .match-pill {
+    border: 1px solid #5e8b6e;
+    border-radius: 999px;
+    padding: 2px 12px;
+    display: inline-block;
+    color: #c9a96e;
+    font-size: 9px;
+    margin: 4px auto 8px;
+    text-align: center;
+  }
+  .old-poster .match-pill-wrap { text-align: center; }
+  .old-poster .match-score {
+    text-align: center;
+    color: #9a9080;
+    font-size: 9px;
+    margin-bottom: 8px;
+  }
+  .old-poster .invite {
+    text-align: center;
+    font-size: 11px;
+    color: #e8e0d4;
+    margin: 10px 0;
+    font-weight: 500;
+  }
+  .old-poster .invite-sub {
+    text-align: center;
+    color: #9a9080;
+    font-size: 9px;
+    margin-bottom: 14px;
+    line-height: 1.4;
+  }
+  .old-poster .qr-old {
+    text-align: center;
+    background: #f5ede0;
+    padding: 6px;
+    width: 130px;
+    margin: 0 auto;
+    border-radius: 2px;
+  }
+  .old-poster .qr-old-inner {
+    width: 118px;
+    height: 118px;
+    background:
+      repeating-conic-gradient(#2a2418 0% 25%, #f5ede0 0% 50%) 50% / 12px 12px;
+  }
+  .old-poster .qr-tip-old {
+    text-align: center;
+    color: #9a9080;
+    font-size: 8px;
+    margin-top: 6px;
+  }
+
+  /* ===== 新版样式 ===== */
+  .new-poster {
+    background: linear-gradient(180deg,#16130f,#100e0a);
+    border: 1px solid #c9a96e;
+    border-radius: 4px;
+    padding: 14px 12px;
+    color: #e8e0d4;
+    position: relative;
+  }
+  .new-poster .file-no {
+    text-align: center;
+    color: #9a9080;
+    font-size: 9px;
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+  }
+  .new-poster .hook {
+    text-align: center;
+    color: #e8e0d4;
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .new-poster .hook-sub {
+    text-align: center;
+    color: #9a9080;
+    font-size: 9.5px;
+    line-height: 1.4;
+    margin-bottom: 12px;
+  }
+  .new-poster .ornament {
+    border-top: 1px solid #3a3024;
+    margin: 8px auto;
+    width: 60%;
+    position: relative;
+  }
+  .new-poster .ornament::before {
+    content: "◇";
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #c9a96e;
+    background: #16130f;
+    padding: 0 4px;
+    font-size: 9px;
+  }
+  .new-poster .tarot-spread {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 110px;
+    position: relative;
+    margin-bottom: 4px;
+  }
+  .new-poster .tarot-mini {
+    width: 50px;
+    height: 75px;
+    border: 2px solid #9a7b40;
+    border-radius: 2px;
+    background:
+      linear-gradient(135deg, #2a2418 25%, transparent 25%) -10px 0,
+      linear-gradient(225deg, #2a2418 25%, transparent 25%) -10px 0,
+      linear-gradient(315deg, #2a2418 25%, transparent 25%),
+      linear-gradient(45deg, #2a2418 25%, transparent 25%),
+      #4a3826;
+    background-size: 16px 16px;
+    display: inline-block;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  }
+  .new-poster .tarot-mini.mid { transform: translateY(-6px); z-index: 2; }
+  .new-poster .tarot-mini.left { transform: rotate(-9deg); margin-right: -8px; }
+  .new-poster .tarot-mini.right { transform: rotate(9deg); margin-left: -8px; }
+  .new-poster .compass-bg {
+    position: absolute;
+    width: 130px;
+    height: 130px;
+    border: 1px solid rgba(201, 169, 110, 0.14);
+    border-radius: 50%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .new-poster .compass-bg::before {
+    content: "";
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border: 1px solid rgba(201, 169, 110, 0.14);
+    border-radius: 50%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .new-poster .mirrors-label {
+    text-align: center;
+    color: #9a9080;
+    font-size: 9px;
+    letter-spacing: 2px;
+    margin: 6px 0;
+  }
+  .new-poster .invite {
+    text-align: center;
+    font-size: 12px;
+    color: #e8e0d4;
+    margin: 10px 0;
+    font-weight: 500;
+  }
+  .new-poster .qr-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 4px 4px 0;
+  }
+  .new-poster .qr-text { flex: 1; }
+  .new-poster .qr-text-title {
+    font-size: 11px;
+    color: #e8e0d4;
+    line-height: 1.4;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .new-poster .qr-text-sub {
+    font-size: 8.5px;
+    color: #9a9080;
+    line-height: 1.4;
+  }
+  .new-poster .qr-new {
+    background: #f5ede0;
+    padding: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .new-poster .qr-new-inner {
+    width: 72px;
+    height: 72px;
+    background:
+      repeating-conic-gradient(#2a2418 0% 25%, #f5ede0 0% 50%) 50% / 8px 8px;
+  }
+
+  /* ====== 关键变化列表 ====== */
+  .changes {
+    margin: 24px auto 0;
+    max-width: 760px;
+    padding: 14px;
+    background: #1a1612;
+    border: 1px solid #3a3024;
+    border-radius: 6px;
+  }
+  .changes h2 {
+    font-size: 13px;
+    color: #c9a96e;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+  .changes ul {
+    list-style: none;
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: #d4cdb8;
+  }
+  .changes li::before {
+    content: "✓ ";
+    color: #5bc78a;
+    font-weight: bold;
+    margin-right: 4px;
+  }
+  .changes li.no::before { content: "✗ "; color: #ef4444; }
+  .changes .section-title {
+    color: #c9a96e;
+    font-size: 11px;
+    margin-top: 10px;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+
+  /* ====== 8 套人格文案轮播预览 ====== */
+  .copy-pool {
+    margin: 24px auto 0;
+    max-width: 760px;
+    padding: 14px;
+    background: #1a1612;
+    border: 1px solid #3a3024;
+    border-radius: 6px;
+  }
+  .copy-pool h2 {
+    font-size: 13px;
+    color: #c9a96e;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+  .copy-pool .sub {
+    font-size: 10px;
+    color: #9a9080;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .copy-item {
+    border-left: 2px solid #c9a96e;
+    padding: 4px 0 4px 10px;
+    margin-bottom: 10px;
+  }
+  .copy-item .theme {
+    font-size: 9px;
+    color: #c9a96e;
+    letter-spacing: 1.5px;
+    margin-bottom: 3px;
+  }
+  .copy-item .hook-mini {
+    font-size: 11px;
+    color: #e8e0d4;
+    line-height: 1.4;
+    margin-bottom: 2px;
+  }
+  .copy-item .tag-mini {
+    font-size: 10px;
+    color: #9a9080;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>人格测试分享海报 · V2 预览</h1>
+  <p>左侧旧版（基于截图还原） · 右侧新版（已 push 到 GitHub main @cf13e8e）</p>
+</div>
+
+<div class="compare">
+  <!-- 旧版 -->
+  <div class="card">
+    <div class="label old">旧版 · 暴露分享人信息</div>
+    <div class="phone">
+      <div class="old-poster">
+        <div class="radar-title">社交能量</div>
+        <div class="radar-wrap">
+          <svg class="radar-svg" viewBox="0 0 120 120">
+            <polygon points="60,15 100,40 90,90 30,90 20,40" fill="none" stroke="#c9a96e" stroke-width="1" opacity="0.5"/>
+            <polygon points="60,30 88,45 82,82 38,82 32,45" fill="rgba(201,169,110,0.18)" stroke="#c9a96e" stroke-width="1.5"/>
+            <circle cx="60" cy="30" r="2" fill="#c9a96e"/>
+            <circle cx="88" cy="45" r="2" fill="#c9a96e"/>
+            <circle cx="82" cy="82" r="2" fill="#c9a96e"/>
+            <circle cx="38" cy="82" r="2" fill="#c9a96e"/>
+            <circle cx="32" cy="45" r="2" fill="#c9a96e"/>
+          </svg>
+        </div>
+        <div class="risk">
+          <div class="risk-title">风险倾向</div>
+          「比起说走就走，你更擅长把第一步走得稳稳当当。」
+        </div>
+
+        <div class="avatar-circle"></div>
+        <div class="card-num">三 · 启程者</div>
+        <div class="icon-tower">▲</div>
+        <div class="name">启程者</div>
+        <div class="label-small">三 · 启程者</div>
+        <div class="tagline">比起说走就走，你更擅长把第一步走得稳稳当当。</div>
+        <div class="match-pill-wrap">
+          <div class="match-pill">启程 · 稳行一步</div>
+        </div>
+        <div class="match-score">匹配度 85%</div>
+
+        <div class="invite">每个人在关系里的样子都不一样，<br/>每个人在关系之外的样子也不一样——</div>
+        <div class="invite">你是「启程者」吗？</div>
+
+        <div class="qr-old">
+          <div class="qr-old-inner"></div>
+        </div>
+        <div class="qr-tip-old">长按识别二维码，看看你是哪一种</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新版 -->
+  <div class="card">
+    <div class="label new">新版 · 主页 3 塔罗 · 随机话术 · QR 跳首页</div>
+    <div class="phone">
+      <div class="new-poster">
+        <div class="file-no">FILE · A3F7C1</div>
+
+        <div class="hook">你以为你在做选择，<br/>其实性格<br/>早就替你选好了。</div>
+        <div class="hook-sub">你以为你讨厌社交——<br/>可一遇到聊得来的人，又舍不得散场。<br/>你以为你做事冲动——<br/>可关键决策，你比谁都稳。</div>
+
+        <div class="ornament"></div>
+
+        <div class="tarot-spread">
+          <div class="compass-bg"></div>
+          <span class="tarot-mini left"></span>
+          <span class="tarot-mini mid"></span>
+          <span class="tarot-mini right"></span>
+        </div>
+        <div class="mirrors-label">十一面镜像，总有一面是你</div>
+
+        <div class="ornament"></div>
+
+        <div class="invite">你的性格，是哪一种？</div>
+
+        <div class="ornament"></div>
+
+        <div class="qr-row">
+          <div class="qr-text">
+            <div class="qr-text-title">长按二维码，<br/>看看你是哪一种</div>
+            <div class="qr-text-sub">· 36 题 · 约 5 分钟<br/>· 无需注册 · 基础结果免费</div>
+          </div>
+          <div class="qr-new">
+            <div class="qr-new-inner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 关键变化 -->
+<div class="changes">
+  <h2>关键变化</h2>
+  <div class="section-title">① 封面：3 张随机塔罗牌（与首页同款）</div>
+  <ul>
+    <li class="no">移除：雷达图 + 6 维人格得分 + 风险倾向 + 启程者原型卡 + 匹配度</li>
+    <li>新增：3 张随机塔罗牌（扇形悬浮 + 罗盘底纹）</li>
+    <li>共享者 <span style="color:#ef4444">完全匿名</span>（看不到对方是谁、什么性格、几分）</li>
+  </ul>
+
+  <div class="section-title">② 文案：8 套随机人格探索话术</div>
+  <ul>
+    <li class="no">移除：「你是「启程者」吗？」+ 「匹配度 85%」+ 「三 · 启程者」</li>
+    <li>新增：钩子「你以为你在做选择…其实性格早就替你选好了。」+ 场景白描 + 反转洞察</li>
+    <li>主题：自我认知 / 性格盲区 / 关系里的样子 / 关键选择 / 压力下的真容 / 最不喜欢的一面 / 优点背后的代价 / 内心两个声音</li>
+    <li>用 code 作种子 → 同一分享每次看到同一套（SSR 一致），不同分享看到不同套</li>
+    <li>文案已按 AI 润色级手写，与 home-copy.ts 同质同构</li>
+  </ul>
+
+  <div class="section-title">③ 二维码：跳首页</div>
+  <ul>
+    <li class="no">移除：QR 指向 /share/personality/{code}（泄露分享码）</li>
+    <li>新增：QR 指向 <span style="color:#5bc78a">{domain}/</span>（主页）</li>
+    <li>默契测试分享页同样改成跳首页</li>
+    <li>复制链接按钮文案改为「复制首页链接」</li>
+  </ul>
+</div>
+
+<!-- 8 套人格文案预览 -->
+<div class="copy-pool">
+  <h2>8 套人格探索文案 · 随机轮播</h2>
+  <p class="sub">每次分享页加载时按 code 哈希抽取一套</p>
+
+  <div class="copy-item">
+    <div class="theme">1 · 你以为自己在选</div>
+    <div class="hook-mini">你以为你在做选择，<br/>其实性格早就替你选好了。</div>
+    <div class="tag-mini">→ 你的性格，是哪一种？</div>
+  </div>
+  <div class="copy-item">
+    <div class="theme">2 · 性格盲区</div>
+    <div class="hook-mini">别人一眼看穿你，<br/>可你自己反而看不清。</div>
+    <div class="tag-mini">→ 来看看，你看不见的那一面。</div>
+  </div>
+  <div class="copy-item">
+    <div class="theme">3 · 在关系里的样子</div>
+    <div class="hook-mini">你在关系里，<br/>比你以为的更像是另一个人。</div>
+    <div class="tag-mini">→ 你在关系里，是哪一种？</div>
+  </div>
+  <div class="copy-item">
+    <div class="theme">4 · 关键选择</div>
+    <div class="hook-mini">为什么到了关键时刻，<br/>你总是这样选？</div>
+    <div class="tag-mini">→ 你的选择，藏着什么？</div>
+  </div>
+  <div class="copy-item">
+    <div class="theme">5 · 压力下的真容</div>
+    <div class="hook-mini">压力之下，<br/>性格才会露出真容。</div>
+    <div class="tag-mini">→ 压力之下的你，是什么样子？</div>
+  </div>
+  <div class="copy-item">
+    <div class="theme">6 · 你最不喜欢的一面</div>
+    <div class="hook-mini">你最不喜欢的那一面，<br/>恰恰是你最该看见的。</div>
+    <div class="tag-mini">→ 你敢不敢，看清这一面？</div>
+  </div>
+  <div class="copy-item">
+    <div class="theme">7 · 优点背后的代价</div>
+    <div class="hook-mini">你最引以为傲的特质，<br/>藏着你看不见的代价。</div>
+    <div class="tag-mini">→ 你的特质，正在付出什么？</div>
+  </div>
+  <div class="copy-item">
+    <div class="theme">8 · 内心两个声音</div>
+    <div class="hook-mini">你心里住着两个人，<br/>他们常常意见不合。</div>
+    <div class="tag-mini">→ 你心里那两个人，认识一下？</div>
+  </div>
+</div>
+
+</body>
+</html>

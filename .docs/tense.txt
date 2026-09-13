@@ -1,0 +1,773 @@
+《默契研究所 V2.0》
+关系紧张 / 正在考虑是否继续｜第一批 40 题
+版本：V2.0-SC-TENSE-001
+适用关系：
+恋爱关系明显紧张 / 反复争吵 / 长期失望 / 正在犹豫是否继续 / 感觉关系正在变淡，但尚未正式结束。
+这一阶段最重要的问题已经不是：
+“我们合不合？”
+而是：
+“我们现在的问题，究竟是还能调整，还是已经在持续消耗彼此？”
+重点识别：
+失望累积
+修复疲劳
+沟通枯竭
+信任下降
+情绪撤离
+单方面维系
+共同未来感下降
+关系责任感与爱是否分离
+是否仍愿意理解对方
+是否仍存在现实修复条件
+是否已经进入反复循环
+是否存在安全风险
+一、正式组卷规则
+当：
+relationship_stage = tense
+或：
+relationship_stage = considering_future
+时，
+本题库优先级显著提高。
+建议正式测试：
+6–10 道关系紧张专属题。
+同时降低：
+过于轻松、娱乐化的题目比例。
+这一阶段不应该显示：
+“你们缘分值 88%。”
+更适合显示：
+关系状态画像
+以及：
+当前最消耗你们的互动模式。
+A｜失望与确定感变化
+TEN-RN-01｜以前稳定，现在开始怀疑
+母题：
+RN-07
+场景：
+过去你通常相信这段关系是稳定的。
+但最近，即使没有发生特别大的事情，你也开始经常怀疑：
+“我们是不是已经和以前不一样了？”
+几乎没有。
+偶尔。
+有时会。
+经常。
+这种感觉已经非常明显。
+信号：
+relationship_security_decline
+TEN-RN-02｜解释还能不能让你安心
+母题：
+RN-08
+场景：
+当 TA 对某个让你不安的行为做出合理解释以后，你通常：
+很容易重新安心。
+大部分时候可以。
+一半一半。
+即使解释合理，我还是会继续怀疑。
+我发现自己已经很难仅仅因为解释而恢复信任。
+注意：
+高分不是“回应需求高”。
+而是记录：
+reassurance_no_longer_restores_security
+TEN-RN-03｜被忽视感
+题目：
+最近即使 TA 仍然和我保持联系，我有时还是会觉得：
+“TA 好像已经没有真正把我的感受放在心上。”
+1–5 正向。
+信号：
+emotional_neglect_perception
+TEN-RN-04｜关系里的重要感
+场景：
+如果你停下主动联系、安排和沟通一段时间，你觉得这段关系会：
+基本照常运行。
+可能稍微变淡。
+不确定。
+很可能明显停下来。
+我担心如果我不推动，这段关系几乎就不会继续往前。
+信号：
+relationship_depends_on_one_partner
+TEN-RN-05｜对方的善意还能不能被感受到
+题目：
+即使 TA 最近做了一些关心我的事情，我有时也很难真正感受到“被爱”。
+1–5 正向。
+信号：
+care_no_longer_lands
+这道题非常重要。
+因为关系恶化后可能不是：
+TA 完全没有善意，
+而是：
+善意已经无法进入。
+B｜表达与沟通枯竭
+TEN-EX-01｜“说了也没用”
+题目：
+有些问题我已经不太想再说，因为我觉得：
+“反正说了也不会改变什么。”
+1–5 正向。
+信号：
+communication_futility
+TEN-EX-02｜不再解释自己
+场景：
+以前发生误会时，你还会认真解释自己。
+现在类似事情发生，你更接近：
+仍然会认真解释。
+大部分时候会。
+看情况。
+越来越懒得解释。
+有时我甚至觉得“你怎么理解都可以”。
+信号：
+self_explanation_withdrawal
+TEN-EX-03｜表达是否只剩抱怨
+题目：
+最近我们谈关系问题时，很容易从“我现在有什么感受”变成“你总是怎样”“你从来怎样”。
+1–5 正向。
+信号：
+complaint_to_character_attack
+TEN-EX-04｜害怕开启话题
+场景：
+你明明有一个重要问题想谈，但想到“可能又要吵起来”，你更容易：
+还是会正常谈。
+会谨慎一点。
+拖一阵子。
+经常选择不说。
+我已经开始害怕开启某些关系话题。
+信号：
+topic_avoidance_due_to_conflict
+TEN-EX-05｜只谈事情，不谈感受
+题目：
+最近你们还能讨论吃饭、工作、安排这些事情，但很少真正谈：
+“我最近在这段关系里是什么感觉。”
+1–5 正向。
+信号：
+functional_communication_only
+C｜空间、撤离与情绪脱离
+TEN-SP-01｜独处还是逃离
+场景：
+发生矛盾以后，你想一个人待着。
+真正更接近：
+只是需要冷静，之后仍然想解决。
+大部分时候只是需要恢复状态。
+两者都有。
+有时我其实是不想再面对这段关系。
+我越来越觉得离开 TA 的环境反而更轻松。
+信号：
+space_vs_emotional_exit
+TEN-SP-02｜没有联系是否反而轻松
+题目：
+当你们一整天都没有联系时，我有时会觉得比聊天的时候更轻松。
+1–5 正向。
+信号：
+relief_in_disconnection
+这是关系撤离的重要变量。
+TEN-SP-03｜开始建立没有 TA 的生活
+题目：
+最近我更容易想象：
+“如果以后没有 TA，我自己的生活会是什么样。”
+1–5 正向。
+信号：
+life_without_partner_imagining
+注意：
+不能单独解释成“想分手”。
+TEN-SP-04｜减少共享
+题目：
+以前发生什么事情我很自然会告诉 TA，现在有些事情我已经不太想分享。
+1–5 正向。
+信号：
+sharing_withdrawal
+TEN-SP-05｜主动减少亲密接触
+题目：
+最近我会主动减少一些聊天、见面、拥抱或其他亲密互动，因为我没有以前那么想靠近。
+1–5 正向。
+信号：
+active_connection_withdrawal
+D｜情绪感知与负面解释偏移
+TEN-ES-01｜更容易读成负面
+题目：
+最近 TA 一些原本普通的行为，我越来越容易理解成“不在乎”“敷衍”或者“故意”。
+1–5 正向。
+信号：
+negative_interpretation_bias
+TEN-ES-02｜对善意也保持警惕
+场景：
+TA 突然对你特别好。
+你的第一反应：
+会自然接受。
+会有一点意外。
+看发生了什么。
+会怀疑是不是 TA 做错了什么。
+我很难单纯相信这种善意，会下意识寻找原因。
+信号：
+goodwill_suspicion
+TEN-ES-03｜情绪耗竭
+题目：
+这段关系已经消耗了我很多情绪，以至于有些时候我没有力气再去理解 TA 为什么那样做。
+1–5 正向。
+信号：
+empathy_exhaustion
+TEN-ES-04｜只注意坏的部分
+题目：
+最近回想这段关系时，我更容易想起失望和争吵，而不是以前那些好的部分。
+1–5 正向。
+信号：
+negative_memory_dominance
+TEN-ES-05｜关系中的警觉
+题目：
+和 TA 相处时，我越来越容易提前担心：
+“等一下是不是又要发生什么问题。”
+1–5 正向。
+信号：
+relationship_hypervigilance
+E｜冲突模式恶化
+TEN-CU-01｜同样的争吵重复出现
+题目：
+你们最近很多次争吵，本质上像是在重复同一个问题，只是换了不同事情发生。
+1–5 正向。
+信号：
+recurring_conflict_cycle
+TEN-CU-02｜争吵升级速度
+题目：
+现在一个原本很小的问题，也比以前更容易迅速升级成一次严重争吵。
+1–5 正向。
+信号：
+conflict_escalation_speed
+TEN-CU-03｜旧账进入新争吵
+题目：
+你们现在发生新的矛盾时，经常会把以前没有真正解决的事情一起翻出来。
+1–5 正向。
+信号：
+unresolved_history_intrusion
+TEN-CU-04｜暂停变成逃避
+场景：
+TA 在争吵时说：
+“以后再说。”
+你现在更容易认为：
+TA 只是需要冷静。
+大部分时候还会回来谈。
+不确定。
+很多时候“以后”其实就不会再谈。
+我已经把“暂停”理解成逃避问题。
+信号：
+pause_lost_credibility
+TEN-CU-05｜是否还想解决
+题目：
+发生矛盾以后，我现在最强烈的感觉有时已经不是“我要解决”，而是“我真的不想再经历一次”。
+1–5 正向。
+信号：
+conflict_resolution_exhaustion
+F｜修复能力与修复意愿
+TEN-RP-01｜愿不愿意再试
+题目：
+如果双方真的找到一种和过去完全不同的处理方式，我仍然愿意认真试一次。
+1–5 正向。
+这是非常核心的：
+repair_willingness_remaining
+TEN-RP-02｜相信改变是否可能
+题目：
+即使 TA 说会改变，我现在也很难相信事情真的会不同。
+1–5 正向。
+信号：
+change_credibility_loss
+TEN-RP-03｜行为变化能不能恢复信任
+场景：
+如果 TA 不只是道歉，而是连续几个月真的改变了导致你受伤的行为，你觉得自己的信任：
+仍然几乎无法恢复。
+很难恢复。
+不确定。
+有可能逐渐恢复。
+如果改变长期稳定，我愿意重新评价这段关系。
+注意：
+5 分代表修复可能性更高。
+信号：
+trust_rebuildability
+TEN-RP-04｜双方是否都在修复
+题目：
+最近这段关系的修复，主要依靠我一个人在推动。
+1–5 正向。
+信号：
+one_sided_repair
+TEN-RP-05｜有没有新的解决方法
+题目：
+你们过去很多次“和好”，其实更像是不再提问题，而不是问题真的有了新的处理方式。
+1–5 正向。
+信号：
+pseudo_repair
+TEN-RP-06｜还愿不愿意理解 TA
+题目：
+即使我现在很失望，我仍然有兴趣理解：
+“TA 为什么会变成现在这样？”
+1–5 正向。
+信号：
+curiosity_about_partner_remaining
+这是修复潜力非常重要的指标。
+G｜关系紧张阶段专属现实判断题
+TEN-X-01｜留下的原因
+问题：
+如果现在问你：
+“为什么还没有结束这段关系？”
+最接近：
+A. 我仍然爱 TA。
+B. 我相信还有改善空间。
+C. 我舍不得过去投入的时间和感情。
+D. 现实原因让我很难离开。
+E. 我自己也说不清。
+记录：
+reason_for_staying
+不计分。
+TEN-X-02｜想到未来是什么感觉
+问题：
+想象你们一年以后仍然保持现在这种相处方式，你第一感觉更接近：
+安心。
+基本可以接受。
+不确定。
+会感到沉重。
+我很难接受未来继续这样。
+信号：
+status_quo_future_intolerance
+TEN-X-03｜如果问题真的解决
+问题：
+假设现在最困扰你们的几个问题都真的得到改善，你还会想继续这段关系吗？
+很确定不会。
+大概率不会。
+不确定。
+大概率会。
+很确定会。
+信号：
+desire_after_problem_resolution
+极其重要。
+它帮助区分：
+问题让我想离开
+和
+我已经不想继续，只是问题成为表面理由。
+TEN-X-04｜想念的是人还是过去
+问题：
+当你想念这段关系时，你更常想念：
+A. 现在的 TA。
+B. 以前的 TA 和以前的我们。
+五档双极。
+记录：
+present_partner_vs_past_relationship_attachment
+TEN-X-05｜责任和爱
+问题：
+如果没有共同财务、孩子、家庭责任或者已经投入很多年的现实因素，你觉得自己还会同样努力留在这段关系里吗？
+肯定不会。
+可能不会。
+不确定。
+大概率会。
+肯定会。
+信号：
+commitment_beyond_obligation
+TEN-X-06｜关系中的自己
+问题：
+和这段关系开始之前相比，你现在更喜欢自己在这段关系里的样子吗？
+非常不喜欢。
+比较不喜欢。
+没明显变化。
+比较喜欢。
+非常喜欢。
+信号：
+self_in_relationship_quality
+TEN-X-07｜尊重是否仍然存在
+问题：
+即使你们现在矛盾很多，我是否仍然基本尊重 TA 这个人？
+几乎没有。
+已经下降很多。
+一半一半。
+大部分仍然有。
+是的，即使失望，我仍然尊重 TA。
+信号：
+baseline_respect_remaining
+TEN-X-08｜是否还能想象共同未来
+问题：
+当你想到未来几年，我还能自然地把 TA 放进自己的生活图景里。
+1–5 正向。
+信号：
+shared_future_imagery
+TEN-X-09｜分开是否主要带来轻松感
+问题：
+想象“暂时完全不用处理这段关系一个月”，你第一感觉更接近：
+强烈想念。
+会有一点轻松，但更多是想念。
+两种都有。
+更多是一种轻松。
+光是想象暂时不用处理这段关系，就让我明显松一口气。
+信号：
+relief_from_relationship_load
+TEN-X-10｜关系是否还能产生好东西
+题目：
+即使现在关系很困难，我仍然能够想到一些“只有和 TA 在一起才会有”的真实快乐、理解或连接。
+1–5 正向。
+信号：
+positive_connection_remaining
+H｜统一动态追问题
+TEN-FU-01｜“问题解决后还想不想继续”
+触发：
+status_quo_future_intolerance 高
+问题：
+如果沟通方式、投入不平衡和重复争吵这些问题真的改善，你觉得自己对 TA 的感情会：
+仍然不会回来。
+可能还是很难恢复。
+不确定。
+很可能重新变得亲近。
+我觉得感情还在，主要是问题把它压住了。
+确认：
+love_buried_vs_love_gone
+TEN-FU-02｜信任损伤
+触发：
+change_credibility_loss 高
+问题：
+你现在最难相信的更接近：
+A. TA 说的话。
+B. TA 会长期改变。
+C. TA 真的理解问题严重性。
+D. 自己还能重新放松下来。
+E. 整段关系还能回到安全状态。
+记录：
+trust_damage_source
+TEN-FU-03｜沟通疲劳
+触发：
+communication_futility 高
+问题：
+如果 TA 这一次能够认真听完，不打断、不辩解，并且复述出你真正想表达的意思，你还愿意谈吗？
+完全不愿意。
+很可能还是不愿意。
+不确定。
+会愿意重新谈。
+是的，我真正累的是“说了没人懂”，不是完全不想沟通。
+区分：
+communication_exhaustion
+vs
+relationship_disengagement
+TEN-FU-04｜单方面维系
+触发：
+relationship_depends_on_one_partner 高
+问题：
+如果你停止主动一周，而 TA 开始主动安排见面、沟通和修复，你对这段关系的看法会改变多少？
+几乎不会。
+会有一点。
+一半。
+会明显改变。
+这会解决我现在很大一部分失望。
+确认：
+reciprocity_deficit
+TEN-FU-05｜想念过去
+触发：
+present_partner_vs_past_relationship_attachment 偏向过去
+问题：
+如果现在的 TA 永远不会变回你最怀念的那个样子，你还能不能接受和“现在这个人”继续建立关系？
+很难。
+可能比较难。
+不确定。
+大概率可以。
+可以，我并不是只依恋过去。
+信号：
+acceptance_of_present_partner
+TEN-FU-06｜尊重下降
+触发：
+baseline_respect_remaining 低
+问题：
+你对 TA 的尊重下降，主要来自：
+A. 说过太多伤人的话。
+B. 承诺反复落空。
+C. 价值观变化。
+D. 长期不承担责任。
+E. 其他长期积累。
+记录：
+respect_erosion_source
+TEN-FU-07｜情感撤离
+触发：
+relief_in_disconnection 高 + sharing_withdrawal 高
+问题：
+你减少分享和联系，更接近：
+A. 我在保护自己，内心仍然希望 TA 靠近。
+B. 我是真的越来越不需要 TA 参与我的生活。
+C. 两者都有。
+D. 我自己也分不清。
+记录：
+protective_withdrawal_vs_detachment
+TEN-FU-08｜修复潜力
+触发：
+repair_willingness_remaining 中高
+问题：
+如果双方只能选择先改变一件事，你最希望是什么？
+A. 沟通方式。
+B. 投入公平。
+C. 信任。
+D. 生活安排。
+E. 亲密和陪伴。
+F. 重复发生的某个具体问题。
+记录：
+highest_leverage_repair_target
+I｜核心关系状态模式
+模式 01｜暂时疲惫，但连接仍在
+条件：
+communication_futility 高
+但同时：
+repair_willingness_remaining 高
+baseline_respect_remaining 高
+positive_connection_remaining 高
+解释：
+你们可能已经很累，但关系里的核心连接还没有完全消失。
+真正的问题更像：
+双方现在使用的解决方式已经失效。
+模式 02｜“说了也没用”型关系疲劳
+条件：
+communication_futility 高
+pseudo_repair 高
+change_credibility_loss 高
+解释：
+你不是没有表达过。
+真正让你停止表达的，可能是：
+很多次表达以后，你没有看到稳定改变。
+模式 03｜单方面维护
+条件：
+relationship_depends_on_one_partner 高
+one_sided_repair 高
+解释：
+一个关系如果长期需要一个人负责联系、提醒、修复和重新靠近，
+最后累的往往不是“主动”本身，
+而是：
+不知道如果自己停下来，这段关系还会不会继续。
+模式 04｜保护性撤离
+条件：
+sharing_withdrawal 高
+relief_in_disconnection 高
+但：
+desire_after_problem_resolution 高
+解释：
+你减少靠近未必代表感情已经结束。
+它可能是一种：
+“我已经受伤太多，所以暂时把自己收回来。”
+模式 05｜情感脱离
+条件：
+sharing_withdrawal 高
+relief_in_disconnection 高
+desire_after_problem_resolution 低
+shared_future_imagery 低
+解释：
+你的变化可能已经不只是防御。
+你开始逐渐把自己的生活从这段关系中抽离。
+这类结果不要自动写：
+“应该分手。”
+只能描述：
+关系参与感正在明显下降。
+模式 06｜爱还在，但信任受损
+条件：
+positive_connection_remaining 高
+desire_after_problem_resolution 高
+change_credibility_loss 高
+解释：
+你可能仍然爱 TA。
+真正损坏的不是感情，而是：
+你不再相信事情真的会不同。
+模式 07｜只剩过去
+条件：
+present_partner_vs_past_relationship_attachment 强烈偏过去
+positive_connection_remaining 低
+解释：
+你现在舍不得的，可能越来越像：
+过去发生过的关系，而不是现在正在发生的关系。
+模式 08｜责任维系型
+条件：
+commitment_beyond_obligation 低
+现实共同责任高
+解释：
+维持关系的重要力量可能已经从亲密和期待，
+慢慢转向：
+责任、成本、家庭和过去投入。
+模式 09｜仍然有修复窗口
+条件：
+repair_willingness_remaining 高
+curiosity_about_partner_remaining 高
+baseline_respect_remaining 高
+trust_rebuildability 中高
+解释：
+即使关系现在很困难，双方仍然存在几个非常重要的修复基础：
+还愿意理解。
+还存在尊重。
+还相信行为改变可能带来不同结果。
+模式 10｜关系系统高度消耗
+条件：
+relationship_hypervigilance 高
+conflict_escalation_speed 高
+empathy_exhaustion 高
+relief_from_relationship_load 高
+解释：
+这段关系目前可能已经占用了大量心理资源。
+用户需要先识别：
+“我要解决的是一个具体矛盾，还是整个互动环境已经让我持续处于紧绷状态？”
+J｜关系状态报告，不应该给“分手概率”
+禁止：
+分手概率 82%。
+禁止：
+你们只剩 23% 感情。
+禁止：
+TA 已经不爱你。
+应该显示：
+当前关系状态
+例如：
+高疲劳 · 中等连接 · 修复意愿仍在
+或者：
+高失望 · 信任受损 · 共同未来感下降
+或者：
+沟通枯竭 · 连接仍在 · 需要新的修复方式
+K｜建议建立 5 个关系状态指标
+除了原本六维，再计算：
+1. Connection Remaining
+connection_remaining
+还有多少真实连接存在。
+来源：
+positive_connection_remaining
+shared_future_imagery
+current partner attachment
+desire after problem resolution
+2. Trust Stability
+trust_stability
+来源：
+change credibility
+goodwill suspicion
+reassurance effectiveness
+trust rebuildability
+3. Repair Capacity
+repair_capacity
+来源：
+repair willingness
+curiosity remaining
+respect remaining
+pseudo repair
+one-sided repair
+4. Relationship Exhaustion
+relationship_exhaustion
+来源：
+communication futility
+empathy exhaustion
+conflict exhaustion
+relief in disconnection
+5. Mutuality
+mutuality
+来源：
+relationship depends on one partner
+one-sided repair
+investment balance
+reciprocity signals
+这五个指标比：
+“你们适不适合。”
+有价值得多。
+L｜报告语言示例
+示例 01
+你现在最明显的问题，可能不是没有感情，而是你越来越不相信“再谈一次”会产生不同结果。
+你的回答里仍然保留了对这段关系的连接和修复意愿，但“相信改变”的部分已经明显下降。
+这意味着下一步真正需要观察的，不是谁再道一次歉，而是：
+有没有稳定、持续、能被你看到的行为变化。
+示例 02
+你正在减少分享，但这不一定等于你已经不在乎。
+从你的回答来看，你的撤离更像一种保护：
+“如果我少投入一点，我也许就不会再失望这么多。”
+真正值得观察的是：
+当对方开始稳定地靠近、倾听和改变时，你是否仍然愿意重新打开自己。
+示例 03
+你们可能已经陷入“问题 → 争吵 → 和好 → 原样恢复 → 再次争吵”的循环。
+这种关系不是完全不会修复。
+问题恰恰是：
+修复停留在情绪层面，没有进入行为层面。
+M｜安全风险独立筛查层
+这是这套题库和前面所有题库最大的区别。
+在关系紧张模式下，应另外增加一个非常短的安全筛查。
+这些题：
+不进入关系匹配分。
+例如：
+TA 是否曾通过恐吓、威胁或伤害让你害怕表达不同意见？
+TA 是否会阻止你正常联系朋友、家人或工作？
+TA 是否会未经你同意长期查看手机、定位、账号或资金？
+TA 是否曾强迫你进行你明确不同意的性行为或身体接触？
+你是否曾因为担心 TA 的反应，而改变自己的正常行为以避免被伤害？
+如果触发高风险：
+不要继续显示：
+“建议你们多沟通。”
+系统应该切换到：
+安全优先模式
+文案：
+你的回答中出现了一些可能超出普通沟通矛盾范围的情况。
+在涉及恐吓、暴力、强迫、持续控制或人身安全风险时，重点不应该只是提高“默契”。
+优先考虑你的现实安全，并向可信赖的人或当地专业支持资源寻求帮助。
+禁止：
+用“默契分”淡化这部分。
+N｜新增程序标签
+relationship_security_decline
+reassurance_no_longer_restores_security
+emotional_neglect_perception
+relationship_depends_on_one_partner
+care_no_longer_lands
+communication_futility
+self_explanation_withdrawal
+complaint_to_character_attack
+topic_avoidance_due_to_conflict
+functional_communication_only
+space_vs_emotional_exit
+relief_in_disconnection
+life_without_partner_imagining
+sharing_withdrawal
+active_connection_withdrawal
+negative_interpretation_bias
+goodwill_suspicion
+empathy_exhaustion
+negative_memory_dominance
+relationship_hypervigilance
+recurring_conflict_cycle
+conflict_escalation_speed
+unresolved_history_intrusion
+pause_lost_credibility
+conflict_resolution_exhaustion
+repair_willingness_remaining
+change_credibility_loss
+trust_rebuildability
+one_sided_repair
+pseudo_repair
+curiosity_about_partner_remaining
+reason_for_staying
+status_quo_future_intolerance
+desire_after_problem_resolution
+present_partner_vs_past_relationship_attachment
+commitment_beyond_obligation
+self_in_relationship_quality
+baseline_respect_remaining
+shared_future_imagery
+relief_from_relationship_load
+positive_connection_remaining
+love_buried_vs_love_gone
+trust_damage_source
+communication_exhaustion
+relationship_disengagement
+reciprocity_deficit
+acceptance_of_present_partner
+respect_erosion_source
+protective_withdrawal_vs_detachment
+highest_leverage_repair_target
+O｜这一阶段最核心的一句话
+《默契研究所》在这个模式下不应该告诉用户：
+“你们应该继续。”
+也不应该告诉用户：
+“你们应该结束。”
+真正应该回答的是：
+“现在这段关系里，究竟还有什么在连接你们，什么正在持续消耗你们，以及修复需要满足什么条件才有意义。”
+这才是这个阶段完整报告真正值得付费的地方。
+P｜下一项
+现在已经完成：
+异地恋
+长期伴侣 / 已婚
+关系紧张 / 正在考虑是否继续
+下一块是：
+4. 朋友关系题库
+朋友关系必须重新设计，不能把情侣问题简单替换成“朋友”。
+它应该重点测：
+主动联系是否平衡
+长时间不联系的容忍度
+情绪支持
+倾诉边界
+秘密与信任
+被其他朋友替代感
+嫉妒
+价值观变化
+成年以后生活阶段不同
+金钱借贷
+帮忙边界
+友情中的占有感
+冲突后谁主动
+朋友之间需要多少解释
+“老朋友”是否还能适应彼此变化
+友情变淡究竟是距离还是关系真的变化
