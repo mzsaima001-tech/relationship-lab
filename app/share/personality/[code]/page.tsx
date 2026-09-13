@@ -505,15 +505,6 @@ export default function PersonalitySharePosterPage() {
     setPosterRenderKey(k => k + 1);
   };
 
-  // —— 新版：SharePosterActions 需要 ——
-  const renderPosterAction = useCallback(
-    async (canvas: HTMLCanvasElement) => {
-      if (!data || !qrDataUrl) throw new Error("海报数据未就绪");
-      await renderPoster(canvas, data, qrDataUrl);
-    },
-    [data, qrDataUrl]
-  );
-
   const defaultCaption =
     copy.hook.join("") +
     "\n" +
@@ -590,12 +581,8 @@ export default function PersonalitySharePosterPage() {
           </div>
         )}
 
-        {/* ===== 操作区（新版：分享好友 / 朋友圈 / 保存图片） ===== */}
-        <SharePosterActions
-          renderPoster={renderPosterAction}
-          defaultCaption={defaultCaption}
-          fileName={`默契研究所-性格面-${code.slice(0, 6)}.png`}
-        />
+        {/* ===== 操作区（V3：长按提示条 + 复制文案） ===== */}
+        <SharePosterActions defaultCaption={defaultCaption} />
 
         <div className="text-center mt-5">
           <Link

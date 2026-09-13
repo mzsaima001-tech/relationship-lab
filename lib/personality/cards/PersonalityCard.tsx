@@ -35,7 +35,21 @@ interface PersonalityCardProps {
   className?: string;
   /** 是否显示匹配度角标（仅 primary/secondary/hidden 标签） */
   label?: "primary" | "secondary" | "hidden";
+  /** 配色主题：light 浅色信纸（默认）/ dark 深色夜空（性格测试报告页用） */
+  theme?: "light" | "dark";
 }
+
+/** 深色主题调色板：背景统一深棕黑（与 night-sky 一致），accent 提亮保证深底下可读 */
+const DARK_PALETTE: Record<string, { accent: string; ink: string }> = {
+  水: { accent: "#8FC3E0", ink: "#E9F2F9" },
+  火: { accent: "#F09A6D", ink: "#FCE9DE" },
+  风: { accent: "#93CFA9", ink: "#E9F6EE" },
+  光: { accent: "#E3BC63", ink: "#FBF3DE" },
+  土: { accent: "#CCA87E", ink: "#F5ECDD" },
+  曜: { accent: "#DE9393", ink: "#F9E9E9" },
+};
+const DARK_BG = "#2a2215";
+const DARK_BG_EDGE = "#151009";
 
 const SIZE_MAP: Record<CardSize, { card: string; totem: number; moon: number; name: string; pad: string; element: number; indexFont: string; ornamentSize: number }> = {
   sm: { card: "w-56",    totem: 76,  moon: 28, name: "text-lg",     pad: "pt-12 pb-5 px-5", element: 12, indexFont: "text-[10px]", ornamentSize: 90 },
@@ -52,6 +66,7 @@ export function PersonalityCard({
   showDiff = true,
   className = "",
   label,
+  theme = "light",
 }: PersonalityCardProps) {
   const dims = SIZE_MAP[size];
   const vectorsAll = ARCHETYPE_VECTORS as unknown as Record<PersonalityType, typeof ARCHETYPE_VECTORS[keyof typeof ARCHETYPE_VECTORS]>;
@@ -78,12 +93,39 @@ export function PersonalityCard({
     : `${toCnNum(monthNum(type))}`;
 
   // 过渡型主色用后端元素
-  const accentColor = isHybrid ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].accent : palette.accent;
-  const inkColor = isHybrid ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].ink : palette.ink;
-  const sideAccent = isHybrid ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].sideAccent : palette.sideAccent;
-  const sideAccentLeft = isHybrid ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].sideAccentLeft : palette.sideAccentLeft;
-  const bg = isHybrid ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].bg : palette.bg;
-  const bgEdge = isHybrid ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].bgEdge : palette.bgEdge;
+  const dark = theme === "dark";
+  const elementKey = isHybrid ? HYBRID_GRADIENT[type][1] : TOTEM_ELEMENT_KEY[type];
+  const darkPalette = DARK_PALETTE[elementKey];
+  const accentColor = dark
+    ? darkPalette.accent
+    : isHybrid
+      ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].accent
+      : palette.accent;
+  const inkColor = dark
+    ? darkPalette.ink
+    : isHybrid
+      ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].ink
+      : palette.ink;
+  const sideAccent = dark
+    ? darkPalette.accent
+    : isHybrid
+      ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].sideAccent
+      : palette.sideAccent;
+  const sideAccentLeft = dark
+    ? darkPalette.accent
+    : isHybrid
+      ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].sideAccentLeft
+      : palette.sideAccentLeft;
+  const bg = dark
+    ? DARK_BG
+    : isHybrid
+      ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].bg
+      : palette.bg;
+  const bgEdge = dark
+    ? DARK_BG_EDGE
+    : isHybrid
+      ? ELEMENT_PALETTE[HYBRID_GRADIENT[type][1]].bgEdge
+      : palette.bgEdge;
 
   // 径向渐变背景
   const cardStyle: React.CSSProperties = {
@@ -129,7 +171,7 @@ export function PersonalityCard({
         <div
           className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full text-[10px] font-mono z-10 backdrop-blur-sm"
           style={{
-            background: "rgba(255,255,255,0.5)",
+            background: dark ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.5)",
             color: inkColor,
             border: `0.5px solid ${accentColor}50`,
           }}
@@ -177,10 +219,10 @@ export function PersonalityCard({
         </p>
       </div>
 
-      {/* 意象副标 — 一行小字，纯中文（被卡片浅色背景下的细边框包住，呼应截图） */}
+      {/* 意象副标 — 一行小字，纯中文（被细边框包住） */}
       <div className="w-full mt-auto pt-2 pb-1 px-2 rounded-md" style={{
         border: `0.5px solid ${accentColor}35`,
-        background: "rgba(255,255,255,0.25)",
+        background: dark ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.25)",
         backdropFilter: "blur(2px)",
       }}>
         <div className="flex items-center justify-center gap-2">

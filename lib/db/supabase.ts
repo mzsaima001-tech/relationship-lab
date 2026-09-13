@@ -501,6 +501,22 @@ export async function getPairByInvite(inviteId: string): Promise<PairRecord | nu
   return (data as PairRecord | null) ?? null;
 }
 
+/**
+ * 反查：根据 session id 找到它所在的 pair（无论 A / B）。
+ * 让被分享人（B）的结果页也能拿到 pairId 进入契合画像。
+ */
+export async function getPairBySession(sessionId: string): Promise<PairRecord | null> {
+  const { data, error } = await getClient()
+    .from(TABLE.pairs)
+    .select("*")
+    .or(`session_a.eq.${sessionId},session_b.eq.${sessionId}`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`[db.supabase] getPairBySession: ${error.message}`);
+  return (data as PairRecord | null) ?? null;
+}
+
 export async function updatePair(id: string, updates: Partial<PairRecord>): Promise<void> {
   const { error } = await getClient().from(TABLE.pairs).update(updates).eq("id", id);
   if (error) throw new Error(`[db.supabase] updatePair: ${error.message}`);

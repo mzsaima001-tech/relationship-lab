@@ -215,29 +215,33 @@ export default function PersonalityResult() {
 
   return (
     <main className="flex-1 px-5 py-8 sm:px-6 sm:py-10 max-w-2xl mx-auto w-full safe-bottom paper-bg">
-      <PersonalityCard
-        type={data.types.primary.type as Parameters<typeof PersonalityCard>[0]["type"]}
-        userScores={data.scores as Record<string, number>}
-        matchScore={matchPct}
-        size="md"
-        label="primary"
-        className="mx-auto mb-8"
-      />
+      {/* 顶部深色区：原型卡 + 核心人格（深色系，与主站 night-sky 一致） */}
+      <div className="panel-dark px-4 py-8 sm:px-6 mb-10 fade-in-up">
+        <PersonalityCard
+          type={data.types.primary.type as Parameters<typeof PersonalityCard>[0]["type"]}
+          userScores={data.scores as Record<string, number>}
+          matchScore={matchPct}
+          size="md"
+          label="primary"
+          theme="dark"
+          className="mx-auto mb-8"
+        />
 
-      {/* 顶部：核心人格（保留原型名+tagline 文字） */}
-      <div className="text-center mb-10 sm:mb-12 fade-in-up">
-        <p className="archive-label mb-3" style={{ color: "var(--accent-bright)" }}>你的核心人格</p>
-        <p className="text-xs mb-2" style={{ color: "var(--ink-light)" }}>人格模型匹配度 {matchPct}%</p>
-        <h1 className="display-serif text-3xl sm:text-4xl md:text-5xl font-bold mb-3" style={{ color: "var(--accent-bright)", textShadow: "0 0 12px rgba(240, 200, 99, 0.25)" }}>
-          {primaryCn}
-        </h1>
-        <p className="display-serif text-base md:text-lg leading-relaxed max-w-md mx-auto" style={{ color: "var(--ink)" }}>
-          「{data.freeReport.primaryTagline}」
-        </p>
+        {/* 核心人格（保留原型名+tagline 文字） */}
+        <div className="text-center">
+          <p className="archive-label mb-3" style={{ color: "var(--accent-bright)" }}>你的核心人格</p>
+          <p className="text-xs mb-2" style={{ color: "#b8ac96" }}>人格模型匹配度 {matchPct}%</p>
+          <h1 className="display-serif text-3xl sm:text-4xl md:text-5xl font-bold mb-3" style={{ color: "var(--accent-bright)", textShadow: "0 0 12px rgba(240, 200, 99, 0.25)" }}>
+            {primaryCn}
+          </h1>
+          <p className="display-serif text-base md:text-lg leading-relaxed max-w-md mx-auto" style={{ color: "#e8e0d4" }}>
+            「{data.freeReport.primaryTagline}」
+          </p>
+        </div>
       </div>
 
-      {/* 人格 DNA 雷达图 */}
-      <div className="paper-section p-6 mb-10 fade-in-up" style={{ animationDelay: "0.15s" }}>
+      {/* 人格 DNA 雷达图（深色面板：雷达图本身就是深底配色设计） */}
+      <div className="panel-dark p-6 mb-10 fade-in-up" style={{ animationDelay: "0.15s" }}>
         <p className="archive-label mb-4" style={{ color: "var(--accent-bright)" }}>你的性格 DNA</p>
         <div className="flex justify-center mb-5">
           <RadarChart scores={data.scores} size={280} />
@@ -247,7 +251,7 @@ export default function PersonalityResult() {
               const meta = PERSONALITY_DIMENSION_META[key as keyof typeof PERSONALITY_DIMENSION_META];
               return (
                 <div key={key}>
-                  <p className="text-xs" style={{ color: "var(--ink-light)" }}>{meta.cn}</p>
+                  <p className="text-xs" style={{ color: "#b8ac96" }}>{meta.cn}</p>
                   <p className="font-mono font-semibold text-base" style={{ color: "var(--accent-bright)" }}>{score}</p>
                 </div>
               );

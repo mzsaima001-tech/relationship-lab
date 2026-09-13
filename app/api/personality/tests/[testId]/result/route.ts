@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { matchArchetypes } from "@/lib/personality/archetypes";
 import { buildFreeReport, buildFullReport } from "@/lib/personality/report";
 import { getPersonalityTest } from "@/lib/db";

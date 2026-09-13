@@ -7,12 +7,36 @@ import { StarMap, CompassDial, OrnamentDivider } from "../components/decor";
 
 const STORAGE_KEY = "personalityVisitorId";
 
+function makeVisitorId(): string {
+  // 兼容老 webview：在 HTTP 非 secure context 下，window.crypto.randomUUID() 可能不可用
+  // （如微信内置浏览器访问局域网 HTTP IP 时）
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return `v_${crypto.randomUUID()}`;
+    }
+  } catch {
+    /* 某些 webview 访问 crypto.randomUUID 会抛 SecurityError，吞掉走 fallback */
+  }
+  // fallback：时间戳 + 随机数，足够区分访客即可（不是密码学场景）
+  return `v_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function getOrCreateVisitorId(): string {
   if (typeof window === "undefined") return "";
-  let id = localStorage.getItem(STORAGE_KEY);
+  let id: string | null = null;
+  try {
+    id = localStorage.getItem(STORAGE_KEY);
+  } catch {
+    /* 隐私模式禁用 localStorage 时直接返回临时 ID，不持久化 */
+    return makeVisitorId();
+  }
   if (!id) {
-    id = `v_${crypto.randomUUID()}`;
-    localStorage.setItem(STORAGE_KEY, id);
+    id = makeVisitorId();
+    try {
+      localStorage.setItem(STORAGE_KEY, id);
+    } catch {
+      /* 写入失败也忽略，下次会重新生成 */
+    }
   }
   return id;
 }

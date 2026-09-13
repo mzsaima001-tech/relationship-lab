@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { OrnamentDivider, StarMap } from "@/app/components/decor";
 import { SafeLink } from "@/app/components/SafeLink";
@@ -26,6 +26,7 @@ function isInWechat(): boolean {
 
 export default function PayPage() {
   const params = useParams<{ sessionId: string }>();
+  const router = useRouter();
   const sessionId = params.sessionId;
 
   const [info, setInfo] = useState<PayInfo | null>(null);
@@ -66,7 +67,8 @@ export default function PayPage() {
       const res = await fetch(`/api/payments/${info.payment.id}/confirm`, { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "确认失败");
-      window.location.href = `/result/${sessionId}`;
+      // 软跳转回结果页：避免微信内整页硬跳重新触发拦截提示；结果页会重新拉取最新解锁状态
+      router.push(`/result/${sessionId}`);
     } catch (err: any) {
       setError(err.message || "确认失败");
       setConfirming(false);
@@ -79,7 +81,8 @@ export default function PayPage() {
       const res = await fetch(`/api/credits/${sessionId}/unlock`, { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "解锁失败");
-      window.location.href = `/result/${sessionId}`;
+      // 软跳转回结果页（同上）
+      router.push(`/result/${sessionId}`);
     } catch (err: any) {
       setError(err.message || "解锁失败");
       setConfirming(false);
@@ -229,47 +232,29 @@ export default function PayPage() {
                 )}
               </div>
             ) : (
-              /* 网关未在线：开发态扫码支付（但同样在微信里会被拦截"未备案"） */
+              /* 网关未在线：开发态扫码支付（微信内外统一展示收款码，长按识别） */
               <div className="card p-5 sm:p-6 text-center">
                 <p className="archive-label mb-4">扫码付款</p>
+                <div className="inline-block rounded-xl bg-white p-3 shadow-lg">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={PAYMENT_CONFIG.aggregateQr}
+                    alt="收款码"
+                    className="w-52 h-52 object-contain"
+                    style={{ WebkitTouchCallout: "default" }}
+                  />
+                </div>
+                <p className="text-sm text-[var(--text-warm)] mt-4">
+                  请支付 <span className="text-[var(--accent)] font-medium">¥{payable.toFixed(1)}</span>
+                </p>
                 {inWechat ? (
-                  <>
-                    <div className="text-sm text-[var(--text-warm)] mb-4 leading-relaxed">
-                      检测到你在微信中打开，微信内不能识别收款码。
-                    </div>
-                    <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
-                      请<span className="text-[var(--accent-bright)]">截图本页面</span>或<span className="text-[var(--accent-bright)]">复制下方链接到浏览器</span>打开后再扫码付款。
-                    </p>
-                    <button
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(window.location.href);
-                          setError("✓ 页面链接已复制，到浏览器粘贴打开");
-                          setTimeout(() => setError(""), 3000);
-                        } catch {}
-                      }}
-                      className="btn-ghost w-full"
-                    >
-                      📋 复制页面链接
-                    </button>
-                  </>
+                  <p className="text-sm text-[var(--accent-bright)] mt-2 font-medium leading-relaxed">
+                    长按二维码即可扫一扫付款
+                  </p>
                 ) : (
-                  <>
-                    <div className="inline-block rounded-xl bg-white p-3 shadow-lg">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={PAYMENT_CONFIG.aggregateQr}
-                        alt="收款码"
-                        className="w-52 h-52 object-contain"
-                      />
-                    </div>
-                    <p className="text-sm text-[var(--text-warm)] mt-4">
-                      请支付 <span className="text-[var(--accent)] font-medium">¥{payable.toFixed(1)}</span>
-                    </p>
-                    <p className="text-xs text-[var(--text-muted)] mt-1">
-                      {PAYMENT_CONFIG.channels} · 长按或截图扫码支付
-                    </p>
-                  </>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                    {PAYMENT_CONFIG.channels} · 长按或截图扫码支付
+                  </p>
                 )}
                 <p className="text-xs text-[var(--text-muted)] mt-3">
                   订单号 {info.payment.id.slice(0, 8).toUpperCase()}

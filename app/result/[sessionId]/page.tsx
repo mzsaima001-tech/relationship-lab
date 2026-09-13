@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import QRCode from "qrcode";
@@ -84,6 +84,9 @@ interface ResultData {
     shares: number;
     report_unlocked: boolean;
   };
+  /** 当前 session 是否已在某个 pair 里（A = 发起方，B = 被分享人） */
+  pairId?: string | null;
+  pairRole?: "a" | "b" | null;
 }
 
 // ---------- 小组件 ----------
@@ -151,9 +154,9 @@ export default function ResultPage() {
   const [inviteUrl, setInviteUrl] = useState("");
   const [inviteQr, setInviteQr] = useState("");
   const [pairId, setPairId] = useState("");
+  const [pairRole, setPairRole] = useState<"a" | "b" | null>(null);
   const [creatingInvite, setCreatingInvite] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [sharing, setSharing] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
 
   // 自动重试包装
@@ -179,6 +182,9 @@ export default function ResultPage() {
     setRetryCount(c => c + 1);
   };
 
+  // 报告未就绪时的原地轮询计数（防止"没答完就直接访问结果页"时无限等：40 次 ≈ 2 分钟后才回答题页）
+  const waitPollsRef = useRef(0);
+
   useEffect(() => {
     let mounted = true;
     async function fetchResult() {
@@ -187,16 +193,36 @@ export default function ResultPage() {
         const json = await res.json();
         if (!res.ok) {
           if (json.status === "started") {
-            router.push(`/test/${sessionId}`);
-            return;
+            // 报告仍在生成：停在分析等待页继续轮询，绝不弹回答题页（避免来回弹跳死循环）
+            if (mounted) {
+              waitPollsRef.current += 1;
+              if (waitPollsRef.current >= 40) {
+                router.push(`/test/${sessionId}`);
+              } else {
+                setTimeout(() => {
+                  if (mounted) setRetryCount((c) => c + 1);
+                }, 3000);
+              }
+            }
+            return; // 保持 loading 状态，继续显示分析等待页
           }
           throw new Error(json.error || `加载失败 (HTTP ${res.status})`);
         }
-        if (mounted) setData(json);
+        if (mounted) {
+          waitPollsRef.current = 0;
+          // 反查 pair（让被分享人 B 也能在结果页直接看到契合画像入口）
+          if (json.pairId) {
+            setPairId(json.pairId);
+            setPairRole(json.pairRole ?? null);
+          }
+          setData(json);
+          setLoading(false);
+        }
       } catch (err: any) {
-        if (mounted) setError(err.message || "加载失败，请重试");
-      } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setError(err.message || "加载失败，请重试");
+          setLoading(false);
+        }
       }
     }
     fetchResult();
@@ -216,6 +242,8 @@ export default function ResultPage() {
       const url = `${window.location.origin}${json.url}`;
       setInviteUrl(url);
       setPairId(json.pairId);
+      // 当前 session 在 pair 里是发起方（A）
+      setPairRole("a");
       // 同步生成双人邀请二维码，TA 扫码直达
       const qr = await QRCode.toDataURL(url, {
         width: 400,
@@ -237,15 +265,7 @@ export default function ResultPage() {
   };
 
   // 跳转海报页（有效分享 = 好友通过海报完成测评后才计 1 人，由后端归因，此处不再记分）
-  const handleShareReward = () => {
-    setSharing(true);
-    // 用 location.href 而不是 router.push：避免点击后页面卡在跳转中间态
-    try {
-      window.location.href = `/share/${sessionId}`;
-    } catch {
-      router.push(`/share/${sessionId}`);
-    }
-  };
+  // 用 SafeLink 软跳转：避免微信内整页硬跳重新触发拦截提示
 
   const handleUnlock = async () => {
     setUnlocking(true);
@@ -652,60 +672,92 @@ export default function ResultPage() {
       {/* ===== 邀请另一半（双人默契，解锁后可见） ===== */}
       {reportUnlocked && (
         <div className="card p-4 sm:p-6 mb-8 sm:mb-10 fade-in-up" style={{ animationDelay: "0.33s" }}>
-          {!inviteUrl ? (
-            <div className="text-center">
-              <p className="archive-label mb-3">Pair · 双人默契</p>
-              <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-3">
-                想看看你们俩的关系组合？
-              </h3>
+          <div className="text-center">
+            <p className="archive-label mb-3">Pair · 双人默契</p>
+            <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-3">
+              想看看你们俩的关系组合？
+            </h3>
+
+            {/* 被分享人（B）专属文案：发起方是 TA 的同伴 */}
+            {pairRole === "b" ? (
+              <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
+                TA 已经完成测评并邀请了你。你们可以一起查看双人关系分析。
+                <br />
+                <span className="text-xs">（这是双人模式，和下面的朋友分享海报是两回事）</span>
+              </p>
+            ) : (
               <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
                 生成一个邀请链接发给TA。TA独立完成测试后，你们就能看到双人关系分析。
                 <br />
                 <span className="text-xs">（这是双人模式，和下面的朋友分享海报是两回事）</span>
               </p>
-              <button onClick={handleCreateInvite} className="btn-primary w-full sm:w-auto" disabled={creatingInvite}>
-                {creatingInvite ? "生成中..." : "生成邀请链接 →"}
-              </button>
-            </div>
-          ) : (
-            <div className="text-center">
-              <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-3">邀请链接已生成</h3>
-              <p className="text-sm text-[var(--text-muted)] mb-4">把这个链接发给TA：</p>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
-                <input
-                  type="text"
-                  readOnly
-                  value={inviteUrl}
-                  className="input-field text-sm"
-                  onClick={(e) => (e.target as HTMLInputElement).select()}
-                />
-                <button onClick={handleCopy} className="btn-ghost whitespace-nowrap">
-                  {copied ? "已复制" : "复制"}
-                </button>
-              </div>
-              {/* 双人邀请二维码：TA 扫码直达 */}
-              {inviteQr && (
-                <div className="flex flex-col items-center mb-5">
-                  <div className="bg-[#f5ede0] p-2.5 rounded-sm">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={inviteQr} alt="双人邀请二维码" className="w-32 h-32 block" />
-                  </div>
-                  <p className="text-[11px] text-[var(--text-muted)] mt-2.5">
-                    或直接让 TA 扫码进入
-                  </p>
+            )}
+
+            {/* 三种状态分支：
+                  1. inviteUrl 存在（已生成邀请链接）：展示链接 + 二维码 + 底部「查看契合画像」按钮
+                  2. inviteUrl 不存在 + pairRole !== "b"（A 未生成过邀请）：展示「生成邀请链接」+「查看契合画像」按钮
+                  3. inviteUrl 不存在 + pairRole === "b"（B 被分享人）：只展示「查看契合画像」按钮 */}
+            {inviteUrl ? (
+              <>
+                <p className="text-sm text-[var(--text-warm)] mb-4">邀请链接已生成，把这个链接发给 TA：</p>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+                  <input
+                    type="text"
+                    readOnly
+                    value={inviteUrl}
+                    className="input-field text-sm"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <button onClick={handleCopy} className="btn-ghost whitespace-nowrap">
+                    {copied ? "已复制" : "复制"}
+                  </button>
                 </div>
-              )}
-              <p className="text-xs text-[var(--text-muted)] mb-5">TA 完成后，你们可以在契合画像页查看结果。</p>
-              {pairId && (
-                <SafeLink
-                  href={`/pair/${pairId}`}
-                  className="btn-view-pair w-full sm:w-auto"
-                >
-                  ✦ 查看我们的契合画像 →
-                </SafeLink>
-              )}
-            </div>
-          )}
+                {inviteQr && (
+                  <div className="flex flex-col items-center mb-5">
+                    <div className="bg-[#f5ede0] p-2.5 rounded-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={inviteQr} alt="双人邀请二维码" className="w-32 h-32 block" />
+                    </div>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-2.5">
+                      或直接让 TA 扫码进入
+                    </p>
+                  </div>
+                )}
+                <p className="text-xs text-[var(--text-muted)] mb-5">
+                  TA 完成后，你们可以在契合画像页查看结果。
+                </p>
+                {pairId && (
+                  <SafeLink href={`/pair/${pairId}`} className="btn-view-pair w-full sm:w-auto">
+                    ✦ 查看我们的契合画像 →
+                  </SafeLink>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                {/* 仅 A 显示「生成邀请链接」按钮 */}
+                {pairRole !== "b" && (
+                  <button
+                    onClick={handleCreateInvite}
+                    className="btn-primary w-full sm:w-auto"
+                    disabled={creatingInvite}
+                  >
+                    {creatingInvite ? "生成中..." : "生成邀请链接 →"}
+                  </button>
+                )}
+                {/* 「查看我们的契合画像」按钮：pairId 存在时对 A 和 B 都可点
+                    （A 可能还没生成邀请但已有 pair；B 完成测试后自动获得 pair） */}
+                {pairId ? (
+                  <SafeLink href={`/pair/${pairId}`} className="btn-view-pair w-full sm:w-auto">
+                    ✦ 查看我们的契合画像 →
+                  </SafeLink>
+                ) : pairRole !== "b" ? (
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    对方完成后，这里会出现「查看契合画像」
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -771,9 +823,9 @@ export default function ResultPage() {
                 </button>
               ) : (
                 <>
-                  <button onClick={handleShareReward} className="btn-primary w-full">
+                  <SafeLink href={`/share/${sessionId}`} className="btn-primary w-full">
                     {`分享我的海报（还差 ${SHARES_NEEDED - sharesDone} 人）→`}
-                  </button>
+                  </SafeLink>
                   <p className="text-[11px] text-[var(--text-muted)] text-center mt-2.5 leading-relaxed">
                     每 1 位朋友完成测评，进度 +1 · 海报已备好，点一下就能发
                   </p>

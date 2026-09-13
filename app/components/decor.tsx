@@ -1,8 +1,19 @@
+"use client";
+
 // =====================================================
 // 默契研究所 — SVG 装饰层组件
 // 罗盘刻度 / 星图连线 / 信纸边框 / 分隔花纹 / 塔罗牌卡
-// 纯展示组件，无状态，可在服务端或客户端使用
 // =====================================================
+
+import { useEffect, useState } from "react";
+
+// 客户端 mount guard：避免 Math.PI / 浮点运算在 SSR 与客户端产生
+// hydration mismatch（iOS Safari / WeChat WebView 等严格环境下会触发 error boundary → OOPS 页面）。
+function useMounted() {
+  const [m, setM] = useState(false);
+  useEffect(() => setM(true), []);
+  return m;
+}
 
 /** 罗盘刻度盘（可缓慢自转） */
 export function CompassDial({
@@ -16,21 +27,28 @@ export function CompassDial({
   spin?: boolean;
   opacity?: number;
 }) {
-  const ticks = Array.from({ length: 72 }, (_, i) => {
-    const angle = (i * 5 * Math.PI) / 180;
-    const major = i % 6 === 0; // 每 30° 一根长刻度
-    const r1 = major ? 78 : 84;
-    const x1 = 100 + r1 * Math.sin(angle);
-    const y1 = 100 - r1 * Math.cos(angle);
-    const x2 = 100 + 90 * Math.sin(angle);
-    const y2 = 100 - 90 * Math.cos(angle);
-    return { x1, y1, x2, y2, major };
-  });
-  const points = Array.from({ length: 8 }, (_, i) => {
-    const angle = (i * 45 * Math.PI) / 180;
-    const r = i % 2 === 0 ? 62 : 40;
-    return { x: 100 + r * Math.sin(angle), y: 100 - r * Math.cos(angle), main: i % 2 === 0 };
-  });
+  const mounted = useMounted();
+  const ticks = mounted
+    ? Array.from({ length: 72 }, (_, i) => {
+        const angle = (i * 5 * Math.PI) / 180;
+        const major = i % 6 === 0; // 每 30° 一根长刻度
+        const r1 = major ? 78 : 84;
+        const x1 = 100 + r1 * Math.sin(angle);
+        const y1 = 100 - r1 * Math.cos(angle);
+        const x2 = 100 + 90 * Math.sin(angle);
+        const y2 = 100 - 90 * Math.cos(angle);
+        return { x1, y1, x2, y2, major };
+      })
+    : [];
+  const points = mounted
+    ? Array.from({ length: 8 }, (_, i) => {
+        const angle = (i * 45 * Math.PI) / 180;
+        const r = i % 2 === 0 ? 62 : 40;
+        return { x: 100 + r * Math.sin(angle), y: 100 - r * Math.cos(angle), main: i % 2 === 0 };
+      })
+    : [];
+  // SSR 阶段（mounted=false）渲染一个保持布局的空 svg，避免 hydration mismatch
+  // 又不影响视觉；客户端 mount 后再填充真实的刻度。
   return (
     <svg
       viewBox="0 0 200 200"

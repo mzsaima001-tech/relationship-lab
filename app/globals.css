@@ -307,11 +307,11 @@ body { overflow-x: hidden; }
   color: var(--text-warm);
 }
 
-/* 查看契合画像 —— 深色实心按钮，颜色反差最强 */
+/* 查看契合画像 —— 亮金实心渐变按钮，暗色页面最强反差 */
 .btn-view-pair {
-  background: #0a0a0a;
-  color: #fcf6e2;
-  border: 1.5px solid var(--accent);
+  background: linear-gradient(135deg, #f7dc9a 0%, #eec36a 55%, #dfa844 100%);
+  color: #241502;
+  border: none;
   padding: 14px 28px;
   border-radius: 8px;
   font-weight: 700;
@@ -326,17 +326,17 @@ body { overflow-x: hidden; }
   min-height: 52px;
   -webkit-user-select: none;
   user-select: none;
-  box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.25);
+  box-shadow: 0 0 18px rgba(238, 195, 106, 0.45), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 .btn-view-pair:hover {
-  background: #1a1a1a;
-  border-color: #f5d99a;
-  box-shadow: 0 0 0 4px rgba(201, 169, 110, 0.18);
+  background: linear-gradient(135deg, #fbe3ab 0%, #f3cd7d 55%, #e6b253 100%);
+  box-shadow: 0 0 26px rgba(238, 195, 106, 0.65), 0 3px 8px rgba(0, 0, 0, 0.4);
   transform: translateY(-1px);
 }
 .btn-view-pair:active {
-  background: #050505;
+  background: linear-gradient(135deg, #eecf85 0%, #e2b453 55%, #d29a35 100%);
   transform: translateY(0);
+  box-shadow: 0 0 12px rgba(238, 195, 106, 0.4), 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 /* Card */
@@ -344,6 +344,16 @@ body { overflow-x: hidden; }
   background: rgba(255,255,255,0.02);
   border: 1px solid var(--border-dim);
   border-radius: 8px;
+}
+
+/* 深色面板 —— 浅色页中的深色重点区块（如性格测试报告的原型卡区 / 性格DNA），与 night-sky 主色一致 */
+.panel-dark {
+  background: linear-gradient(180deg, #1b1712 0%, #131009 100%);
+  border: 1px solid rgba(201, 169, 110, 0.28);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 40px rgba(201, 169, 110, 0.05),
+    0 4px 18px rgba(0, 0, 0, 0.25);
 }
 
 /* Scrollbar */

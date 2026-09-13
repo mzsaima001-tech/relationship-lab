@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import {
   getSession,
   getAnswers,
@@ -7,6 +7,7 @@ import {
   getResult,
   getCreditAccount,
   getShareByCode,
+  getPairBySession,
   addCredits,
 } from "@/lib/db";
 import type { ResultRecord, SessionRecord } from "@/lib/db";
@@ -41,12 +42,18 @@ export const dynamic = "force-dynamic";
 const aiPolishEnabled = () =>
   (process.env.AI_POLISH_ENABLED ?? "").trim().toLowerCase() === "true";
 
-/** 已入库结果 → 叙事报告；优先用缓存（含 AI 润色），缺失或降级过则重建 */
+/** 已入库结果 → 叙事报告；优先用缓存（含 AI 润色），缺失或降级过则重建。
+ *  lite=true（分享海报等轻量场景）：有缓存直接返回，无缓存则只建模板草稿，
+ *  绝不触发 LLM 重润色（避免分享页被 30-60s 的润色拖慢）。
+ */
 async function resolveNarrative(
   result: ResultRecord,
-  session: SessionRecord
+  session: SessionRecord,
+  lite = false
 ): Promise<SingleReportNarrative> {
   const cached = result.narrative as SingleReportNarrative | undefined;
+  // 轻量模式：只要库里有缓存就直接用，不做版本/半成品校验、不重润色
+  if (lite && cached) return cached;
   const meta = result.narrative_meta as { source?: string; error?: string | null; v?: number } | undefined;
   // 引擎版本不一致 → 陈旧缓存，必须重建（旧缓存可能含有已修复缺陷的文案）
   const stale = meta?.v !== NARRATIVE_VERSION;
@@ -76,6 +83,9 @@ async function resolveNarrative(
       lifeStage: session.life_stage as AssessmentContext["lifeStage"],
     }
   );
+
+  // 轻量模式：模板草稿直接返回，不做 LLM 润色、不落库
+  if (lite) return draft;
 
   const { narrative, applied, model, error } = await polishWithLLM(draft);
   try {
@@ -261,11 +271,13 @@ export async function POST(
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    // ?lite=1：分享海报等场景，跳过 LLM 重润色，秒回
+    const lite = new URL(request.url).searchParams.get("lite") === "1";
     const session = await getSession(id);
     if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
@@ -277,7 +289,22 @@ export async function GET(
     }
     const credits = await getCreditAccount(id);
 
-    const narrative = await resolveNarrative(result, session);
+    const narrative = await resolveNarrative(result, session, lite);
+
+    // 反查：这个 session 是否已在某个 pair 里（A 或 B），
+    // 用于结果页 PAIR 板块展示「查看我们的契合画像」按钮。
+    // 被分享人（B）也会拿到，让对方在结果页直接进入契合画像。
+    let pairId: string | null = null;
+    let pairRole: "a" | "b" | null = null;
+    try {
+      const pair = await getPairBySession(id);
+      if (pair) {
+        pairId = pair.id;
+        pairRole = pair.session_a === id ? "a" : "b";
+      }
+    } catch {
+      // 反查失败不阻塞主流程
+    }
 
     return NextResponse.json({
       sessionId: id,
@@ -298,6 +325,8 @@ export async function GET(
         signals: narrative.signalPortrait.length,
       },
       credits,
+      pairId,
+      pairRole,
       context: {
         relationshipType: session.relationship_type,
         relationshipStage: session.relationship_stage,

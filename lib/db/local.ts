@@ -479,6 +479,18 @@ export async function getPairByInvite(inviteId: string): Promise<PairRecord | nu
   return pairs.find((p) => p.invite_id === inviteId) || null;
 }
 
+/**
+ * 反查：根据 session id 找到它所在的 pair。
+ * 既适用于 session_a（邀请方）也适用于 session_b（被邀请方）。
+ * 用于结果页 PAIR 板块：让被分享人也能直接看到双人契合画像入口。
+ */
+export async function getPairBySession(sessionId: string): Promise<PairRecord | null> {
+  const pairs = await readJson<PairRecord>(PAIRS_FILE);
+  return pairs.find(
+    (p) => p.session_a === sessionId || p.session_b === sessionId,
+  ) || null;
+}
+
 export async function updatePair(id: string, updates: Partial<PairRecord>): Promise<void> {
   const pairs = await readJson<PairRecord>(PAIRS_FILE);
   const idx = pairs.findIndex((p) => p.id === id);

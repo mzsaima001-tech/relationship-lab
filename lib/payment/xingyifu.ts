@@ -30,7 +30,7 @@ export interface XingyifuConfig {
 export function readXingyifuConfig(): XingyifuConfig | null {
   const mchId = process.env.XINGYIFU_MCH_ID;
   const mchKey = process.env.XINGYIFU_MCH_KEY;
-  const notifyUrl = process.env.XINGYIFIF_NOTIFY_URL || process.env.XINGYIFU_NOTIFY_URL;
+  const notifyUrl = process.env.XINGYIFU_NOTIFY_URL;
   // 三者任一缺失 → 返回 null（骨架模式）
   if (!mchId || !mchKey || !notifyUrl) return null;
   return {

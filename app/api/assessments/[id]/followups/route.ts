@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getSession, getAnswers, updateSession } from "@/lib/db";
 import {
   getQuestionById,

@@ -60,6 +60,7 @@ export const {
   createPair,
   getPair,
   getPairByInvite,
+  getPairBySession,
   updatePair,
   // Reports
   saveReport,

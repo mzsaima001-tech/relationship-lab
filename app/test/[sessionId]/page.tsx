@@ -130,10 +130,10 @@ export default function TestPage() {
   const completeAssessment = useCallback(async () => {
     try {
       setPhase("completing");
-      // fire-and-forget 触发后端 LLM 润色
+      // fire-and-forget 触发后端 LLM 润色（同步执行，最长 ~60s）
       fetch(`/api/assessments/${sessionId}/complete`, { method: "POST" }).catch(() => {});
-      // 轮询 result，就绪即跳
-      const FALLBACK_MS = 15000;
+      // 轮询 result，就绪才跳：绝不中途跳走（中途跳走会被结果页弹回形成死循环）
+      const MAX_WAIT_MS = 300000; // 极端兜底 5 分钟；分析等待页 90s 后自带给用户的提示
       const startedAt = Date.now();
       const tick = async () => {
         try {
@@ -145,18 +145,30 @@ export default function TestPage() {
         } catch {
           /* 网络抖动继续轮询 */
         }
-        if (Date.now() - startedAt > FALLBACK_MS) {
+        if (Date.now() - startedAt > MAX_WAIT_MS) {
+          // 兜底跳转：结果页自身也会原地等待轮询，不会弹回答题页
           router.push(`/result/${sessionId}`);
           return;
         }
-        setTimeout(tick, 1200);
+        setTimeout(tick, 1500);
       };
-      setTimeout(tick, 400);
+      setTimeout(tick, 600);
     } catch (err: any) {
       setError(err.message || "完成测评失败");
       setPhase("answering");
     }
   }, [sessionId, router]);
+
+  // 全部题答完（含断点续答进来就已全答完的情况）→ 自动进分析等待页，无需用户再点
+  const autoCompleteFiredRef = useRef(false);
+  useEffect(() => {
+    if (loading || !data || phase !== "answering") return;
+    if (allQuestions.length === 0) return;
+    if (currentIdx < allQuestions.length) return;
+    if (autoCompleteFiredRef.current) return;
+    autoCompleteFiredRef.current = true;
+    completeAssessment();
+  }, [loading, data, phase, allQuestions.length, currentIdx, completeAssessment]);
 
   const handleAnswer = useCallback(async (value: number) => {
     if (!allQuestions[currentIdx] || submitting) return;
@@ -252,16 +264,10 @@ export default function TestPage() {
 
   const question = allQuestions[currentIdx];
 
-  // 边界：题已答完但还没进 completing（如断点续答发现全答过）
+  // 边界：题已答完但 completing 阶段尚未渲染（如断点续答发现全答过）
+  // —— 上面的 useEffect 已自动触发 completeAssessment，这里直接展示等待页，绝不让用户再点一次
   if (!question) {
-    return (
-      <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
-        <p className="text-[var(--text-muted)] text-sm">题目已全部答完</p>
-        <button onClick={() => completeAssessment()} className="btn-primary">
-          查看结果 →
-        </button>
-      </main>
-    );
+    return <AnalyzingScreen title="题目已全部答完，正在生成你的报告" />;
   }
 
   const totalQuestions = allQuestions.length;

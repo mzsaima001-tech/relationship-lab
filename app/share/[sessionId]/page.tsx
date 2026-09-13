@@ -488,34 +488,30 @@ export default function SharePosterPage() {
     let mounted = true;
     async function prepare() {
       try {
-        // 1. 取测评结果
-        const res = await fetchWithRetry(`/api/assessments/${sessionId}/complete`);
+        // 1+2 并行：取测评结果（lite 模式跳过 AI 重润色，秒回）+ 创建/复用分享码
+        // 原先串行 3 个请求且 complete 可能触发 30-60s 重润色，是分享页加载慢的根因
+        const [res, shareRes] = await Promise.all([
+          fetchWithRetry(`/api/assessments/${sessionId}/complete?lite=1`),
+          fetchWithRetry("/api/shares", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          }),
+        ]);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "结果不存在");
-        if (!mounted) return;
-
-        // 2. 创建/复用普通分享码
-        const shareRes = await fetchWithRetry("/api/shares", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
-        });
         const shareJson = await shareRes.json();
         if (!shareRes.ok) throw new Error(shareJson.error || "分享创建失败");
         if (!mounted) return;
 
-        // 3. 抓 sharer 详情
-        const detailRes = await fetchWithRetry(`/api/shares/${shareJson.code}`);
-        const detailJson = await detailRes.json();
-        if (!detailRes.ok) throw new Error(detailJson.error || "分享详情加载失败");
-        if (!mounted) return;
-        const sharer = detailJson?.sharer ?? {};
+        // oneLiner / archetype 直接取报告数据（与分享详情接口同源：result.narrative.oneLiner）
+        // 省掉原来的第 3 个请求 GET /api/shares/:code
 
-        // 4. QR 指向首页
+        // 3. QR 指向首页
         const homeUrl = `${window.location.origin}/`;
         setShareUrl(homeUrl);
 
-        // 5. 生成二维码
+        // 4. 生成二维码
         const qr = await QRCode.toDataURL(homeUrl, {
           width: 512,
           margin: 1,
@@ -527,8 +523,8 @@ export default function SharePosterPage() {
         setData({
           archetype: json.archetype,
           fileNo: sessionId.slice(0, 6).toUpperCase(),
-          oneLiner: sharer.oneLiner || "",
-          archetypeName: sharer.archetype || "",
+          oneLiner: json.narrative?.oneLiner || "",
+          archetypeName: json.archetype || "",
         });
       } catch (err: any) {
         if (mounted) setError(err.message || "加载失败，请重试");
@@ -564,15 +560,6 @@ export default function SharePosterPage() {
     setPosterUrl(null);
     setPosterRenderKey(k => k + 1);
   };
-
-  // —— SharePosterActions 需要：把海报画到一个 canvas 上 ——
-  const renderPosterAction = useCallback(
-    async (canvas: HTMLCanvasElement) => {
-      if (!data || !qrDataUrl) throw new Error("海报数据未就绪");
-      await renderPoster(canvas, data, qrDataUrl);
-    },
-    [data, qrDataUrl]
-  );
 
   const defaultCaption =
     "我们之间，是不是有什么总是重复？\n" +
@@ -651,12 +638,8 @@ export default function SharePosterPage() {
           </div>
         )}
 
-        {/* ===== 操作区（新版：分享好友 / 朋友圈 / 保存图片） ===== */}
-        <SharePosterActions
-          renderPoster={renderPosterAction}
-          defaultCaption={defaultCaption}
-          fileName={`默契研究所-${data.fileNo}.png`}
-        />
+        {/* ===== 操作区（V3：长按提示条 + 复制文案） ===== */}
+        <SharePosterActions defaultCaption={defaultCaption} />
 
         <div className="text-center mt-5">
           <Link

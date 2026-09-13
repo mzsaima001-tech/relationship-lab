@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession, createInvite, createPair, getInviteBySession } from "@/lib/db";
 

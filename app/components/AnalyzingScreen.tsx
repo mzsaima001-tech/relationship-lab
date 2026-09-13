@@ -21,7 +21,7 @@ const STAGES = [
  *  - LLM 润色版 ≈ 25–55s（按网络抖动）
  *  - 极端网络超时 ≈ 80s+
  *
- * 超时兜底：60s 后展示"还没出来？尝试刷新"，避免用户以为卡死
+ * 超时兜底：90s 后展示"还没出来？尝试刷新"，避免用户以为卡死
  */
 export function AnalyzingScreen({
   title = "请稍候，正在分析你的结果",
@@ -52,7 +52,8 @@ export function AnalyzingScreen({
     return () => clearInterval(t);
   }, []);
 
-  // 超时检测：60s 后展示"还没出来？尝试刷新"
+  // 超时检测：90s 后展示"还没出来？尝试刷新"
+  //（AI 润色最长 ~60s，90s 才提示避免正常生成期间打扰用户）
   useEffect(() => {
     const t = setInterval(() => setSlowSeconds((s) => s + 1), 1000);
     return () => clearInterval(t);
@@ -88,8 +89,8 @@ export function AnalyzingScreen({
 
         <p className="text-[11px] text-[var(--text-muted)] mt-5">{hint}</p>
 
-        {/* 超时兜底：60s 后展示刷新按钮，避免用户以为页面卡死 */}
-        {slowSeconds >= 60 && (
+        {/* 超时兜底：90s 后展示刷新按钮，避免用户以为页面卡死 */}
+        {slowSeconds >= 90 && (
           <div className="mt-6 fade-in-up">
             <p className="text-[11px] text-[var(--text-muted)] mb-2">
               还在等待？已耗时 {slowSeconds}s

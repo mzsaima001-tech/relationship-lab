@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useCallback, MouseEvent, ReactNode, CSSProperties } from "react";
+import { useState, useCallback, useEffect, MouseEvent, ReactNode, CSSProperties } from "react";
 
 /**
  * 安全跳转链接 —— 给跳转按钮加 loading 反馈 + 路由异常兜底
@@ -47,6 +47,15 @@ export function SafeLink({
 }: SafeLinkProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  // 挂载即预取目标路由：点击时页面已就绪，跳转秒开（减少"转圈半天"的体感）
+  useEffect(() => {
+    try {
+      router.prefetch(href);
+    } catch {
+      /* 预取失败不影响点击跳转 */
+    }
+  }, [href, router]);
 
   const handleClick = useCallback(
     (e: MouseEvent<HTMLButtonElement>) => {
