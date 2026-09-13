@@ -416,43 +416,94 @@ export default function PersonalitySharePosterPage() {
 
   const [data, setData] = useState<PersonalityShareData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const [posterRenderKey, setPosterRenderKey] = useState(0);
 
   // 随机挑一套人格话术 + 3 张塔罗（用 code 作种子，保证 SSR 一致）
   const copy = pickCopy(code);
   const cardIdxs = pickTarotIdx(code, TAROT_CARDS.length);
   const spread = cardIdxs.map((i) => TAROT_CARDS[i]);
 
+  // 自动重试包装
+  const fetchWithRetry = async (url: string, init?: RequestInit, maxAttempts = 3): Promise<Response> => {
+    let lastErr: Error | null = null;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const res = await fetch(url, init);
+        if (res.ok) return res;
+        if (res.status >= 400 && res.status < 500) return res;
+        lastErr = new Error(`HTTP ${res.status}`);
+      } catch (e: any) {
+        lastErr = e;
+      }
+      if (i < maxAttempts - 1) await new Promise(r => setTimeout(r, 1500));
+    }
+    throw lastErr || new Error("网络请求失败");
+  };
+
+  const refetch = () => {
+    setLoading(true);
+    setError("");
+    setRetryCount(c => c + 1);
+  };
+
   useEffect(() => {
+    let mounted = true;
     async function prepare() {
       try {
-        // 拉分享码元数据（仅用于 fileNo 风格，不展示 sharer 信息）
-        const res = await fetch(`/api/shares/${code}`);
+        const res = await fetchWithRetry(`/api/shares/${code}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "分享不存在");
         if (json.shareType !== "personality") {
           throw new Error("该分享不是人格测试类型");
         }
 
-        // QR 指向主页（用户要求）
         const homeUrl = `${window.location.origin}/`;
         const qr = await QRCode.toDataURL(homeUrl, {
           width: 512,
           margin: 1,
           color: { dark: "#2a2418", light: "#f5ede0" },
         });
+        if (!mounted) return;
         setQrDataUrl(qr);
-
         setData(json as PersonalityShareData);
       } catch (err: any) {
-        setError(err.message);
+        if (mounted) setError(err.message || "加载失败，请重试");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
     prepare();
-  }, [code]);
+    return () => { mounted = false; };
+  }, [code, retryCount]);
+
+  // data + qrDataUrl 都就绪后，立即渲染 canvas 到 posterUrl
+  useEffect(() => {
+    if (!data || !qrDataUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = POSTER_W;
+        canvas.height = POSTER_H;
+        await renderPoster(canvas, data, qrDataUrl);
+        if (cancelled) return;
+        const url = canvas.toDataURL("image/png");
+        setPosterUrl(url);
+      } catch (e: any) {
+        if (!cancelled) setError("海报渲染失败：" + (e.message || "未知错误"));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [data, qrDataUrl, posterRenderKey]);
+
+  const retryRenderPoster = () => {
+    setPosterUrl(null);
+    setPosterRenderKey(k => k + 1);
+  };
 
   // —— 新版：SharePosterActions 需要 ——
   const renderPosterAction = useCallback(
@@ -485,7 +536,8 @@ export default function PersonalitySharePosterPage() {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
         <p className="text-[var(--danger)] text-sm">{error || "加载失败"}</p>
-        <Link href="/personality" className="btn-ghost">返回人格测试</Link>
+        <button onClick={refetch} className="btn-primary">🔄 重试</button>
+        <Link href="/personality" className="text-xs text-[var(--text-muted)]">← 返回人格测试</Link>
       </main>
     );
   }
@@ -507,135 +559,36 @@ export default function PersonalitySharePosterPage() {
           </h1>
         </div>
 
-        {/* ===== 海报卡（用户长按可保存到相册，微信会自动识别其中二维码） ===== */}
-        <div
-          id="share-poster"
-          className="relative border border-[var(--accent-dim)] rounded-sm px-5 pt-5 pb-5 mb-4 fade-in-up cursor-pointer"
-          style={{
-            background: "linear-gradient(180deg,#16130f,#100e0a)",
-            animationDelay: "0.1s",
-            WebkitUserSelect: "none",
-            userSelect: "none",
-          }}
-          title="长按图片可保存到相册，或长按识别图中二维码"
-        >
-          {/* 顶部小档案号 */}
-          <div className="text-center mb-3">
-            <span className="file-number">FILE · {code.slice(0, 6).toUpperCase()}</span>
+        {/* ===== 海报展示 —— 直接显示 canvas 渲染图（与"分享图片"保存的 PNG 完全一致） ===== */}
+        {posterUrl ? (
+          <div
+            className="relative mb-4 fade-in-up"
+            style={{ animationDelay: "0.1s" }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={posterUrl}
+              alt="默契研究所性格面分享海报"
+              className="w-full h-auto block rounded-sm border border-[var(--accent-dim)]"
+              style={{ WebkitUserSelect: "none", userSelect: "none" }}
+            />
           </div>
-
-          {/* 钩子话术（人格主题，随机一套） */}
-          <div className="text-center space-y-2 mb-4">
-            <p className="display-serif text-[15px] sm:text-base text-[var(--text-warm)] font-medium leading-relaxed">
-              {copy.hook.map((line, i) => (
-                <span key={i}>
-                  {line}
-                  {i < copy.hook.length - 1 && <br />}
-                </span>
-              ))}
-            </p>
-            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-              {copy.scenes.map((s, i) => (
-                <span key={i}>
-                  {s}
-                  {i < copy.scenes.length - 1 && <br />}
-                </span>
-              ))}
-            </p>
+        ) : (
+          <div
+            className="relative mb-4 fade-in-up border border-[var(--accent-dim)] rounded-sm p-8 flex flex-col items-center justify-center"
+            style={{
+              background: "linear-gradient(180deg,#16130f,#100e0a)",
+              minHeight: 400,
+              animationDelay: "0.1s",
+            }}
+          >
+            <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[var(--text-muted)] text-sm mt-4">海报渲染中...</p>
+            <button onClick={retryRenderPoster} className="text-[11px] text-[var(--accent-dim)] mt-3 underline underline-offset-2">
+              渲染失败？点这里重试
+            </button>
           </div>
-
-          {/* ===== 神秘暗号（方案 A：揭示一句 tagline，但不暴露身份） ===== */}
-          <div className="my-5 fade-in-up" style={{ animationDelay: "0.12s" }}>
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <span className="flex-1 max-w-[60px] h-px bg-[var(--accent-dim)] opacity-50" />
-              <span className="text-[var(--accent-dim)] text-[10px] tracking-[0.2em]">◆</span>
-              <span className="flex-1 max-w-[60px] h-px bg-[var(--accent-dim)] opacity-50" />
-            </div>
-            <p className="display-serif text-[15px] sm:text-base text-[var(--text-warm)] font-medium text-center leading-relaxed italic">
-              {wrapMystery(
-                data?.sharer?.primaryType
-                  ? PERSONALITY_TYPE_META[data.sharer.primaryType as PersonalityType]?.tagline
-                  : null,
-                "—— 一位走过默契研究所的 TA",
-                FALLBACK_PERSONALITY
-              ).body}
-            </p>
-            <p className="text-[11px] text-[var(--accent-dim)] text-center mt-2 italic">
-              {wrapMystery(
-                data?.sharer?.primaryType
-                  ? PERSONALITY_TYPE_META[data.sharer.primaryType as PersonalityType]?.tagline
-                  : null,
-                "—— 一位走过默契研究所的 TA",
-                FALLBACK_PERSONALITY
-              ).byline}
-            </p>
-          </div>
-
-          <OrnamentDivider className="mb-4" />
-
-          {/* 罗盘 + 塔罗牌阵（扇形悬浮，与首页同款） */}
-          <div className="relative flex items-center justify-center h-[180px] mb-3">
-            <div className="absolute pointer-events-none">
-              <CompassDial size={180} opacity={0.14} />
-            </div>
-            <div className="relative flex items-end justify-center">
-              {spread.map((card, i) => {
-                const rotate = i === 0 ? "-rotate-[9deg]" : i === 2 ? "rotate-[9deg]" : "rotate-0";
-                const offset = i === 1 ? "-translate-y-3 z-10" : "z-0";
-                const side = i === 0 ? "-mr-3 sm:-mr-4" : i === 2 ? "-ml-3 sm:-ml-4" : "";
-                return (
-                  <span key={card.slug} className={`${rotate} ${offset} ${side}`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={tarotImage(card.slug)}
-                      alt={`塔罗牌：${card.cardTitle}`}
-                      className="tarot-mini w-[68px] sm:w-[76px]"
-                      loading="eager"
-                    />
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-          <p className="text-center text-[10px] text-[var(--text-muted)] tracking-widest mb-4">
-            七十四面镜子，总有一面是你
-          </p>
-
-          <OrnamentDivider className="mb-4" />
-
-          {/* 邀请话术（人格主题 CTA） */}
-          <p className="display-serif text-sm sm:text-base text-[var(--text-warm)] text-center font-medium leading-snug mb-4">
-            {copy.tag}
-          </p>
-
-          <OrnamentDivider className="mb-4" />
-
-          {/* 小二维码 + 文案（左文右码，引导微信识别） */}
-          {qrDataUrl && (
-            <div className="flex items-center justify-between gap-3 px-1">
-              <div className="flex-1 min-w-0">
-                <p className="display-serif text-sm text-[var(--text-warm)] font-medium leading-snug">
-                  长按二维码，
-                  <br />
-                  看看你是哪一种
-                </p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
-                  · 36 题 · 约 5 分钟
-                  <br />
-                  · 无需注册 · 基础结果免费
-                </p>
-              </div>
-              <div className="bg-[#f5ede0] p-1.5 rounded-sm flex-shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrDataUrl}
-                  alt="分享二维码"
-                  className="w-[88px] h-[88px] block"
-                />
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* ===== 操作区（新版：分享好友 / 朋友圈 / 保存图片） ===== */}
         <SharePosterActions

@@ -450,33 +450,68 @@ export default function SharePosterPage() {
   const [data, setData] = useState<PosterData | null>(null);
   const [shareUrl, setShareUrl] = useState("");
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const [posterRenderKey, setPosterRenderKey] = useState(0);
+
+  // 自动重试包装：失败后 1500ms 间隔重试，最多 3 次
+  const fetchWithRetry = async (url: string, init?: RequestInit): Promise<Response> => {
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(url, init);
+        if (res.ok) return res;
+        // 非 5xx 错误不重试（参数错等）
+        if (res.status >= 400 && res.status < 500) {
+          return res;
+        }
+        lastError = new Error(`HTTP ${res.status}`);
+      } catch (e: any) {
+        lastError = e;
+      }
+      if (attempt < 2) {
+        await new Promise(r => setTimeout(r, 1500));
+      }
+    }
+    throw lastError || new Error("网络请求失败");
+  };
+
+  const refetch = () => {
+    setLoading(true);
+    setError("");
+    setRetryCount(c => c + 1);
+  };
 
   useEffect(() => {
+    let mounted = true;
     async function prepare() {
       try {
-        // 1. 取测评结果（只为拿到 archetype — 用于随机塔罗种子，不展示）
-        const res = await fetch(`/api/assessments/${sessionId}/complete`);
+        // 1. 取测评结果
+        const res = await fetchWithRetry(`/api/assessments/${sessionId}/complete`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "结果不存在");
+        if (!mounted) return;
 
         // 2. 创建/复用普通分享码
-        const shareRes = await fetch("/api/shares", {
+        const shareRes = await fetchWithRetry("/api/shares", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionId }),
         });
         const shareJson = await shareRes.json();
         if (!shareRes.ok) throw new Error(shareJson.error || "分享创建失败");
+        if (!mounted) return;
 
-        // 3. 再抓 sharer 详情（拿 oneLiner / archetype 名 / nickname，作为"神秘暗号"原料）
-        const detailRes = await fetch(`/api/shares/${shareJson.code}`);
+        // 3. 抓 sharer 详情
+        const detailRes = await fetchWithRetry(`/api/shares/${shareJson.code}`);
         const detailJson = await detailRes.json();
         if (!detailRes.ok) throw new Error(detailJson.error || "分享详情加载失败");
+        if (!mounted) return;
         const sharer = detailJson?.sharer ?? {};
 
-        // 4. QR 指向首页（用户要求：扫码直达主页）
+        // 4. QR 指向首页
         const homeUrl = `${window.location.origin}/`;
         setShareUrl(homeUrl);
 
@@ -486,6 +521,7 @@ export default function SharePosterPage() {
           margin: 1,
           color: { dark: "#2a2418", light: "#f5ede0" },
         });
+        if (!mounted) return;
         setQrDataUrl(qr);
 
         setData({
@@ -495,13 +531,39 @@ export default function SharePosterPage() {
           archetypeName: sharer.archetype || "",
         });
       } catch (err: any) {
-        setError(err.message);
+        if (mounted) setError(err.message || "加载失败，请重试");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
     prepare();
-  }, [sessionId]);
+    return () => { mounted = false; };
+  }, [sessionId, retryCount]);
+
+  // —— 关键：data + qrDataUrl 都就绪后，立即把 canvas 海报渲染出来 + 设到 posterUrl ——
+  useEffect(() => {
+    if (!data || !qrDataUrl) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = POSTER_W;
+        canvas.height = POSTER_H;
+        await renderPoster(canvas, data, qrDataUrl);
+        if (cancelled) return;
+        const url = canvas.toDataURL("image/png");
+        setPosterUrl(url);
+      } catch (e: any) {
+        if (!cancelled) setError("海报渲染失败：" + (e.message || "未知错误"));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [data, qrDataUrl, posterRenderKey]);
+
+  const retryRenderPoster = () => {
+    setPosterUrl(null);
+    setPosterRenderKey(k => k + 1);
+  };
 
   // —— SharePosterActions 需要：把海报画到一个 canvas 上 ——
   const renderPosterAction = useCallback(
@@ -531,7 +593,8 @@ export default function SharePosterPage() {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
         <p className="text-[var(--danger)] text-sm">{error || "加载失败"}</p>
-        <Link href={`/result/${sessionId}`} className="btn-ghost">返回结果页</Link>
+        <button onClick={refetch} className="btn-primary">重试</button>
+        <Link href={`/result/${sessionId}`} className="text-xs text-[var(--text-muted)]">← 返回结果页</Link>
       </main>
     );
   }
@@ -557,132 +620,36 @@ export default function SharePosterPage() {
           </h1>
         </div>
 
-        {/* ===== 海报卡（用户长按可保存到相册，微信会自动识别其中二维码） ===== */}
-        <div
-          id="share-poster"
-          className="relative border border-[var(--accent-dim)] rounded-sm px-5 pt-5 pb-5 mb-4 fade-in-up cursor-pointer"
-          style={{
-            background: "linear-gradient(180deg,#16130f,#100e0a)",
-            animationDelay: "0.1s",
-            WebkitUserSelect: "none",
-            userSelect: "none",
-          }}
-          title="长按图片可保存到相册，或长按识别图中二维码"
-        >
-          {/* 顶部小档案号 */}
-          <div className="text-center mb-3">
-            <span className="file-number">FILE · {data.fileNo}</span>
-          </div>
-
-          {/* 钩子话术（主页风） */}
-          <div className="text-center space-y-2 mb-4">
-            <p className="display-serif text-[15px] sm:text-base text-[var(--text-warm)] font-medium leading-relaxed">
-              你们之间，有没有一种问题，
-              <br />
-              总是在重复发生？
-            </p>
-            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-              也许问题不是谁对谁错——
-              <br />
-              只是你们理解「在乎」的方式不一样。
-            </p>
-          </div>
-
-          {/* ===== 神秘暗号（方案 A：揭示一句 oneLiner，署名带 archetype） ===== */}
-          <div className="my-5 fade-in-up" style={{ animationDelay: "0.12s" }}>
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <span className="flex-1 max-w-[60px] h-px bg-[var(--accent-dim)] opacity-50" />
-              <span className="text-[var(--accent-dim)] text-[10px] tracking-[0.2em]">◆</span>
-              <span className="flex-1 max-w-[60px] h-px bg-[var(--accent-dim)] opacity-50" />
-            </div>
-            {/* mystery.body 可能非常长（AI 润色版 80-150 字），
-                必须截断，否则会挤压上下版面、撞出卡片。
-                —— 最多 3 行 + 「展开」按钮（用 <details> 无 JS 状态） —— */}
-            <OneLinerBlock
-              body={wrapMystery(
-                data?.oneLiner || null,
-                data?.archetypeName
-                  ? `—— 我们之间有一个「${data.archetypeName}」的人`
-                  : "—— 我们已经测过默契研究所",
-                FALLBACK_COUPLE
-              ).body}
+        {/* ===== 海报展示 —— 直接显示 canvas 渲染图（与"分享图片"保存的 PNG 完全一致） ===== */}
+        {posterUrl ? (
+          <div
+            className="relative mb-4 fade-in-up"
+            style={{ animationDelay: "0.1s" }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={posterUrl}
+              alt="默契研究所分享海报"
+              className="w-full h-auto block rounded-sm border border-[var(--accent-dim)]"
+              style={{ WebkitUserSelect: "none", userSelect: "none" }}
             />
-            <p className="text-[11px] text-[var(--accent-dim)] text-center mt-2 italic">
-              {wrapMystery(
-                data?.oneLiner || null,
-                data?.archetypeName
-                  ? `—— 我们之间有一个「${data.archetypeName}」的人`
-                  : "—— 我们已经测过默契研究所",
-                FALLBACK_COUPLE
-              ).byline}
-            </p>
           </div>
-
-          <OrnamentDivider className="mb-4" />
-
-          {/* 罗盘 + 塔罗牌阵（扇形悬浮，与首页同款） */}
-          <div className="relative flex items-center justify-center h-[180px] mb-3">
-            <div className="absolute pointer-events-none">
-              <CompassDial size={180} opacity={0.14} />
-            </div>
-            <div className="relative flex items-end justify-center">
-              {spread.map((card, i) => {
-                const rotate = i === 0 ? "-rotate-[9deg]" : i === 2 ? "rotate-[9deg]" : "rotate-0";
-                const offset = i === 1 ? "-translate-y-3 z-10" : "z-0";
-                const side = i === 0 ? "-mr-3 sm:-mr-4" : i === 2 ? "-ml-3 sm:-ml-4" : "";
-                return (
-                  <span key={card.slug} className={`${rotate} ${offset} ${side}`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={tarotImage(card.slug)}
-                      alt={`塔罗牌：${card.cardTitle}`}
-                      className="tarot-mini w-[68px] sm:w-[76px]"
-                      loading="eager"
-                    />
-                  </span>
-                );
-              })}
-            </div>
+        ) : (
+          <div
+            className="relative mb-4 fade-in-up border border-[var(--accent-dim)] rounded-sm p-8 flex flex-col items-center justify-center"
+            style={{
+              background: "linear-gradient(180deg,#16130f,#100e0a)",
+              minHeight: 400,
+              animationDelay: "0.1s",
+            }}
+          >
+            <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[var(--text-muted)] text-sm mt-4">海报渲染中...</p>
+            <button onClick={retryRenderPoster} className="text-[11px] text-[var(--accent-dim)] mt-3 underline underline-offset-2">
+              渲染失败？点这里重试
+            </button>
           </div>
-          <p className="text-center text-[10px] text-[var(--text-muted)] tracking-widest mb-4">
-            七十四面镜子，总有一面是你
-          </p>
-
-          <OrnamentDivider className="mb-4" />
-
-          {/* 邀请话术 */}
-          <p className="display-serif text-sm sm:text-base text-[var(--text-warm)] text-center font-medium leading-snug mb-4 whitespace-pre-line">
-            {lines.tag}
-          </p>
-
-          <OrnamentDivider className="mb-4" />
-
-          {/* 小二维码 + 文案（左文右码，引导微信识别） */}
-          {qrDataUrl && (
-            <div className="flex items-center justify-between gap-3 px-1">
-              <div className="flex-1 min-w-0">
-                <p className="display-serif text-sm text-[var(--text-warm)] font-medium leading-snug">
-                  长按二维码，
-                  <br />
-                  看看你的关系牌
-                </p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
-                  · 36 题 · 约 3 分钟
-                  <br />
-                  · 无需注册 · TA 看不到答案
-                </p>
-              </div>
-              <div className="bg-[#f5ede0] p-1.5 rounded-sm flex-shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrDataUrl}
-                  alt="分享二维码"
-                  className="w-[88px] h-[88px] block"
-                />
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* ===== 操作区（新版：分享好友 / 朋友圈 / 保存图片） ===== */}
         <SharePosterActions

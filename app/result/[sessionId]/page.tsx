@@ -6,6 +6,7 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import { CompassDial, OrnamentDivider, StarMap, LetterFrame, TarotCard } from "@/app/components/decor";
 import { AnalyzingScreen } from "@/app/components/AnalyzingScreen";
+import { SafeLink } from "@/app/components/SafeLink";
 import HomeFooter from "@/app/components/HomeFooter";
 import { tarotFor, tarotImage } from "@/lib/reports/tarot";
 import { SINGLE_REPORT_PRICE, VALID_SHARES_FOR_FREE_UNLOCK } from "@/lib/assessment/types";
@@ -146,6 +147,7 @@ export default function ResultPage() {
   const [data, setData] = useState<ResultData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
   const [inviteUrl, setInviteUrl] = useState("");
   const [inviteQr, setInviteQr] = useState("");
   const [pairId, setPairId] = useState("");
@@ -154,27 +156,52 @@ export default function ResultPage() {
   const [sharing, setSharing] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
 
+  // 自动重试包装
+  const fetchWithRetry = async (url: string, init?: RequestInit, maxAttempts = 3): Promise<Response> => {
+    let lastErr: Error | null = null;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        const res = await fetch(url, init);
+        if (res.ok) return res;
+        if (res.status >= 400 && res.status < 500) return res; // 4xx 不重试
+        lastErr = new Error(`HTTP ${res.status}`);
+      } catch (e: any) {
+        lastErr = e;
+      }
+      if (i < maxAttempts - 1) await new Promise(r => setTimeout(r, 1500));
+    }
+    throw lastErr || new Error("网络请求失败");
+  };
+
+  const refetchResult = () => {
+    setLoading(true);
+    setError("");
+    setRetryCount(c => c + 1);
+  };
+
   useEffect(() => {
+    let mounted = true;
     async function fetchResult() {
       try {
-        const res = await fetch(`/api/assessments/${sessionId}/complete`);
+        const res = await fetchWithRetry(`/api/assessments/${sessionId}/complete`);
         const json = await res.json();
         if (!res.ok) {
           if (json.status === "started") {
             router.push(`/test/${sessionId}`);
             return;
           }
-          throw new Error(json.error);
+          throw new Error(json.error || `加载失败 (HTTP ${res.status})`);
         }
-        setData(json);
+        if (mounted) setData(json);
       } catch (err: any) {
-        setError(err.message);
+        if (mounted) setError(err.message || "加载失败，请重试");
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
     fetchResult();
-  }, [sessionId, router]);
+    return () => { mounted = false; };
+  }, [sessionId, router, retryCount]);
 
   const handleCreateInvite = async () => {
     setCreatingInvite(true);
@@ -211,7 +238,13 @@ export default function ResultPage() {
 
   // 跳转海报页（有效分享 = 好友通过海报完成测评后才计 1 人，由后端归因，此处不再记分）
   const handleShareReward = () => {
-    router.push(`/share/${sessionId}`);
+    setSharing(true);
+    // 用 location.href 而不是 router.push：避免点击后页面卡在跳转中间态
+    try {
+      window.location.href = `/share/${sessionId}`;
+    } catch {
+      router.push(`/share/${sessionId}`);
+    }
   };
 
   const handleUnlock = async () => {
@@ -242,8 +275,9 @@ export default function ResultPage() {
   if (error && !data) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
-        <p className="text-[var(--danger)] text-sm">{error}</p>
-        <Link href="/start" className="btn-ghost">重新开始</Link>
+        <p className="text-[var(--danger)] text-sm text-center">{error}</p>
+        <button onClick={refetchResult} className="btn-primary">🔄 重试</button>
+        <Link href="/start" className="text-xs text-[var(--text-muted)]">← 回到首页</Link>
       </main>
     );
   }
@@ -422,9 +456,9 @@ export default function ResultPage() {
             </ul>
 
             {/* 主按钮（深棕底 + 米色字） */}
-            <button
-              onClick={() => router.push(`/pay/${sessionId}`)}
-              className="w-full text-base font-bold"
+            <SafeLink
+              href={`/pay/${sessionId}`}
+              className="w-full text-base font-bold block text-center"
               style={{
                 background: "#1a1a1a",
                 color: "#fcf6e2",
@@ -435,7 +469,7 @@ export default function ResultPage() {
               }}
             >
               ¥{SINGLE_REPORT_PRICE.toFixed(1)} 立即解锁完整报告
-            </button>
+            </SafeLink>
             <p className="text-[11px] text-center mt-2.5 leading-relaxed" style={{ color: "#2a2a2a" }}>
               支持{PAYMENT_CONFIG.channels} · 也可以分享 {VALID_SHARES_FOR_FREE_UNLOCK} 位朋友，免费解锁 ↓
             </p>
@@ -663,9 +697,12 @@ export default function ResultPage() {
               )}
               <p className="text-xs text-[var(--text-muted)] mb-5">TA 完成后，你们可以在契合画像页查看结果。</p>
               {pairId && (
-                <Link href={`/pair/${pairId}`} className="btn-ghost">
-                  解锁我们的契合画像 →
-                </Link>
+                <SafeLink
+                  href={`/pair/${pairId}`}
+                  className="btn-view-pair w-full sm:w-auto"
+                >
+                  ✦ 查看我们的契合画像 →
+                </SafeLink>
               )}
             </div>
           )}
@@ -722,9 +759,12 @@ export default function ResultPage() {
               )}
 
               {reportUnlocked ? (
-                <button onClick={() => router.push(`/share/${sessionId}`)} className="btn-primary w-full sm:w-auto">
+                <SafeLink
+                  href={`/share/${sessionId}`}
+                  className="btn-primary w-full sm:w-auto block text-center"
+                >
                   生成我的分享海报 →
-                </button>
+                </SafeLink>
               ) : ready ? (
                 <button onClick={handleUnlock} disabled={unlocking} className="btn-primary w-full">
                   {unlocking ? "解锁中..." : "已集齐，立即免费解锁 →"}

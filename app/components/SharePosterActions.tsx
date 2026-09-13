@@ -112,6 +112,21 @@ export default function SharePosterActions({
     setRendering(true);
     try {
       await ensureRendered();
+      const inWechat = /MicroMessenger/i.test(navigator.userAgent);
+      if (!inWechat && posterUrl) {
+        // 浏览器原生下载：直接把 PNG 下载到本地
+        try {
+          const a = document.createElement("a");
+          a.href = posterUrl;
+          a.download = fileName;
+          a.click();
+          showHint("saved");
+          return;
+        } catch {
+          /* 走预览兜底 */
+        }
+      }
+      // 微信内（或下载失败）：弹预览让用户长按图片保存
       setPreviewOpen(true);
       showHint("saved");
     } finally {
@@ -156,7 +171,7 @@ export default function SharePosterActions({
         /* 走兜底 */
       }
     }
-    // 兜底：弹预览，用户长按图片后→返回微信选好友
+    // 微信内：弹预览，让用户长按图片 → 微信会弹出"发送给朋友"选项
     setPreviewOpen(true);
     showHint("copied");
   };
@@ -233,25 +248,25 @@ export default function SharePosterActions({
         </p>
       </div>
 
-      {/* —— 大图预览（长按可保存） —— */}
+      {/* —— 大图预览（长按可保存/转发） —— */}
       {previewOpen && posterUrl && (
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.92)" }}
           onClick={() => setPreviewOpen(false)}
         >
-          <p className="text-[var(--accent-bright)] text-sm mb-3 font-medium">
-            ✨ 长按下方图片即可保存到相册 ✨
+          <p className="text-[var(--accent-bright)] text-sm mb-3 font-medium text-center">
+            ✨ 长按下方图片，选择「发送给朋友」即可转发 ✨
           </p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={posterUrl}
             alt="分享海报"
-            className="max-h-[78vh] max-w-[92vw] rounded-lg shadow-2xl"
+            className="max-h-[72vh] max-w-[92vw] rounded-lg shadow-2xl"
             style={{ WebkitTouchCallout: "default" }}
           />
           <p className="text-[11px] text-[var(--text-muted)] mt-4 text-center leading-relaxed">
-            轻点屏幕外区域关闭
+            轻点屏幕外区域关闭 · 文案已复制，进微信可直接粘贴
           </p>
         </div>
       )}

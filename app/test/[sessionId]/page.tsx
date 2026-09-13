@@ -29,14 +29,10 @@ export default function TestPage() {
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  // loadingFollowups 已弃用 —— 改为 phase-shift 顶部小提示，不再全屏替换。
-  const [phase, setPhase] = useState<"initial" | "followup" | "completing">("initial");
+  // phase 仅用于进入 completing 时切分析页；UI 上不再区分 Step02 / Follow-up
+  const [phase, setPhase] = useState<"answering" | "completing">("answering");
   const [error, setError] = useState("");
   const [questionShownAt, setQuestionShownAt] = useState(() => Date.now());
-  // —— 新版：phase-shift 提示的状态机 ——
-  // "idle" → 不显示；"switching" → 顶部出现"已切换到 FOLLOW-UP"+下方原题保持
-  const [phaseBanner, setPhaseBanner] = useState<"idle" | "switching">("idle");
-  const [phaseBannerText, setPhaseBannerText] = useState("");
 
   useEffect(() => {
     async function fetchSession() {
@@ -51,18 +47,16 @@ export default function TestPage() {
         }
 
         setData(json);
-        setAllQuestions([...json.initialQuestions, ...json.followupQuestions]);
+        // 一次性展示全部题：先把 initial 全部展示，followup 在答完前预取无缝追加
+        setAllQuestions([...json.initialQuestions]);
         const existingAnswers: Record<string, number> = {};
         json.answeredIds.forEach((id: string) => {
-          existingAnswers[id] = -1; // mark as answered (value will be fetched separately)
+          existingAnswers[id] = -1;
         });
         setAnswers(existingAnswers);
 
-        // Determine phase based on followups
-        if (json.followupQuestions.length > 0) {
-          setPhase("followup");
-          setCurrentIdx(json.initialQuestions.length);
-        }
+        // 预取 follow-ups，等用户答到第 20 题时已经就绪，避免切换跳跃
+        prefetchFollowups(json.initialQuestions.length);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -74,7 +68,26 @@ export default function TestPage() {
 
   useEffect(() => {
     setQuestionShownAt(Date.now());
-  }, [currentIdx, phase]);
+  }, [currentIdx]);
+
+  // —— 无感预取 follow-ups：fire-and-forget，不阻塞当前题 ——
+  const prefetchFollowups = async (initialLen: number) => {
+    try {
+      const res = await fetch(`/api/assessments/${sessionId}/followups`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      if (json.followups && json.followups.length > 0) {
+        // 直接追加到 allQuestions 尾部；UI 不显示任何 banner/loading
+        setAllQuestions((prev) => {
+          if (prev.length > initialLen) return prev; // 已加过
+          return [...prev, ...json.followups];
+        });
+      }
+    } catch (err: any) {
+      console.warn("[followups prefetch failed]", err?.message);
+      // 不打扰用户：保留 initialQuestions 让答题继续；错误会在最终 result 页显示
+    }
+  };
 
   const handleAnswer = useCallback(async (value: number) => {
     if (!allQuestions[currentIdx] || submitting) return;
@@ -101,68 +114,33 @@ export default function TestPage() {
 
       setAnswers((prev) => ({ ...prev, [question.id]: value }));
 
-      // 150ms 让"已选中"视觉反馈出现，然后立即切下一题
+      // 180ms 让"已选中"视觉反馈出现，然后立即切下一题
       setTimeout(() => {
         setSelectedValue(null);
         const nextIdx = currentIdx + 1;
 
-        // Check if we've finished initial 20 and need to fetch followups
-        if (data && nextIdx === data.initialQuestions.length && phase === "initial") {
-          // Fetch follow-ups（不再切全屏，就地显示进度条 phase-shift）
-          fetchFollowups();
-        } else if (nextIdx >= allQuestions.length) {
-          // All done
+        if (nextIdx >= allQuestions.length) {
+          // 全部题目答完，进入分析阶段
           completeAssessment();
         } else {
           setCurrentIdx(nextIdx);
         }
         setSubmitting(false);
-      }, 150);
+      }, 180);
     } catch (err) {
       setSubmitting(false);
       setSelectedValue(null);
+      setError("答案保存失败，请检查网络后重试");
     }
-  }, [currentIdx, allQuestions, submitting, sessionId, data, phase, questionShownAt]);
-
-  const fetchFollowups = async () => {
-    try {
-      // —— 新版：丝滑过渡 ——
-      // 1. 顶部弹出 banner "正在准备追问题..."，原题目卡保留
-      setPhaseBannerText("正在根据你的回答准备追问题…");
-      setPhaseBanner("switching");
-      // 2. 异步加载追问题
-      const res = await fetch(`/api/assessments/${sessionId}/followups`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-
-      if (json.followups.length === 0) {
-        // No followups, go straight to complete
-        setPhaseBanner("idle");
-        completeAssessment();
-        return;
-      }
-
-      // 3. 切换到 FOLLOW-UP 题
-      setAllQuestions((prev) => [...prev, ...json.followups]);
-      setPhase("followup");
-      setCurrentIdx(data!.initialQuestions.length);
-      // 4. 切换完成后再亮一次"已进入 FOLLOW-UP"提示，2s 后淡出
-      setPhaseBannerText("已进入 Follow-up · 接下来 4 道题让我们更懂你");
-      setTimeout(() => setPhaseBanner("idle"), 2200);
-    } catch (err: any) {
-      setError(err.message || "加载追问题失败");
-      setPhase("initial");
-      setPhaseBanner("idle");
-    }
-  };
+  }, [currentIdx, allQuestions, submitting, sessionId, questionShownAt]);
 
   const completeAssessment = async () => {
     try {
       setPhase("completing");
-      // —— 新版：fire-and-forget + polling，避免阻塞等后端 ——
+      // fire-and-forget 触发后端 LLM 润色
       fetch(`/api/assessments/${sessionId}/complete`, { method: "POST" }).catch(() => {});
-      // 立即轮询（每 1.2s 拉一次 result 接口）
-      const FALLBACK_MS = 10000;
+      // 立即轮询 result
+      const FALLBACK_MS = 15000;
       const startedAt = Date.now();
       const tick = async () => {
         try {
@@ -175,6 +153,7 @@ export default function TestPage() {
           /* 网络抖动继续轮询 */
         }
         if (Date.now() - startedAt > FALLBACK_MS) {
+          // 兜底跳：超时直接进入结果页（结果可能只是模板版，但能进入）
           router.push(`/result/${sessionId}`);
           return;
         }
@@ -183,7 +162,7 @@ export default function TestPage() {
       setTimeout(tick, 400);
     } catch (err: any) {
       setError(err.message || "完成测评失败");
-      setPhase("followup");
+      setPhase("answering");
     }
   };
 
@@ -199,15 +178,15 @@ export default function TestPage() {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
         <p className="text-[var(--danger)] text-sm">{error}</p>
-        <button onClick={() => router.push("/start")} className="btn-ghost">
-          重新开始
+        <button
+          onClick={() => window.location.reload()}
+          className="btn-ghost"
+        >
+          重新加载
         </button>
       </main>
     );
   }
-
-  // 加载追问题（step 02 → FOLLOW-UP）采用顶部小提示，原题卡不消失
-  // （这一步原本会全屏替换，体验"卡顿"，改为就地提示）
 
   // 进入 completing 阶段（生成报告）才全屏过渡
   if (phase === "completing") {
@@ -251,11 +230,11 @@ export default function TestPage() {
 
   return (
     <main className="flex-1 flex flex-col items-center px-5 pt-0 pb-8 sm:px-6 sm:pb-10 max-w-xl mx-auto w-full min-h-screen safe-bottom">
-      {/* 进度条 sticky 顶部 — 答题时随时看到进度，滚动/键盘弹起也不丢 */}
+      {/* 进度条 sticky 顶部 —— 答题时随时看到进度，滚动/键盘弹起也不丢 */}
       <div className="sticky top-0 z-20 w-full bg-[var(--bg-dark)]/95 backdrop-blur-sm -mx-5 px-5 sm:-mx-6 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-[var(--border-dim)]">
         <div className="flex items-center justify-between mb-2 sm:mb-3">
           <span className="archive-label text-[0.65rem] sm:text-[0.7rem]">
-            {isFollowup ? "Follow-up" : "Step 02"}
+            默契测试
           </span>
           <span className="file-number text-[0.65rem] sm:text-[0.7rem]">
             {currentIdx + 1} / {totalQuestions}
@@ -264,14 +243,6 @@ export default function TestPage() {
         <div className="progress-track h-1">
           <div className="progress-fill h-full" style={{ width: `${progress}%` }} />
         </div>
-
-        {/* —— phase-shift 顶部小提示（step 02 → FOLLOW-UP 过渡）—— */}
-        {phaseBanner === "switching" && (
-          <div className="phase-shift mt-3 flex items-center justify-center gap-2 rounded-md bg-[rgba(245,185,66,0.12)] border border-[rgba(245,185,66,0.45)] px-3 py-2 text-[12px] text-[var(--accent-bright)]">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-bright)] animate-pulse" />
-            <span>{phaseBannerText}</span>
-          </div>
-        )}
       </div>
 
       {/* Question */}
@@ -311,7 +282,15 @@ export default function TestPage() {
       </div>
 
       {error && (
-        <p className="text-sm text-[var(--danger)] mt-4 px-1">{error}</p>
+        <div className="mt-4 px-3 py-2 rounded text-xs text-[var(--danger)] bg-[rgba(220,80,80,0.08)] border border-[rgba(220,80,80,0.25)]">
+          {error}
+          <button
+            onClick={() => setError("")}
+            className="ml-3 underline text-[10px]"
+          >
+            知道了
+          </button>
+        </div>
       )}
 
       <HomeFooter />

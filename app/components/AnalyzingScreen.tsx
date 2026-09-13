@@ -9,45 +9,59 @@ const STAGES = [
   "正在破译你的隐藏信号…",
   "正在撰写你的专属解读…",
   "正在为你翻开属于你的牌…",
+  "正在打磨最后一段解读…",
 ];
 
 /**
  * 全屏「分析中」过渡页：答完最后一题到报告生成之间的等待缓冲。
  * 星空背景 + 缓转罗盘 + 阶段文案轮播 + 平滑假进度条，让用户明确知道正在处理。
- * 实测 POST /complete 约 30s，进度条按 ~35s 铺满设计。
+ *
+ * 典型时长：
+ *  - 模板版兜底 ≈ 1s
+ *  - LLM 润色版 ≈ 25–55s（按网络抖动）
+ *  - 极端网络超时 ≈ 80s+
+ *
+ * 超时兜底：60s 后展示"还没出来？尝试刷新"，避免用户以为卡死
  */
 export function AnalyzingScreen({
   title = "请稍候，正在分析你的结果",
-  hint = "生成完整报告约需 20–40 秒，请不要关闭页面",
+  hint = "生成完整报告约需 20–60 秒，请不要关闭页面",
 }: {
   title?: string;
   hint?: string;
 }) {
   const [stage, setStage] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [slowSeconds, setSlowSeconds] = useState(0);
 
-  // 阶段文案轮播
+  // 阶段文案轮播（间隔更长，让用户能看到不同文案）
   useEffect(() => {
-    const t = setInterval(() => setStage((s) => (s + 1) % STAGES.length), 2800);
+    const t = setInterval(() => setStage((s) => (s + 1) % STAGES.length), 4500);
     return () => clearInterval(t);
   }, []);
 
-  // 平滑假进度：起步快、逐渐减速、封顶 96%（实测生成 ~30s，保证等待期间进度条始终在动）
+  // 平滑假进度：起步快、逐渐减速、封顶 96%
   useEffect(() => {
     const t = setInterval(() => {
       setProgress((p) => {
         if (p >= 96) return p;
         const remain = 96 - p;
-        return p + Math.max(0.15, remain * 0.022);
+        return p + Math.max(0.12, remain * 0.018);
       });
     }, 140);
+    return () => clearInterval(t);
+  }, []);
+
+  // 超时检测：60s 后展示"还没出来？尝试刷新"
+  useEffect(() => {
+    const t = setInterval(() => setSlowSeconds((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, []);
 
   return (
     <main className="night-sky flex-1 flex flex-col items-center justify-center px-6 min-h-screen">
       <StarMap opacity={0.14} seed={7} />
-      <div className="relative flex flex-col items-center text-center">
+      <div className="relative flex flex-col items-center text-center max-w-md">
         {/* 缓转罗盘 + 中心脉动光点 */}
         <div className="relative mb-9 flex items-center justify-center">
           <CompassDial size={180} opacity={0.5} />
@@ -65,7 +79,7 @@ export function AnalyzingScreen({
         </p>
 
         {/* 进度条 */}
-        <div className="progress-track h-1 w-56 mt-7">
+        <div className="progress-track h-1 w-64 mt-7">
           <div
             className="progress-fill h-full"
             style={{ width: `${progress}%`, transition: "width 0.5s ease-out" }}
@@ -73,6 +87,21 @@ export function AnalyzingScreen({
         </div>
 
         <p className="text-[11px] text-[var(--text-muted)] mt-5">{hint}</p>
+
+        {/* 超时兜底：60s 后展示刷新按钮，避免用户以为页面卡死 */}
+        {slowSeconds >= 60 && (
+          <div className="mt-6 fade-in-up">
+            <p className="text-[11px] text-[var(--text-muted)] mb-2">
+              还在等待？已耗时 {slowSeconds}s
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="btn-ghost text-xs"
+            >
+              🔄 刷新页面重试
+            </button>
+          </div>
+        )}
       </div>
     </main>
   );
