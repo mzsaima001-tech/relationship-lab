@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import type { Question, QuestionOption } from "@/lib/assessment/types";
 import { LIKERT_OPTIONS } from "@/lib/assessment/types";
@@ -17,6 +17,15 @@ interface SessionData {
   hasResult: boolean;
 }
 
+/**
+ * 答题流程（单页连续体验）：
+ * 1. 进页面只加载 initial 题（如 20 道），立即开答
+ * 2. 答到倒数第 3 道时，后台静默请求 followups（此时大部分答案已出，追加题基本定准）
+ * 3. 答完 initial 最后一题：
+ *    - followups 已就绪 → 无缝继续第 21 题，同一页面、同一进度条
+ *    - 未就绪 → 题目区内联"正在为你定制最后几道题"（非全屏、非跳转），就绪后继续
+ * 4. 全部题答完 → 才进入 AnalyzingScreen（全屏分析）→ 结果页
+ */
 export default function TestPage() {
   const params = useParams<{ sessionId: string }>();
   const router = useRouter();
@@ -24,20 +33,28 @@ export default function TestPage() {
 
   const [data, setData] = useState<SessionData | null>(null);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [initialCount, setInitialCount] = useState(0);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [selectedValue, setSelectedValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  // phase 仅用于进入 completing 时切分析页；UI 上不再区分 Step02 / Follow-up
+  // phase 仅用于「全部答完 → 生成报告」的全屏过渡；答题过程中绝不出现
   const [phase, setPhase] = useState<"answering" | "completing">("answering");
   const [error, setError] = useState("");
   const [questionShownAt, setQuestionShownAt] = useState(() => Date.now());
+  // followups 请求状态：idle → pending → done / failed
+  const [followupState, setFollowupState] = useState<"idle" | "pending" | "done" | "failed">("idle");
+  const followupPromiseRef = useRef<Promise<void> | null>(null);
+  // allQuestions 的最新镜像（setTimeout/await 闭包里读不到最新 state，用 ref 兜底）
+  const allQuestionsRef = useRef<Question[]>([]);
+  useEffect(() => {
+    allQuestionsRef.current = allQuestions;
+  }, [allQuestions]);
 
   useEffect(() => {
     async function fetchSession() {
       try {
-        // 1. 取 session（含 initial 题 + 已答记录）
         const res = await fetch(`/api/assessments/${sessionId}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error);
@@ -47,28 +64,23 @@ export default function TestPage() {
           return;
         }
 
-        // 2. 【关键】开答前把 followup 题也拿齐：
-        //    session 已有 followup_ids（老 session 恢复）则直接用；
-        //    否则调 followups API 生成。全部题一次性到位，
-        //    答题过程中绝不出现"中间等待页 + 二次发卷"。
-        let followups: Question[] = json.followupQuestions || [];
-        if (followups.length === 0) {
-          const fuRes = await fetch(`/api/assessments/${sessionId}/followups`);
-          const fuJson = await fuRes.json();
-          if (!fuRes.ok) throw new Error(fuJson.error || "追加题加载失败");
-          followups = fuJson.followups || [];
-        }
+        const initial: Question[] = json.initialQuestions || [];
+        // 老 session 恢复：followup_ids 已锁定过，直接用现成的追加题
+        const existingFollowups: Question[] = json.followupQuestions || [];
+        const all = [...initial, ...existingFollowups];
 
-        const all: Question[] = [...json.initialQuestions, ...followups];
         setData(json);
         setAllQuestions(all);
+        setInitialCount(initial.length);
+        if (existingFollowups.length > 0) setFollowupState("done");
 
-        // 恢复已答记录，并直接跳到第一题未答的位置（断点续答）
         const existingAnswers: Record<string, number> = {};
         json.answeredIds.forEach((id: string) => {
           existingAnswers[id] = -1;
         });
         setAnswers(existingAnswers);
+
+        // 断点续答：跳到第一题未答的位置
         const firstUnanswered = all.findIndex(
           (q) => !json.answeredIds.includes(q.id)
         );
@@ -85,6 +97,66 @@ export default function TestPage() {
   useEffect(() => {
     setQuestionShownAt(Date.now());
   }, [currentIdx]);
+
+  // —— 静默请求 followups：答到倒数第 3 道 initial 时触发 ——
+  // 注意：followups API 会按「当前已答」计算并锁定 followup_ids，
+  // 绝不能 0 答案时调用（会锁定为空列表）。
+  const requestFollowups = useCallback(() => {
+    if (followupPromiseRef.current) return;
+    setFollowupState("pending");
+    const p = (async () => {
+      try {
+        const res = await fetch(`/api/assessments/${sessionId}/followups`);
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "追加题加载失败");
+        const followups: Question[] = json.followups || [];
+        if (followups.length > 0) {
+          setAllQuestions((prev) => {
+            // 防重：已包含这些题就不再追加
+            const ids = new Set(prev.map((q) => q.id));
+            const fresh = followups.filter((q) => !ids.has(q.id));
+            return fresh.length > 0 ? [...prev, ...fresh] : prev;
+          });
+        }
+        setFollowupState("done");
+      } catch (err: any) {
+        console.warn("[followups] failed:", err?.message);
+        setFollowupState("failed");
+      }
+    })();
+    followupPromiseRef.current = p;
+  }, [sessionId]);
+
+  const completeAssessment = useCallback(async () => {
+    try {
+      setPhase("completing");
+      // fire-and-forget 触发后端 LLM 润色
+      fetch(`/api/assessments/${sessionId}/complete`, { method: "POST" }).catch(() => {});
+      // 轮询 result，就绪即跳
+      const FALLBACK_MS = 15000;
+      const startedAt = Date.now();
+      const tick = async () => {
+        try {
+          const r = await fetch(`/api/assessments/${sessionId}/complete`, { method: "GET" });
+          if (r.ok) {
+            router.push(`/result/${sessionId}`);
+            return;
+          }
+        } catch {
+          /* 网络抖动继续轮询 */
+        }
+        if (Date.now() - startedAt > FALLBACK_MS) {
+          router.push(`/result/${sessionId}`);
+          return;
+        }
+        setTimeout(tick, 1200);
+      };
+      setTimeout(tick, 400);
+    } catch (err: any) {
+      setError(err.message || "完成测评失败");
+      setPhase("answering");
+    }
+  }, [sessionId, router]);
 
   const handleAnswer = useCallback(async (value: number) => {
     if (!allQuestions[currentIdx] || submitting) return;
@@ -111,14 +183,34 @@ export default function TestPage() {
 
       setAnswers((prev) => ({ ...prev, [question.id]: value }));
 
+      // 答到倒数第 3 道 initial 时，后台静默预取 followups
+      const nextIdxPreview = currentIdx + 1;
+      if (
+        followupState === "idle" &&
+        initialCount > 0 &&
+        nextIdxPreview >= initialCount - 3 &&
+        nextIdxPreview < initialCount
+      ) {
+        requestFollowups();
+      }
+
       // 180ms 让"已选中"视觉反馈出现，然后立即切下一题
-      setTimeout(() => {
+      setTimeout(async () => {
         setSelectedValue(null);
         const nextIdx = currentIdx + 1;
 
-        if (nextIdx >= allQuestions.length) {
-          // 全部题目答完，进入分析阶段
-          completeAssessment();
+        if (nextIdx >= allQuestionsRef.current.length) {
+          // 已到当前已加载题的末尾：
+          // - followups 还在路上 → 等它就绪（题目区内联等待，非全屏）
+          // - 已就绪 / 失败（当 0 道处理）→ 全部答完，进分析页
+          if (followupPromiseRef.current) {
+            await followupPromiseRef.current;
+          }
+          if (nextIdx >= allQuestionsRef.current.length) {
+            completeAssessment();
+          } else {
+            setCurrentIdx(nextIdx);
+          }
         } else {
           setCurrentIdx(nextIdx);
         }
@@ -129,39 +221,7 @@ export default function TestPage() {
       setSelectedValue(null);
       setError("答案保存失败，请检查网络后重试");
     }
-  }, [currentIdx, allQuestions, submitting, sessionId, questionShownAt]);
-
-  const completeAssessment = async () => {
-    try {
-      setPhase("completing");
-      // fire-and-forget 触发后端 LLM 润色
-      fetch(`/api/assessments/${sessionId}/complete`, { method: "POST" }).catch(() => {});
-      // 立即轮询 result
-      const FALLBACK_MS = 15000;
-      const startedAt = Date.now();
-      const tick = async () => {
-        try {
-          const r = await fetch(`/api/assessments/${sessionId}/complete`, { method: "GET" });
-          if (r.ok) {
-            router.push(`/result/${sessionId}`);
-            return;
-          }
-        } catch {
-          /* 网络抖动继续轮询 */
-        }
-        if (Date.now() - startedAt > FALLBACK_MS) {
-          // 兜底跳：超时直接进入结果页（结果可能只是模板版，但能进入）
-          router.push(`/result/${sessionId}`);
-          return;
-        }
-        setTimeout(tick, 1200);
-      };
-      setTimeout(tick, 400);
-    } catch (err: any) {
-      setError(err.message || "完成测评失败");
-      setPhase("answering");
-    }
-  };
+  }, [currentIdx, allQuestions, submitting, sessionId, questionShownAt, followupState, initialCount, requestFollowups, completeAssessment]);
 
   if (loading) {
     return (
@@ -185,16 +245,18 @@ export default function TestPage() {
     );
   }
 
-  // 进入 completing 阶段（生成报告）才全屏过渡
+  // 全部答完 → 生成报告的全屏过渡（整个流程只出现这一次）
   if (phase === "completing") {
     return <AnalyzingScreen />;
   }
 
   const question = allQuestions[currentIdx];
+
+  // 边界：题已答完但还没进 completing（如断点续答发现全答过）
   if (!question) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
-        <p className="text-[var(--text-muted)] text-sm">题目加载完毕</p>
+        <p className="text-[var(--text-muted)] text-sm">题目已全部答完</p>
         <button onClick={() => completeAssessment()} className="btn-primary">
           查看结果 →
         </button>
@@ -202,7 +264,7 @@ export default function TestPage() {
     );
   }
 
-  const totalQuestions = allQuestions.length || 24;
+  const totalQuestions = allQuestions.length;
   const progress = ((currentIdx + 1) / totalQuestions) * 100;
 
   // Determine options for this question
@@ -224,6 +286,9 @@ export default function TestPage() {
   }
 
   const isFollowup = question.phase === "followup";
+  // 当前题是「已加载的最后一题」且 followups 还在路上 → 本题答完会有短暂内联等待
+  const isLastLoaded = currentIdx === allQuestions.length - 1;
+  const waitingFollowups = isLastLoaded && followupState === "pending";
 
   return (
     <main className="flex-1 flex flex-col items-center px-5 pt-0 pb-8 sm:px-6 sm:pb-10 max-w-xl mx-auto w-full min-h-screen safe-bottom">
@@ -234,11 +299,14 @@ export default function TestPage() {
             默契测试
           </span>
           <span className="file-number text-[0.65rem] sm:text-[0.7rem]">
-            {currentIdx + 1} / {totalQuestions}
+            第 {currentIdx + 1} 题 / 共 {totalQuestions} 题
           </span>
         </div>
         <div className="progress-track h-1">
-          <div className="progress-fill h-full" style={{ width: `${progress}%` }} />
+          <div
+            className="progress-fill h-full"
+            style={{ width: `${progress}%`, transition: "width 0.3s ease-out" }}
+          />
         </div>
       </div>
 
@@ -275,6 +343,13 @@ export default function TestPage() {
               </button>
             ))}
           </div>
+
+          {/* 内联等待：最后一题已答、追加题在路上（非全屏，不打断节奏） */}
+          {waitingFollowups && (
+            <p className="text-center text-xs text-[var(--text-muted)] mt-6 animate-pulse">
+              正在根据你的回答定制最后几道题…
+            </p>
+          )}
         </div>
       </div>
 
