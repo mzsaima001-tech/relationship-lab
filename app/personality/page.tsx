@@ -65,7 +65,7 @@ export default function PersonalityEntry() {
       });
       const json = await res.json();
       if (json.testId) {
-        router.push(`/personality-v2/test?testId=${json.testId}`);
+        router.push(`/personality/test?testId=${json.testId}`);
         return;
       }
     } catch (err) {

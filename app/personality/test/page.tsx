@@ -1,242 +1,159 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnalyzingScreen } from "@/app/components/AnalyzingScreen";
 import HomeFooter from "@/app/components/HomeFooter";
 
-interface Question {
+// =====================================================
+// /personality/test — v1 风格答题页（v5 题库）
+//
+// 视觉与原 v1 test 一致：sticky 顶部 / 题目居中 / 选项列表 / 上一题
+// 底层走 v2 API：拉 36 题（5 选项），答案写到 v2 answers 表
+// 完成跳到 /personality-v2/result/{testId}（v5 月相卡结果页）
+// =====================================================
+
+interface PaperQuestion {
   id: string;
-  order: number;
-  question: string;
-  dimension: string;
+  dim: string;
+  stem: string;
+  options: { idx: number; text: string }[];
 }
 
-const ANSWER_OPTIONS = [
-  { letter: "A" as const, label: "非常符合我" },
-  { letter: "B" as const, label: "比较符合我" },
-  { letter: "C" as const, label: "不太符合我" },
-  { letter: "D" as const, label: "完全不像我" },
-];
+interface QuestionsResponse {
+  testId: string;
+  paperId: string;
+  total: number;
+  questions: PaperQuestion[];
+  answered: Record<string, number>;
+}
 
 type Phase = "answering" | "completing";
-
-/** 与 lib/personality 页保持一致的本地 visitorId 工具 */
-const VISITOR_KEY = "personalityVisitorId";
-function getOrCreateVisitorId(): string {
-  if (typeof window === "undefined") return "";
-  let id = localStorage.getItem(VISITOR_KEY);
-  if (!id) {
-    id = `pv_${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(VISITOR_KEY, id);
-  }
-  return id;
-}
 
 function PersonalityTestInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const testId = sp.get("testId") || "";
-  /** ref 来自 /s/[code] 落地页跳转，仅用于顶部一行小字提示；visits 已在落地 API 自动递增 */
-  const ref = sp.get("ref") || "";
 
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [data, setData] = useState<QuestionsResponse | null>(null);
   const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, "A" | "B" | "C" | "D">>({});
+  const [answers, setAnswers] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  // 答完最后一题 → 原地全屏过渡到 AnalyzingScreen（沿用双人 test 页 `phase=completing` 范式）
-  // 不依赖中间页，避免「题目未全部完成」闪现
   const [phase, setPhase] = useState<Phase>("answering");
+  // 防重入锁：避免 36 题最后一道点完 A 又点了 B 引发 race
+  const submitLockRef = useRef(false);
 
-  // 加载题目
+  // 加载 paper 题目（v2 API）
   useEffect(() => {
+    if (!testId) return;
     (async () => {
       try {
-        // 来自 /s/[code] 落地 → 没有 testId 时自动创建一个并携带 ref
-        // 让推荐者在被推荐者完成测评时 +1
-        if (!testId && ref) {
-          try {
-            const visitorId = getOrCreateVisitorId();
-            const r = await fetch(`/api/personality/tests`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ visitorId, referredByCode: ref }),
-            });
-            const j = await r.json();
-            if (r.ok && j.testId) {
-              // 用 router.replace 把 URL 升级为带 testId，避免回退栈错乱
-              router.replace(`/personality/test?testId=${j.testId}&ref=${ref}`);
-              return;
-            }
-          } catch {
-            // 失败则当作没有 ref，正常后续提示
-          }
-        }
-
-        const res = await fetch(`/api/personality/questions`);
+        const res = await fetch(
+          `/api/personality-v2/tests/${testId}/questions`
+        );
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "加载失败");
-        setQuestions(json.questions);
-        // 从 localStorage 恢复草稿
-        const draft = localStorage.getItem(`personality_draft_${testId}`);
-        if (draft) {
-          try {
-            const parsed = JSON.parse(draft);
-            // 容错：仅当解析结果为「看起来像草稿的对象」时才采用，
-            // 否则清掉坏草稿（避免人为篡改导致 UI 答题记录错位）。
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-              const restoredAnswers =
-                parsed.answers && typeof parsed.answers === "object" && !Array.isArray(parsed.answers)
-                  ? (parsed.answers as Record<string, "A" | "B" | "C" | "D">)
-                  : {};
-              setAnswers(restoredAnswers);
-              setIdx(typeof parsed.idx === "number" && parsed.idx >= 0 ? parsed.idx : 0);
-            } else {
-              console.warn("[personality test] 草稿数据无效，已丢弃", { draft });
-              localStorage.removeItem(`personality_draft_${testId}`);
-            }
-          } catch (e) {
-            console.warn("[personality test] 草稿 JSON 解析失败，已丢弃", e);
-            localStorage.removeItem(`personality_draft_${testId}`);
-          }
-        }
+        setData(json);
+        setAnswers(json.answered || {});
+        // 找到第一个未答的位置
+        const firstUnanswered = json.questions.findIndex(
+          (q: PaperQuestion) => !(json.answered || {})[q.id]
+        );
+        setIdx(firstUnanswered >= 0 ? firstUnanswered : json.questions.length - 1);
       } catch (e: any) {
         setError(e.message);
       } finally {
         setLoading(false);
       }
     })();
-  }, [testId, ref, router]);
+  }, [testId]);
 
-  // 每次答完，保存草稿到 localStorage
-  useEffect(() => {
-    if (!testId || phase === "completing") return;
-    localStorage.setItem(
-      `personality_draft_${testId}`,
-      JSON.stringify({ answers, idx })
-    );
-  }, [answers, idx, testId, phase]);
-
+  const questions = data?.questions ?? [];
+  const total = questions.length;
   const current = questions[idx];
-  // 已答题数 = idx + 1（当前 idx 已经处于"待答"位置，但 progress 应该按"已确定的答题进度"）
-  // 答完最后一题（handleAnswer 触发）后 setIdx 已经切到下一题/或进入 completing 阶段
-  // 答最后一题时 idx 仍是 length-1，此处 (idx+1)/length = 100%
-  // 进入 completing 后整页被 AnalyzingScreen 替换，下面这行不进 render
+  // 已答题数：当前 idx 已经处于"待答"位置，但 progress 应该按"已确定的答题进度"
   const totalAnswered = Math.min(idx + 1, questions.length);
-  const progress =
-    questions.length > 0 ? (totalAnswered / questions.length) * 100 : 0;
+  const progress = total > 0 ? (totalAnswered / total) * 100 : 0;
   const selected = current ? answers[current.id] : undefined;
 
-  const handleAnswer = async (letter: "A" | "B" | "C" | "D") => {
-    if (!current || phase === "completing") return;
-    const newAnswers = { ...answers, [current.id]: letter };
-    setAnswers(newAnswers);
-
-    // await 单题落库，避免 race（必须确保 complete 接收到 36 题）
+  const handleAnswer = async (optionIndex: number) => {
+    if (!current || submitLockRef.current || phase === "completing") return;
+    submitLockRef.current = true;
     try {
-      const res = await fetch(`/api/personality/tests/${testId}/answers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId: current.id, letter }),
-      });
+      // 1. 先落本地（含 selected 视觉态）
+      const newAnswers = { ...answers, [current.id]: optionIndex };
+      setAnswers(newAnswers);
+
+      // 2. await 后端保存（v2 answers API）
+      const res = await fetch(
+        `/api/personality-v2/tests/${testId}/answers`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questionId: current.id, optionIndex }),
+        }
+      );
       if (!res.ok) {
-        // 401/404/500/HTML 错误页都打回 setError，前端 stay 不前进
         let msg = `保存答案失败 (HTTP ${res.status})`;
         try {
-          const data = await res.json();
-          if (data?.error) msg = data.error;
+          const j = await res.json();
+          if (j?.error) msg = j.error;
         } catch {
-          /* 回包不是 JSON（HTML 错误页），保留 HTTP 状态文本 */
+          /* HTML 错误页 */
         }
         throw new Error(msg);
       }
+
+      // 3. 最后一题 → 切 completing；否则下一题（150ms 让"已选中"先显示）
+      if (idx + 1 >= total) {
+        setPhase("completing");
+        fireAndPollComplete();
+      } else {
+        setTimeout(() => {
+          setIdx(idx + 1);
+          submitLockRef.current = false;
+        }, 150);
+      }
     } catch (e: any) {
       console.error("save answer failed", e);
-      setError(e?.message || "保存答案失败，请重试");
-      // 关键：单题落库失败，立即切回 answering，让用户可重试同一题
-      setPhase("answering");
-      return;
+      setError(e?.message || "保存答案失败");
+      submitLockRef.current = false;
     }
+  };
 
-    // 答完最后一题（AWAIT 后写盘）→ 切 completing 阶段
-    // —— 新版：fire-and-forget POST + 轮询提前跳 ——
-    if (idx + 1 >= questions.length) {
-      setPhase("completing");
-      fireAndPollComplete();
-    } else {
-      // 自动下一题 — 150ms 内让用户看到"已选中"视觉，然后切
-      setTimeout(() => setIdx(idx + 1), 150);
-    }
+  // 触发后端算分 + 轮询 result → 一就绪立即跳
+  const fireAndPollComplete = () => {
+    fetch(`/api/personality-v2/tests/${testId}/complete`, {
+      method: "POST",
+    }).catch(() => {});
+    const startedAt = Date.now();
+    const FALLBACK_MS = 10000;
+    const tick = async () => {
+      try {
+        const r = await fetch(
+          `/api/personality-v2/tests/${testId}/result`
+        );
+        if (r.ok) {
+          router.push(`/personality-v2/result/${testId}`);
+          return;
+        }
+      } catch {
+        /* 网络抖 */
+      }
+      if (Date.now() - startedAt > FALLBACK_MS) {
+        router.push(`/personality-v2/result/${testId}`);
+        return;
+      }
+      setTimeout(tick, 1000);
+    };
+    setTimeout(tick, 300);
   };
 
   const goPrev = () => {
     if (idx === 0) return;
     setIdx(idx - 1);
-  };
-
-  const completeTest = async () => {
-    try {
-      const res = await fetch(`/api/personality/tests/${testId}/complete`, {
-        method: "POST",
-      });
-      // 后端 4xx/5xx 时可能回 JSON 或 HTML 错误页，先按 status 分流
-      if (!res.ok) {
-        let msg = `完成测试失败 (HTTP ${res.status})`;
-        try {
-          const data = await res.json();
-          if (data?.error) msg = data.error;
-        } catch {
-          /* 回包不是 JSON（HTML 错误页），保留 HTTP 状态文本避免外露英文堆栈 */
-        }
-        throw new Error(msg);
-      }
-      const json = await res.json();
-      // 清草稿
-      localStorage.removeItem(`personality_draft_${testId}`);
-      // 跳转结果页
-      router.push(`/personality/result/${testId}`);
-      return json;
-    } catch (e: any) {
-      setError(e?.message || "完成测试失败");
-      setPhase("answering");
-    }
-  };
-
-  /**
-   * 新版完成流程：触发计算 + 轮询结果独立进行，**结果一出来立刻跳**，
-   * 不再阻塞在服务端计算的 N 秒。最坏 10 秒兜底。
-   */
-  const fireAndPollComplete = () => {
-    // 1. fire-and-forget 触发后端计算
-    fetch(`/api/personality/tests/${testId}/complete`, { method: "POST" }).catch(() => {});
-    // 2. 启动 polling，每 1.2s 拉一次 result（任何 200 都视作"已就绪"）
-    const startedAt = Date.now();
-    const FALLBACK_MS = 10000;
-    const tick = async () => {
-      try {
-        const r = await fetch(`/api/personality/tests/${testId}/result`);
-        if (r.ok) {
-          // 拿到 result 说明后端已完成 — 立刻跳转
-          localStorage.removeItem(`personality_draft_${testId}`);
-          router.push(`/personality/result/${testId}`);
-          return;
-        }
-      } catch {
-        /* 网络抖动继续轮询 */
-      }
-      if (Date.now() - startedAt > FALLBACK_MS) {
-        // 兜底 10 秒：万一 polling 持续失败，最后强制跳
-        localStorage.removeItem(`personality_draft_${testId}`);
-        router.push(`/personality/result/${testId}`);
-        return;
-      }
-      setTimeout(tick, 1200);
-    };
-    // 立即发起第一次（POST 后端一般同步算完，节省一轮等待）
-    setTimeout(tick, 400);
   };
 
   if (loading) {
@@ -247,12 +164,11 @@ function PersonalityTestInner() {
     );
   }
 
-  // 答完最后一题原地切到全屏过渡页（沿用双人 test 页 phase=completing 范式）
   if (phase === "completing") {
     return (
       <AnalyzingScreen
-        title="请稍候，正在生成你的人格画像"
-        hint="约需 5–15 秒，请不要关闭页面"
+        title="请稍候，正在为你匹配月相卡"
+        hint="约需 3–8 秒，请不要关闭页面"
       />
     );
   }
@@ -261,23 +177,23 @@ function PersonalityTestInner() {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
         <p className="text-sm text-[var(--danger)]">{error || "题目不存在"}</p>
-        <Link href="/personality" className="btn-ghost">返回测试入口</Link>
+        <Link href="/personality" className="btn-ghost">
+          返回测试入口
+        </Link>
       </main>
     );
   }
 
+  // 字母映射：optionIndex 0..4 → A..E
+  const letterOf = (i: number) => String.fromCharCode(65 + i);
+
   return (
     <main className="flex-1 flex flex-col items-center px-5 pt-0 pb-8 sm:px-6 sm:pb-10 max-w-xl mx-auto w-full safe-bottom">
-      {ref && (
-        <p className="text-[11px] text-[var(--text-muted)] mt-4 mb-2 fade-in text-center">
-          来自好友的分享 · 不会留下你的测试记录给对方
-        </p>
-      )}
-      {/* 进度：sticky 顶部，方便答题时随时看到 */}
+      {/* 进度：sticky 顶部（v1 风格） */}
       <div className="sticky top-0 z-20 w-full bg-[var(--bg-dark)]/95 backdrop-blur-sm -mx-5 px-5 sm:-mx-6 sm:px-6 pt-3 sm:pt-4 pb-3 border-b border-[var(--border-dim)] fade-in">
         <div className="flex items-center justify-between text-xs text-[var(--text-muted)] mb-2">
           <span className="font-mono">
-            {totalAnswered} / {questions.length}
+            {totalAnswered} / {total}
           </span>
           <span>{Math.round(progress)}%</span>
         </div>
@@ -292,26 +208,31 @@ function PersonalityTestInner() {
       {/* 题目 */}
       <div key={current.id} className="w-full mt-8 mb-6 sm:mt-10 sm:mb-8 fade-in">
         <p className="display-serif text-base sm:text-lg md:text-xl text-[var(--text-warm)] leading-relaxed min-h-[4rem] sm:min-h-[5rem]">
-          {current.question}
+          {current.stem}
         </p>
       </div>
 
       {/* 选项 */}
-      <div className="w-full space-y-2.5 sm:space-y-3 mb-6 sm:mb-8 fade-in" style={{ animationDelay: "0.1s" }}>
-        {ANSWER_OPTIONS.map((opt) => {
-          const isSelected = selected === opt.letter;
+      <div
+        className="w-full space-y-2.5 sm:space-y-3 mb-6 sm:mb-8 fade-in"
+        style={{ animationDelay: "0.1s" }}
+      >
+        {current.options.map((opt) => {
+          const isSelected = selected === opt.idx;
           return (
             <button
-              key={opt.letter}
-              onClick={() => handleAnswer(opt.letter)}
+              key={opt.idx}
+              onClick={() => handleAnswer(opt.idx)}
               className={`w-full min-h-[56px] text-left px-4 py-3.5 sm:px-5 sm:py-4 rounded-lg border transition-all ${
                 isSelected
                   ? "bg-[var(--accent-dim)] border-[var(--accent)] text-[var(--text-warm)]"
                   : "bg-[rgba(245,237,224,0.04)] border-[var(--border-dim)] text-[var(--text-warm)] active:bg-[rgba(201,169,110,0.12)] active:border-[var(--accent-dim)]"
               }`}
             >
-              <span className="text-[var(--accent)] font-mono mr-2 sm:mr-3">{opt.letter}</span>
-              {opt.label}
+              <span className="text-[var(--accent)] font-mono mr-2 sm:mr-3">
+                {letterOf(opt.idx)}
+              </span>
+              {opt.text}
             </button>
           );
         })}
@@ -329,23 +250,22 @@ function PersonalityTestInner() {
 
       {error && (
         <div className="w-full mt-6 fade-in">
-          <p className="text-xs text-[var(--danger)] mb-3 text-center">{error}</p>
+          <p className="text-xs text-[var(--danger)] mb-3 text-center">
+            {error}
+          </p>
           <div className="flex flex-wrap gap-2 justify-center">
-            {/* 出错时给用户两条出路：重试最后一题 / 跳过看结果（即便数据不完整） */}
             <button
               type="button"
               onClick={() => {
                 setError("");
-                if (idx + 1 >= questions.length && phase === "answering") {
-                  completeTest();
-                }
+                submitLockRef.current = false;
               }}
               className="text-xs px-3 py-2 rounded-lg border border-[var(--accent)] text-[var(--accent)] active:bg-[var(--accent)]/15 min-h-[40px]"
             >
               重试
             </button>
             <Link
-              href={`/personality/result/${testId}`}
+              href={`/personality-v2/result/${testId}`}
               className="text-xs px-3 py-2 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] active:text-[var(--text-warm)] min-h-[40px] inline-flex items-center"
             >
               跳到结果页

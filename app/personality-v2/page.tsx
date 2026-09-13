@@ -97,7 +97,7 @@ export default function PersonalityV2Home() {
       });
       const json = await res.json();
       if (json.testId) {
-        router.push(`/personality-v2/test?testId=${json.testId}`);
+        router.push(`/personality/test?testId=${json.testId}`);
       }
     } catch (err) {
       console.error(err);
