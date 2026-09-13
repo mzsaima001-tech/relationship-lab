@@ -193,12 +193,7 @@ function PersonalityV2TestInner() {
           <span className="font-mono">
             {idx + 1} / {total}
           </span>
-          <span>
-            {data?.paperId && (
-              <span className="mr-3">卷 {data.paperId}</span>
-            )}
-            {Math.round(progress)}%
-          </span>
+          <span>{Math.round(progress)}%</span>
         </div>
         <div className="h-1.5 bg-[var(--border-dim)] rounded-full overflow-hidden">
           <div
@@ -208,7 +203,7 @@ function PersonalityV2TestInner() {
         </div>
       </div>
 
-      <div key={current.id} className="w-full mt-8 mb-3 sm:mt-10 fade-in">
+      <div key={current.id} className="w-full mt-8 mb-6 sm:mt-10 sm:mb-8 fade-in">
         <p className="display-serif text-base sm:text-lg md:text-xl text-[var(--text-warm)] leading-relaxed min-h-[4rem] sm:min-h-[5rem]">
           {current.stem}
         </p>
@@ -265,10 +260,16 @@ function PersonalityV2TestInner() {
               重试
             </button>
             <Link
-              href="/personality-v2"
+              href={`/personality-v2/result/${testId}`}
               className="text-xs px-3 py-2 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] active:text-[var(--text-warm)] min-h-[40px] inline-flex items-center"
             >
-              返回首页
+              跳到结果页
+            </Link>
+            <Link
+              href="/personality"
+              className="text-xs px-3 py-2 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] active:text-[var(--text-warm)] min-h-[40px] inline-flex items-center"
+            >
+              返回测试首页
             </Link>
           </div>
         </div>
