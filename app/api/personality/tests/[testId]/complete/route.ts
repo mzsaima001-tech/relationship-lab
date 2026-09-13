@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
+import { scoreAnswers } from "@/lib/personality/scoring";
+import { matchCards } from "@/lib/personality/match";
+import { PERSONALITY_CARDS } from "@/lib/personality/cards";
 import {
-  applyScoresToTest,
-  computeDimensionScores,
-} from "@/lib/personality/scoring";
-import { matchArchetypes } from "@/lib/personality/archetypes";
-import { buildFreeReport, buildFullReport } from "@/lib/personality/report";
-import { polishPersonalityReportWithLLM } from "@/lib/personality/polish";
+  PERSONALITY_DIMENSIONS,
+  type PersonalityDimension,
+  type PersonalityTestRecord,
+} from "@/lib/personality/types";
+import type { PersonalityAnswerRecord } from "@/lib/personality/types";
 import {
   getPersonalityAnswers,
   getPersonalityTest,
@@ -13,23 +15,22 @@ import {
   updatePersonalityTest,
   markPersonalityTestUnlockedViaShare,
 } from "@/lib/db";
-import { getActivePersonalityQuestions } from "@/lib/content/store";
+import { buildFreeReport, buildFullReport } from "@/lib/personality/report-builder";
+import {
+  polishFreeReportWithLLM,
+  polishFullReportWithLLM,
+  PERSONALITY_POLISH_PROMPT_VERSION,
+} from "@/lib/personality/polish";
 
-// 人格测试完整版报告可能含多个 AI 润色块（叙事 / 维度解读 / 行动建议 / 心声等），
-// 单次 polish 通常需要 30-45s，Hobby 计划默认 10s 会 socket hang up。
-// 显式提到 60s（Hobby 上限），仍超时则降级为模板版（绝不阻塞出报告）。
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 
+interface RawAnswer { questionId: string; optionIndex: number }
+
 /**
  * POST /api/personality/tests/[testId]/complete
- * 完成测试：计算 6 维 + Top3 人格 + 报告快照（含 AI 润色）。
+ * 完成测试：计算 6 维 + Top3 月相 + 报告快照（V3 schema）
  * 返回免费版报告（不带 full_report）。
- *
- * AI 润色策略（沿用 lib/reports/narrative.ts 范式）：
- * - 默认开启（AI_POLISH_ENABLED=true 且 AI_API_KEY 存在）→ 调 LLM 改写表达层
- * - 失败/超时/未开启 → 模板版原地返回，绝不阻塞出报告
- * - 润色后的报告写入 test 记录缓存，结果页直接读取，不重复 polish
  */
 export async function POST(
   _request: Request,
@@ -45,7 +46,7 @@ export async function POST(
       return NextResponse.json({ error: "测试已完成" }, { status: 400 });
     }
 
-    // 1. 收集所有答案
+    // 1. 收集答案 → 算分
     const answers = await getPersonalityAnswers(testId);
     if (answers.length < 36) {
       return NextResponse.json(
@@ -54,84 +55,82 @@ export async function POST(
       );
     }
 
-    // 2. 计算 6 维分数
-    const answerMap: Record<string, "A" | "B" | "C" | "D"> = {};
-    for (const a of answers) {
-      answerMap[a.question_id] = a.answer_letter;
-    }
-    const scores = computeDimensionScores(answerMap, getActivePersonalityQuestions());
+    const paperId = test.paper_id ?? "P1";
+    const rawAnswers: RawAnswer[] = (answers as PersonalityAnswerRecord[])
+      .map(a => ({ questionId: a.question_id, optionIndex: a.option_index }))
+      .filter(a => a.optionIndex >= 0 && a.optionIndex <= 4);
+    const scoreResult = scoreAnswers(paperId, rawAnswers);
 
-    // 3. 匹配 Top3 人格
-    const top3 = matchArchetypes(scores);
-    const [primary, secondary, hidden] = top3;
+    // 2. 匹配 Top3 月相（V3 余弦相似度）
+    const userNorm = PERSONALITY_DIMENSIONS.map(d => scoreResult.norm[d]);
+    const matchResult = matchCards(userNorm, PERSONALITY_CARDS);
 
-    // 4. 生成免费版报告
-    const freeReport = buildFreeReport({
-      scores,
-      primary,
-      secondary,
-      hidden,
-    });
+    // 3. 生成 V3 报告（模板版）+ AI 润色（复用 v1 通用润色引擎）
+    const baseFree = buildFreeReport(scoreResult.norm, matchResult);
+    const baseFull = buildFullReport(scoreResult.norm, matchResult);
 
-    // 5. 生成完整版报告（模板版，作为兜底缓存；AI 润色失败时也用它）
-    const fullReportDraft = buildFullReport({
-      scores,
-      primary,
-      secondary,
-      hidden,
-    });
+    const polishStart = Date.now();
+    // free / full 并发润色（每个约 20-30s，并发跑总耗时与单跑接近）
+    const [freePolish, fullPolish] = await Promise.all([
+      polishFreeReportWithLLM(baseFree),
+      polishFullReportWithLLM(baseFull),
+    ]);
+    const freeReport = freePolish.applied ? freePolish.report : baseFree;
+    const fullReport = fullPolish.applied ? fullPolish.report : baseFull;
+    const polishElapsedMs = Date.now() - polishStart;
 
-    // 6. 【关键】先把 status=completed 立即写库 —— 让前端的轮询能在 1-2 秒内拿到 200 跳转
-    //    即使后续 polish 还在跑（30-45s），用户已经能看到结果页（免费版立刻可见）
-    //    polish 跑完后再 updatePersonalityTest 覆盖 full_report_cache 即可
-    //    （/result API 已经支持 free_report_cache 直读，无需依赖 polish 成功）
-    //    polish_status 此时不写，保持 undefined —— 等 polish 真正跑完再写 ai-polished/local-template
-    const polishStartedAt = Date.now();
-    const initialUpdated = applyScoresToTest(test, scores);
-    await updatePersonalityTest(testId, {
-      ...initialUpdated,
-      primary_type: primary.type,
-      secondary_type: secondary.type,
-      hidden_type: hidden.type,
+    // 聚合 polish 状态：两边都成功才记 ai-polished；任一边降级则 local-partial；都没润上则 local-template
+    const anyApplied = freePolish.applied || fullPolish.applied;
+    const bothApplied = freePolish.applied && fullPolish.applied;
+    const polishStatus: PersonalityTestRecord["polish_status"] = bothApplied
+      ? "ai-polished"
+      : anyApplied
+        ? "local-partial"
+        : "local-template";
+    const polishModel = (freePolish.model ?? fullPolish.model) || undefined;
+    const polishError =
+      freePolish.error || fullPolish.error
+        ? `${freePolish.error ?? "ok"} / ${fullPolish.error ?? "ok"}`
+        : undefined;
+
+    // 4. 写库（status=completed + V3 字段 + V1 兼容字段同填）
+    const updateFields: Partial<PersonalityTestRecord> = {
+      g_score: scoreResult.norm.G,
+      x_score: scoreResult.norm.X,
+      i_score: scoreResult.norm.I,
+      f_score: scoreResult.norm.F,
+      s_score: scoreResult.norm.S,
+      e_score: scoreResult.norm.E,
+      social_score: scoreResult.norm.G,
+      rationality_score: scoreResult.norm.X,
+      risk_score: scoreResult.norm.I,
+      planning_score: scoreResult.norm.F,
+      dominance_score: scoreResult.norm.S,
+      sensitivity_score: scoreResult.norm.E,
+      top1_card_id: matchResult.top1.card.id,
+      top2_card_id: matchResult.top2.card.id,
+      top3_card_id: matchResult.top3.card.id,
+      top1_sim: matchResult.top1.similarity,
+      top2_sim: matchResult.top2.similarity,
+      top3_sim: matchResult.top3.similarity,
+      primary_type: matchResult.top1.card.id,
+      secondary_type: matchResult.top2.card.id,
+      hidden_type: matchResult.top3.card.id,
+      is_mixed: matchResult.is_mixed,
+      mixed_note: matchResult.mixed_note,
       status: "completed",
       completed_at: new Date().toISOString(),
-      free_report_cache: freeReport,
-      // 立即把模板版当作兜底缓存写进去；polish 成功后会被覆盖
-      full_report_cache: fullReportDraft,
-    });
-
-    // 7. 后台 polish（30-45s；失败/超时降级为模板版）
-    //    注意：这里的 catch 只为记录错误，绝不能影响 status=completed 的可见性
-    let applied = false;
-    let model: string | undefined;
-    let polishError: string | undefined;
-    let finalFullReport = fullReportDraft;
-    try {
-      const polishResult = await polishPersonalityReportWithLLM(fullReportDraft);
-      applied = polishResult.applied;
-      model = polishResult.model;
-      polishError = polishResult.error;
-      finalFullReport = polishResult.fullReport;
-    } catch (e) {
-      polishError = e instanceof Error ? e.message : String(e);
-      console.error("[personality/complete] polish crashed:", polishError);
-    }
-    const polishElapsedMs = Date.now() - polishStartedAt;
-
-    // 8. polish 完后再 update 一次 —— 覆盖 full_report_cache + 润色元数据
-    //    如果 polish 没成功也写一次元数据（让前端能区分是 ai-polished 还是 local-template）
-    await updatePersonalityTest(testId, {
-      full_report_cache: finalFullReport,
-      polish_status: applied ? "ai-polished" : "local-template",
-      polish_model: model,
-      polish_prompt_version: applied ? "v1.0-ai-polish" : undefined,
+      free_report_cache: freeReport as any,
+      full_report_cache: fullReport as any,
+      polish_status: polishStatus,
+      polish_model: polishModel,
+      polish_prompt_version: PERSONALITY_POLISH_PROMPT_VERSION,
       polish_elapsed_ms: polishElapsedMs,
-      polish_error: polishError,
-    });
+      ...(polishError ? { polish_error: polishError.slice(0, 500) } : {}),
+    };
+    await updatePersonalityTest(testId, updateFields);
 
-    // 9. 分享归因：若来自 ref 落地，则给推荐者 +1（最多 5 人自动解锁完整报告）
-    //    - 同一 visitor 不重复计数
-    //    - 推荐者自动 is_paid=true → 下次访问直接拿完整版
+    // 5. 分享归因
     let referrerUnlocked = false;
     let recommendedCount = 0;
     if (test.referred_by_code) {
@@ -150,19 +149,21 @@ export async function POST(
 
     return NextResponse.json({
       testId,
-      scores,
+      scores: scoreResult.norm,
       types: {
-        primary: { ...primary },
-        secondary: { ...secondary },
-        hidden: { ...hidden },
+        primary: { id: matchResult.top1.card.id, name: matchResult.top1.card.name, similarity: matchResult.top1.similarity, card: matchResult.top1.card },
+        secondary: { id: matchResult.top2.card.id, name: matchResult.top2.card.name, similarity: matchResult.top2.similarity, card: matchResult.top2.card },
+        hidden: { id: matchResult.top3.card.id, name: matchResult.top3.card.name, similarity: matchResult.top3.similarity, card: matchResult.top3.card },
       },
       freeReport,
       polish: {
-        applied,
-        model,
+        applied: anyApplied,
+        bothApplied,
+        model: polishModel,
         elapsedMs: polishElapsedMs,
-        // 不返回 error（admin 排查用），只返回状态让前端感知
-        status: applied ? "ai-polished" : "local-template",
+        status: polishStatus,
+        promptVersion: PERSONALITY_POLISH_PROMPT_VERSION,
+        ...(polishError ? { error: polishError } : {}),
       },
     });
   } catch (error) {

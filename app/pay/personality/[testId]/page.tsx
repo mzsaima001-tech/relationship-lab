@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { OrnamentDivider, StarMap } from "@/app/components/decor";
 import HomeFooter from "@/app/components/HomeFooter";
-import { PAYMENT_CONFIG } from "@/lib/site";
+import StaticQrPayCard from "@/app/components/StaticQrPayCard";
 import { PERSONALITY_REPORT_PRICE } from "@/lib/personality/types";
 
 // =====================================================
@@ -19,6 +19,7 @@ interface PersonalityOrder {
   order: { id: string; order_no: string; test_id: string };
   price: number;
   payUrl?: string | null;
+  qrCode?: string | null;
   live?: boolean;
 }
 
@@ -30,7 +31,6 @@ export default function PersonalityPayPage() {
   const [info, setInfo] = useState<PersonalityOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     async function createOrder() {
@@ -59,21 +59,14 @@ export default function PersonalityPayPage() {
 
   const handleConfirm = async () => {
     if (!info?.payment) return;
-    setConfirming(true);
-    try {
-      // V1 mock：开发阶段点击「我已完成付款」直接调 callback 解锁
-      const res = await fetch(`/api/payment/personality/callback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentId: info.payment.id }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "确认失败");
-      router.push(`/personality/report/${testId}`);
-    } catch (err: any) {
-      setError(err.message);
-      setConfirming(false);
-    }
+    const res = await fetch(`/api/payment/personality/callback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentId: info.payment.id }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "确认失败");
+    // 静态码方案：callback 路由只把 status 改成 pending_review，不直接解锁。
   };
 
   if (loading) {
@@ -135,59 +128,54 @@ export default function PersonalityPayPage() {
           </div>
         </div>
 
-        {/* 真网关在线：跳 payUrl；否则显示静态码 + 主动确认 */}
-        {info.live && info.payUrl ? (
+        {/* 真网关在线：按 qrCode / payUrl 分流 */}
+        {info.live && (info.payUrl || info.qrCode) ? (
           <div className="card p-6 text-center">
-            <p className="archive-label mb-4">去支付</p>
-            <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
-              将跳转至星驿付完成支付，支付成功后系统会自动解锁完整报告，无需刷新页面。
+            <p className="archive-label mb-4">扫码或前往支付</p>
+            {info.qrCode ? (
+              <>
+                <div className="inline-block rounded-xl bg-white p-3 shadow-lg">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={info.qrCode}
+                    alt="收款二维码"
+                    className="w-52 h-52 object-contain"
+                  />
+                </div>
+                <p className="text-sm text-[var(--text-muted)] mt-3 leading-relaxed">
+                  微信 / 支付宝 / 银联 任意扫码即可
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  订单号 {info.payment.id.slice(0, 8).toUpperCase()}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
+                  将跳转至支付网关完成支付，支付成功后系统会自动解锁完整报告，无需刷新页面。
+                </p>
+                <a href={info.payUrl!} className="btn-primary w-full">前往支付 →</a>
+              </>
+            )}
+
+            <p className="text-[11px] text-[var(--text-muted)] mt-4 leading-relaxed">
+              付款成功后系统会在 3-5 秒内自动跳转至完整报告，无需任何操作。
             </p>
-            <a href={info.payUrl} className="btn-primary w-full">前往支付 →</a>
           </div>
         ) : (
-          <div className="card p-6 text-center">
-            <p className="archive-label mb-4">扫码付款</p>
-            <div className="inline-block rounded-xl bg-white p-3 shadow-lg">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={PAYMENT_CONFIG.aggregateQr}
-                alt="收款码"
-                className="w-52 h-52 object-contain"
-              />
-            </div>
-            <p className="text-sm text-[var(--text-warm)] mt-4">
-              请支付 <span className="text-[var(--accent)] font-medium">¥{price.toFixed(1)}</span>
-            </p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">
-              {PAYMENT_CONFIG.channels} · 长按或截图扫码支付
-            </p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">
-              订单号 {info.payment.id.slice(0, 8).toUpperCase()}
-            </p>
-
-            <button
-              onClick={handleConfirm}
-              disabled={confirming}
-              className="btn-primary w-full mt-6"
-            >
-              {confirming ? "确认中..." : "我已完成付款，解锁报告"}
-            </button>
-            <p className="text-[11px] text-[var(--text-muted)] mt-3 leading-relaxed">
-              当前为开发阶段：付款后点击上方按钮立即解锁；正式部署后由支付网关异步回调自动确认。
-            </p>
-          </div>
+          /* 静态收款码方案（2026-09-14 起）：扫码 → 我已支付 → 管理员后台确认 */
+          <StaticQrPayCard
+            amount={price}
+            orderNo={info.payment.id.slice(0, 8).toUpperCase()}
+            paymentId={info.payment.id}
+            confirmKind="personality"
+            onConfirm={handleConfirm}
+            backHref={`/personality/result/${testId}`}
+            backLabel="返回我的报告"
+          />
         )}
 
         {error && <p className="text-sm text-[var(--danger)] text-center mt-4">{error}</p>}
-
-        <div className="text-center mt-8">
-          <Link
-            href={`/personality/result/${testId}`}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
-          >
-            ← 返回我的报告
-          </Link>
-        </div>
 
         <HomeFooter />
       </div>

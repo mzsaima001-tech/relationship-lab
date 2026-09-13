@@ -87,6 +87,8 @@ interface ResultData {
   /** 当前 session 是否已在某个 pair 里（A = 发起方，B = 被分享人） */
   pairId?: string | null;
   pairRole?: "a" | "b" | null;
+  /** 该 pair 的契合画像是否已支付 ¥19.9 解锁（用于结果页按钮文案分支） */
+  pairPaid?: boolean;
 }
 
 // ---------- 小组件 ----------
@@ -96,17 +98,25 @@ function Section({
   children,
   delay = 0,
   paper = true,
+  archiveLabel = false,
 }: {
   title: string;
   children: React.ReactNode;
   delay?: number;
   paper?: boolean;
+  archiveLabel?: boolean;
 }) {
   return (
-    <section className="mb-8 sm:mb-10 fade-in-up" style={{ animationDelay: `${delay}s` }}>
-      <div className="flex items-center gap-3 mb-3 sm:mb-4">
-        <h3 className="archive-label">{title}</h3>
-        <span className="flex-1 h-px bg-[var(--border-dim)]" />
+    <section className="mb-9 sm:mb-12 fade-in-up" style={{ animationDelay: `${delay}s` }}>
+      <div className="flex items-baseline gap-3 mb-5 sm:mb-6">
+        {archiveLabel ? (
+          <h3 className="archive-label">{title}</h3>
+        ) : (
+          <h3 className="display-serif font-bold text-[20px] sm:text-[22px] md:text-[24px] text-[var(--accent-bright)] tracking-tight">
+            {title}
+          </h3>
+        )}
+        <span className="flex-1 h-px bg-[var(--border-dim)] translate-y-[-3px]" />
       </div>
       {paper ? <LetterFrame className="p-4 pt-7 sm:p-6 sm:pt-8">{children}</LetterFrame> : children}
     </section>
@@ -117,7 +127,7 @@ function Paragraphs({ text }: { text: string }) {
   return (
     <>
       {text.split("\n\n").map((p, i) => (
-        <p key={i} className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed mb-3 last:mb-0">
+        <p key={i} className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed mb-3 last:mb-0">
           {p}
         </p>
       ))}
@@ -128,13 +138,13 @@ function Paragraphs({ text }: { text: string }) {
 function FactBlock({ fact }: { fact: FactReading }) {
   return (
     <div className="border-l-2 border-[var(--accent)] pl-4 mb-4 sm:mb-5 last:mb-0">
-      <p className="text-[15px] sm:text-sm font-medium text-[var(--text-warm)] mb-1.5">{fact.headline}</p>
-      <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed opacity-90">{fact.meaning}</p>
+      <p className="text-[18px] sm:text-[19px] font-medium text-[var(--text-warm)] mb-1.5">{fact.headline}</p>
+      <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed opacity-90">{fact.meaning}</p>
       {fact.strength && (
-        <p className="text-xs text-[var(--text-muted)] leading-relaxed mt-1.5">＋ {fact.strength}</p>
+        <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] leading-relaxed mt-1.5">＋ {fact.strength}</p>
       )}
       {fact.risk && (
-        <p className="text-xs text-[var(--text-muted)] leading-relaxed mt-1.5">△ {fact.risk}</p>
+        <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] leading-relaxed mt-1.5">△ {fact.risk}</p>
       )}
     </div>
   );
@@ -155,6 +165,7 @@ export default function ResultPage() {
   const [inviteQr, setInviteQr] = useState("");
   const [pairId, setPairId] = useState("");
   const [pairRole, setPairRole] = useState<"a" | "b" | null>(null);
+  const [pairPaid, setPairPaid] = useState(false);
   const [creatingInvite, setCreatingInvite] = useState(false);
   const [copied, setCopied] = useState(false);
   const [unlocking, setUnlocking] = useState(false);
@@ -214,6 +225,7 @@ export default function ResultPage() {
           if (json.pairId) {
             setPairId(json.pairId);
             setPairRole(json.pairRole ?? null);
+            setPairPaid(Boolean(json.pairPaid));
           }
           setData(json);
           setLoading(false);
@@ -295,9 +307,9 @@ export default function ResultPage() {
   if (error && !data) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
-        <p className="text-[var(--danger)] text-sm text-center">{error}</p>
+        <p className="text-[18px] sm:text-[19px] text-[var(--danger)] text-center">{error}</p>
         <button onClick={refetchResult} className="btn-primary">🔄 重试</button>
-        <Link href="/start" className="text-xs text-[var(--text-muted)]">← 回到首页</Link>
+        <Link href="/start" className="text-[16px] sm:text-[17px] text-[var(--text-muted)]">← 回到首页</Link>
       </main>
     );
   }
@@ -330,20 +342,20 @@ export default function ResultPage() {
             elevated
           />
         </div>
-        <p className="text-xs text-[var(--text-muted)] italic display-serif">
+        <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] italic display-serif">
           「{tarot.motto}」
         </p>
         <h1 className="display-serif text-2xl sm:text-3xl text-[var(--text-warm)] mt-5 sm:mt-6">{data.nickname}</h1>
         <p className="display-serif text-lg sm:text-xl text-[var(--accent)] mt-2">「{data.archetype}」</p>
         {n?.archetype.essence && (
-          <p className="text-sm text-[var(--text-muted)] mt-3 leading-relaxed">{n.archetype.essence}</p>
+          <p className="text-[18px] text-[var(--text-muted)] mt-3 leading-relaxed">{n.archetype.essence}</p>
         )}
         {data.tags.length > 0 && (
           <div className="flex flex-wrap justify-center gap-2 mt-5">
             {data.tags.map((tag) => (
               <span
                 key={tag}
-                className="px-3 py-1 text-xs text-[var(--text-muted)] border border-[var(--border-dim)] rounded-full"
+                className="px-3 py-1 text-[16px] text-[var(--text-muted)] border border-[var(--border-dim)] rounded-full"
               >
                 {tag}
               </span>
@@ -357,13 +369,13 @@ export default function ResultPage() {
       {n && (
         <LetterFrame className="p-4 pt-7 mb-8 sm:p-6 sm:pt-8 sm:mb-10 fade-in-up" >
           <div className="fade-in-up" style={{ animationDelay: "0.1s" }}>
-            <p className="display-serif text-base sm:text-base text-[var(--text-warm)] leading-relaxed mb-4">
+            <p className="display-serif text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed mb-4">
               {n.oneLiner}
             </p>
             <OrnamentDivider className="mb-4" />
             <Paragraphs text={n.opening} />
             {n.archetype.recentTendency && (
-              <p className="display-serif text-sm text-[var(--text-warm)] leading-relaxed mt-3 italic">
+              <p className="display-serif text-[18px] text-[var(--text-warm)] leading-relaxed mt-3 italic">
                 {n.archetype.recentTendency}
               </p>
             )}
@@ -372,18 +384,18 @@ export default function ResultPage() {
       )}
 
       {/* ===== 六维图（免费） ===== */}
-      <Section title="Six Dimensions" delay={0.15}>
+      <Section title="Six Dimensions" delay={0.15} archiveLabel>
         <div className="space-y-4 sm:space-y-5">
           {(n?.dimensions ?? Object.entries(data.scores).map(([key, score]) => ({
             key, label: key, score, confidence: 0, bandLabel: "", summary: "", daily: "", evidenceQuotes: [] as string[],
           }))).map((dim) => (
             <div key={dim.key}>
               <div className="flex items-center justify-between mb-2 gap-2">
-                <span className="text-sm text-[var(--text-warm)] truncate">{dim.label}</span>
-                <span className="text-sm text-[var(--accent)] font-mono whitespace-nowrap">
+                <span className="text-[18px] text-[var(--text-warm)] truncate">{dim.label}</span>
+                <span className="text-[18px] text-[var(--accent)] font-mono whitespace-nowrap">
                   {dim.score}
                   {dim.bandLabel && (
-                    <span className="text-xs text-[var(--text-muted)] ml-1.5">{dim.bandLabel}</span>
+                    <span className="text-[16px] text-[var(--text-muted)] ml-1.5">{dim.bandLabel}</span>
                   )}
                 </span>
               </div>
@@ -400,7 +412,7 @@ export default function ResultPage() {
         <Section title="你的核心需求" delay={0.2}>
           <FactBlock fact={n.coreNeeds[0]} />
           {!reportUnlocked && (data.lockedCounts?.coreNeeds ?? 0) > 0 && (
-            <p className="text-xs text-[var(--text-muted)] mt-3">
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mt-3 leading-relaxed">
               还有 {data.lockedCounts!.coreNeeds} 条核心需求解读，解锁后可见。
             </p>
           )}
@@ -418,16 +430,16 @@ export default function ResultPage() {
       {n?.lockedPattern && !reportUnlocked && (
         <LetterFrame className="p-4 pt-7 mb-8 sm:p-6 sm:pt-8 sm:mb-10 fade-in-up" >
           <div className="fade-in-up" style={{ animationDelay: "0.25s" }}>
-            <div className="flex items-center gap-3 mb-3">
-              <h3 className="archive-label">隐藏模式</h3>
-              <span className="flex-1 h-px bg-[var(--border-dim)]" />
-              <span className="text-xs text-[var(--text-muted)]">🔒</span>
+            <div className="flex items-baseline gap-3 mb-4">
+              <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--text-warm)] tracking-tight">隐藏模式</h3>
+              <span className="flex-1 h-px bg-[var(--border-dim)] translate-y-[-3px]" />
+              <span className="text-[16px] text-[var(--text-muted)]">🔒</span>
             </div>
-            <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">
               你的回答里还有一个比较明显的模式：
               <span className="text-[var(--accent)] font-medium">「{n.lockedPattern.name}」</span>
             </p>
-            <p className="text-xs text-[var(--text-muted)] mt-2">
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mt-2.5 leading-relaxed">
               它从哪里来、如何影响你——解锁完整报告后揭晓。
             </p>
           </div>
@@ -440,13 +452,13 @@ export default function ResultPage() {
           <div className="fade-in-up" style={{ animationDelay: "0.3s" }}>
             {/* 主大标题 —— 纯黑/深灰（去棕色） */}
             <h3
-              className="display-serif text-lg sm:text-xl text-center font-bold leading-tight mb-2"
+              className="display-serif text-xl sm:text-2xl text-center font-bold leading-tight mb-2"
               style={{ color: "#0a0a0a" }}
             >
               你才看到自己的 {data.freePercent ?? 8}%
             </h3>
             <p
-              className="display-serif text-base sm:text-lg text-center font-semibold leading-snug mb-5"
+              className="display-serif text-lg sm:text-xl text-center font-semibold leading-snug mb-5"
               style={{ color: "#1a1a1a" }}
             >
               —— 还有一整个宇宙没展开
@@ -455,7 +467,7 @@ export default function ResultPage() {
             <OrnamentDivider className="mb-5" />
 
             {/* 解锁后能得到什么 —— ✦ 用深灰（非金棕色） */}
-            <p className="display-serif text-sm font-semibold mb-3" style={{ color: "#0a0a0a" }}>解锁后，你将立刻得到：</p>
+            <p className="display-serif text-[18px] font-semibold mb-3" style={{ color: "#0a0a0a" }}>解锁后，你将立刻得到：</p>
             <ul className="space-y-2.5 mb-6">
               {[
                 ["读懂 TA 的钥匙", "TA 不愿说出口的需求和期待，一次讲透"],
@@ -467,7 +479,7 @@ export default function ResultPage() {
               ].map(([t, d]) => (
                 <li key={t} className="flex gap-2.5">
                   <span className="mt-0.5 flex-shrink-0 text-base" style={{ color: "#1a1a1a" }}>✦</span>
-                  <p className="text-[15px] sm:text-sm leading-relaxed" style={{ color: "#0a0a0a" }}>
+                  <p className="text-[18px] sm:text-[19px] leading-relaxed" style={{ color: "#0a0a0a" }}>
                     <span className="font-medium">{t}</span>
                     <span style={{ color: "#2a2a2a" }}> —— {d}</span>
                   </p>
@@ -490,7 +502,7 @@ export default function ResultPage() {
             >
               ¥{SINGLE_REPORT_PRICE.toFixed(1)} 立即解锁完整报告
             </SafeLink>
-            <p className="text-[11px] text-center mt-2.5 leading-relaxed" style={{ color: "#2a2a2a" }}>
+            <p className="text-[16px] sm:text-[17px] text-center mt-3 leading-relaxed" style={{ color: "#2a2a2a" }}>
               支持{PAYMENT_CONFIG.channels} · 也可以分享 {VALID_SHARES_FOR_FREE_UNLOCK} 位朋友，免费解锁 ↓
             </p>
           </div>
@@ -504,12 +516,12 @@ export default function ResultPage() {
                 <Paragraphs text={n.archetype.portrait} />
                 <div className="grid sm:grid-cols-2 gap-3 sm:gap-4 mt-5">
                   <div className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4">
-                    <p className="archive-label mb-2">天赋</p>
-                    <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{n.archetype.gift}</p>
+                    <p className="display-serif font-semibold text-[17px] sm:text-[18px] text-[var(--text-warm)] mb-2 tracking-tight">天赋</p>
+                    <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{n.archetype.gift}</p>
                   </div>
                   <div className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4">
-                    <p className="archive-label mb-2">盲区</p>
-                    <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{n.archetype.blindSpot}</p>
+                    <p className="display-serif font-semibold text-[17px] sm:text-[18px] text-[var(--text-warm)] mb-2 tracking-tight">盲区</p>
+                    <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{n.archetype.blindSpot}</p>
                   </div>
                 </div>
               </div>
@@ -535,28 +547,28 @@ export default function ResultPage() {
                 {n.dimensions.map((dim) => (
                   <div key={dim.key} className="card p-4 sm:p-5">
                     <div className="flex items-center justify-between mb-3 gap-2">
-                      <p className="text-[15px] sm:text-sm font-medium text-[var(--text-warm)] truncate">{dim.label}</p>
-                      <span className="text-xs text-[var(--text-muted)] whitespace-nowrap">
+                      <p className="text-[18px] sm:text-[19px] font-medium text-[var(--text-warm)] truncate">{dim.label}</p>
+                      <span className="text-[16px] sm:text-[17px] text-[var(--text-muted)] whitespace-nowrap">
                         {dim.score} 分 · {dim.bandLabel}
                       </span>
                     </div>
                     <div className="dim-bar-track mb-3 sm:mb-4">
                       <div className="dim-bar-fill h-full" style={{ width: `${dim.score}%` }} />
                     </div>
-                    <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed mb-2">{dim.summary}</p>
-                    <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed opacity-80">{dim.daily}</p>
+                    <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed mb-2">{dim.summary}</p>
+                    <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed opacity-80">{dim.daily}</p>
                     {dim.evidenceQuotes.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-[var(--border-dim)]">
-                        <p className="text-xs text-[var(--text-muted)] mb-1.5">你的回答印证了这一点：</p>
+                        <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-2 leading-relaxed">你的回答印证了这一点：</p>
                         {dim.evidenceQuotes.map((q, i) => (
-                          <p key={i} className="text-xs text-[var(--text-muted)] leading-relaxed italic">
+                          <p key={i} className="text-[16px] sm:text-[17px] text-[var(--text-muted)] leading-relaxed italic">
                             「{q}」
                           </p>
                         ))}
                       </div>
                     )}
                     {dim.watchOut && (
-                      <p className="text-xs text-[var(--accent)] leading-relaxed mt-3">△ {dim.watchOut}</p>
+                      <p className="text-[16px] sm:text-[17px] text-[var(--accent)] leading-relaxed mt-3">△ {dim.watchOut}</p>
                     )}
                   </div>
                 ))}
@@ -571,12 +583,12 @@ export default function ResultPage() {
                     <div key={sig.id} className="flex gap-3">
                       <span className="text-[var(--accent)] flex-shrink-0">·</span>
                       <div>
-                        <p className="text-sm text-[var(--text-warm)] leading-relaxed">
+                        <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">
                           <span className="font-medium">{sig.label}</span>
                           <span className="opacity-90">——{sig.meaning}</span>
                         </p>
                         {sig.recent && (
-                          <p className="text-xs text-[var(--text-muted)] leading-relaxed mt-1">{sig.recent}</p>
+                          <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] leading-relaxed mt-1.5">{sig.recent}</p>
                         )}
                       </div>
                     </div>
@@ -604,7 +616,7 @@ export default function ResultPage() {
               <Section title="你容易被误解的地方" delay={0.24}>
                 <div className="space-y-3">
                   {n.misunderstood.map((m, i) => (
-                    <p key={i} className="text-sm text-[var(--text-warm)] leading-relaxed flex gap-3">
+                    <p key={i} className="text-[18px] text-[var(--text-warm)] leading-relaxed flex gap-3">
                       <span className="text-[var(--accent)] flex-shrink-0">·</span>
                       <span>{m}</span>
                     </p>
@@ -616,7 +628,7 @@ export default function ResultPage() {
             {/* ===== 阶段解读 ===== */}
             {n.lifeStageNote && (
               <Section title="你目前所处的阶段" delay={0.26}>
-                <p className="text-sm text-[var(--text-warm)] leading-relaxed">{n.lifeStageNote}</p>
+                <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{n.lifeStageNote}</p>
               </Section>
             )}
 
@@ -626,7 +638,7 @@ export default function ResultPage() {
                 <div className="space-y-2.5 sm:space-y-3">
                   {n.suggestions.map((s, i) => (
                     <div key={i} className="card p-3.5 sm:p-4">
-                      <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
+                      <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">
                         <span className="text-[var(--accent)] font-mono mr-2">{String(i + 1).padStart(2, "0")}</span>
                         {s}
                       </p>
@@ -642,7 +654,7 @@ export default function ResultPage() {
                 <div className="space-y-2.5 sm:space-y-3">
                   {n.scripts.map((s, i) => (
                     <div key={i} className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4">
-                      <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed italic">{s}</p>
+                      <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed italic">{s}</p>
                     </div>
                   ))}
                 </div>
@@ -652,9 +664,9 @@ export default function ResultPage() {
             {/* ===== 质量提示 ===== */}
             {n.qualityNote && (
               <div className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4 mb-8 sm:mb-10">
-                <p className="text-xs text-[var(--text-muted)] leading-relaxed">{n.qualityNote}</p>
+                <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] leading-relaxed">{n.qualityNote}</p>
                 {data.responseQuality && (
-                  <p className="text-xs text-[var(--text-muted)] mt-2">
+                  <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mt-2">
                     本次作答质量指数：{data.responseQuality.rqi}/100
                   </p>
                 )}
@@ -674,22 +686,22 @@ export default function ResultPage() {
         <div className="card p-4 sm:p-6 mb-8 sm:mb-10 fade-in-up" style={{ animationDelay: "0.33s" }}>
           <div className="text-center">
             <p className="archive-label mb-3">Pair · 双人默契</p>
-            <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-3">
+            <h3 className="display-serif text-[20px] sm:text-[22px] text-[var(--text-warm)] mb-3 font-semibold">
               想看看你们俩的关系组合？
             </h3>
 
             {/* 被分享人（B）专属文案：发起方是 TA 的同伴 */}
             {pairRole === "b" ? (
-              <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
+              <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-5 leading-relaxed">
                 TA 已经完成测评并邀请了你。你们可以一起查看双人关系分析。
                 <br />
-                <span className="text-xs">（这是双人模式，和下面的朋友分享海报是两回事）</span>
+                <span className="text-[15px]">（这是双人模式，和下面的朋友分享海报是两回事）</span>
               </p>
             ) : (
-              <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
+              <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-5 leading-relaxed">
                 生成一个邀请链接发给TA。TA独立完成测试后，你们就能看到双人关系分析。
                 <br />
-                <span className="text-xs">（这是双人模式，和下面的朋友分享海报是两回事）</span>
+                <span className="text-[15px]">（这是双人模式，和下面的朋友分享海报是两回事）</span>
               </p>
             )}
 
@@ -699,7 +711,7 @@ export default function ResultPage() {
                   3. inviteUrl 不存在 + pairRole === "b"（B 被分享人）：只展示「查看契合画像」按钮 */}
             {inviteUrl ? (
               <>
-                <p className="text-sm text-[var(--text-warm)] mb-4">邀请链接已生成，把这个链接发给 TA：</p>
+                <p className="text-[18px] text-[var(--text-warm)] mb-4">邀请链接已生成，把这个链接发给 TA：</p>
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
                   <input
                     type="text"
@@ -718,18 +730,23 @@ export default function ResultPage() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={inviteQr} alt="双人邀请二维码" className="w-32 h-32 block" />
                     </div>
-                    <p className="text-[11px] text-[var(--text-muted)] mt-2.5">
+                    <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mt-2.5">
                       或直接让 TA 扫码进入
                     </p>
                   </div>
                 )}
-                <p className="text-xs text-[var(--text-muted)] mb-5">
+                <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-5 leading-relaxed">
                   TA 完成后，你们可以在契合画像页查看结果。
                 </p>
                 {pairId && (
                   <SafeLink href={`/pair/${pairId}`} className="btn-view-pair w-full sm:w-auto">
-                    ✦ 查看我们的契合画像 →
+                    {pairPaid ? "✦ 查看我们的契合画像 →" : "🔓 解锁契合画像 · ¥19.9 →"}
                   </SafeLink>
+                )}
+                {!pairPaid && pairId && (
+                  <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mt-2 text-center">
+                    双人默契报告 · 含双方体验 / 完整循环 / 沟通话术
+                  </p>
                 )}
               </>
             ) : (
@@ -745,16 +762,22 @@ export default function ResultPage() {
                   </button>
                 )}
                 {/* 「查看我们的契合画像」按钮：pairId 存在时对 A 和 B 都可点
-                    （A 可能还没生成邀请但已有 pair；B 完成测试后自动获得 pair） */}
+                    （A 可能还没生成邀请但已有 pair；B 完成测试后自动获得 pair）
+                    未付费 → ¥19.9 解锁按钮；已付费 → 直接进入契合画像 */}
                 {pairId ? (
                   <SafeLink href={`/pair/${pairId}`} className="btn-view-pair w-full sm:w-auto">
-                    ✦ 查看我们的契合画像 →
+                    {pairPaid ? "✦ 查看我们的契合画像 →" : "🔓 解锁契合画像 · ¥19.9 →"}
                   </SafeLink>
                 ) : pairRole !== "b" ? (
-                  <p className="text-[11px] text-[var(--text-muted)]">
+                  <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)]">
                     对方完成后，这里会出现「查看契合画像」
                   </p>
                 ) : null}
+                {!pairPaid && pairId && (
+                  <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mt-1">
+                    双人默契报告 · 含双方体验 / 完整循环 / 沟通话术
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -777,15 +800,15 @@ export default function ResultPage() {
           >
             <div className="text-center">
               <p className="archive-label mb-3">Share · 分享给朋友</p>
-              <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-3">
+              <h3 className="display-serif text-[20px] sm:text-[22px] text-[var(--text-warm)] mb-3 font-semibold">
                 {reportUnlocked ? "把你的关系牌分享给朋友" : `分享 ${SHARES_NEEDED} 人，免费解锁`}
               </h3>
-              <p className="text-sm text-[var(--text-muted)] mb-5 leading-relaxed">
+              <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-5 leading-relaxed">
                 生成你的专属海报（含二维码）。朋友扫码后翻开的，是 TA 们自己的牌。
                 {!reportUnlocked && (
                   <>
                     <br />
-                    <span className="text-xs">TA 答完最后一题，才算 1 位有效分享。</span>
+                    <span className="text-[15px]">TA 答完最后一题，才算 1 位有效分享。</span>
                   </>
                 )}
               </p>
@@ -794,8 +817,8 @@ export default function ResultPage() {
               {!reportUnlocked && (
                 <>
                   <div className="flex items-center justify-between mb-2.5">
-                    <p className="text-xs text-[var(--text-muted)]">有效分享进度</p>
-                    <p className="text-sm text-[var(--accent)] font-mono">
+                    <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)]">有效分享进度</p>
+                    <p className="text-[18px] text-[var(--accent)] font-mono">
                       {sharesDone}/{SHARES_NEEDED}
                     </p>
                   </div>
@@ -826,7 +849,7 @@ export default function ResultPage() {
                   <SafeLink href={`/share/${sessionId}`} className="btn-primary w-full">
                     {`分享我的海报（还差 ${SHARES_NEEDED - sharesDone} 人）→`}
                   </SafeLink>
-                  <p className="text-[11px] text-[var(--text-muted)] text-center mt-2.5 leading-relaxed">
+                  <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] text-center mt-3 leading-relaxed">
                     每 1 位朋友完成测评，进度 +1 · 海报已备好，点一下就能发
                   </p>
                 </>
@@ -836,12 +859,12 @@ export default function ResultPage() {
         );
       })()}
 
-      {error && <p className="text-sm text-[var(--danger)] text-center">{error}</p>}
+      {error && <p className="text-[16px] sm:text-[17px] text-[var(--danger)] text-center">{error}</p>}
 
       <div className="text-center mt-6 sm:mt-8">
         <button
           onClick={() => router.back()}
-          className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] active:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4"
+          className="text-[16px] sm:text-[17px] text-[var(--text-muted)] hover:text-[var(--text-warm)] active:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4"
         >
           ← 返回上一页
         </button>

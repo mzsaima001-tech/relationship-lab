@@ -1,17 +1,15 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { getPayment, markPaymentPaid } from "@/lib/db";
+import { getPayment, markPaymentPendingReview } from "@/lib/db";
 import { ADMIN_COOKIE, verifyAdminToken } from "@/lib/admin/auth";
 import { isXingyifuLive } from "@/lib/payment/xingyifu";
 
 /**
- * ⚠️ 这是开发阶段「主动确认收款」路由（保留给人工对账/客服补偿用）。
- *
- * 安全策略：
- *  - 仅在「生产 + 真网关在线」组合下强制 admin 鉴权
- *  - V1 mock（网关未配置）：允许前端主动解锁（用户不能永远不拿到报告）
- *  - 记录到 audit log（dev 简化为 console.warn）
+ * 静态收款码 + 手动确认方案（2026-09-14 起）：
+ *  - 用户在支付页扫微信二维码付款后回到网站，点「我已支付」按钮
+ *  - 本路由把订单 status 改为 `pending_review`，等待管理员后台复核
+ *  - 真正解锁由 admin 后台 `/api/admin/payments/{id}/approve` 完成
  *
  * 真网关接入后，订单解锁主要靠 /notify/xingyifu 上游回包；
  * 本路由降级为"对账补偿"工具，必须加 admin 鉴权才允许 POST。
@@ -22,10 +20,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ paymentId: string }> }
 ) {
-  // 1) 强制 admin 鉴权（仅在「生产 + 真网关在线」组合下）
-  //    V1 mock 阶段（网关未配置）：允许前端主动解锁
-  //    真网关已接入：订单解锁主要靠 /notify/xingyifu 上游回包，
-  //    本路由降级为"对账补偿"工具，必须加 admin 鉴权
+  // 生产 + 真网关在线：必须 admin 鉴权
   if (process.env.NODE_ENV === "production" && isXingyifuLive()) {
     const token = (await cookies()).get(ADMIN_COOKIE)?.value;
     if (!(await verifyAdminToken(token))) {
@@ -38,14 +33,20 @@ export async function POST(
     const note = schema.parse(await request.json().catch(() => ({}))).note;
     const payment = await getPayment(paymentId);
     if (!payment) return NextResponse.json({ error: "订单不存在" }, { status: 404 });
-    const paid = payment.status === "paid" ? payment : await markPaymentPaid(paymentId);
+
+    // 静态码方案：先入 pending_review 等待管理员复核，**不直接解锁**
+    const reviewed = await markPaymentPendingReview(paymentId);
 
     // 审计：dev 简化为 warn，生产应写 audit table
     console.warn(
-      `[payment/confirm] manual mark-paid by admin · paymentId=${paymentId} · note=${note ?? "—"} · target_type=${payment.target_type}`
+      `[payment/confirm] user self-report paid · paymentId=${paymentId} · note=${note ?? "—"} · target_type=${payment.target_type}`
     );
 
-    return NextResponse.json({ payment: paid, unlocked: true });
+    return NextResponse.json({
+      payment: reviewed,
+      status: "pending_review",
+      message: "已收到你的付款确认，管理员核对后会立即解锁",
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "请求参数无效", details: error.issues }, { status: 400 });

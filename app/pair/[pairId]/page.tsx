@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { usePaymentPolling } from "@/lib/hooks/usePaymentPolling";
+import { PAYMENT_CONFIG } from "@/lib/site";
+import { PAIR_REPORT_PRICE } from "@/lib/assessment/types";
 
 const DIMENSION_LABELS: Record<string, string> = {
   response_need: "回应需求",
@@ -88,7 +91,13 @@ export default function PairPage() {
   const [generating, setGenerating] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [paymentId, setPaymentId] = useState("");
+  /** 真网关在线时下单会回 payUrl/qrCode,这里保存供支付卡片显示 */
+  const [payUrl, setPayUrl] = useState<string | null>(null);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [payLive, setPayLive] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [payMode, setPayMode] = useState<"idle" | "paying">("idle");
+  const [pollTimedOut, setPollTimedOut] = useState(false);
   const [mySessionId, setMySessionId] = useState("");
 
   useEffect(() => {
@@ -118,35 +127,51 @@ export default function PairPage() {
 
   const handlePairUnlock = async () => {
     setPaying(true);
+    setPayMode("idle");
+    setError("");
     try {
-      let currentPaymentId = paymentId;
-      if (!currentPaymentId) {
-        const orderRes = await fetch("/api/payments/pair", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pairId }),
-        });
-        const orderJson = await orderRes.json();
-        if (!orderRes.ok) throw new Error(orderJson.error);
-        if (orderJson.unlocked) {
-          setUnlocked(true);
-          await generateReport();
-          return;
-        }
-        currentPaymentId = orderJson.payment.id;
-        setPaymentId(currentPaymentId);
+      // 已付过款（开发模式下被手动标记过）的订单：直接解锁 + 生成报告
+      const orderRes = await fetch("/api/payments/pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pairId }),
+      });
+      const orderJson = await orderRes.json();
+      if (!orderRes.ok) throw new Error(orderJson.error);
+
+      if (orderJson.unlocked) {
+        setUnlocked(true);
+        await generateReport();
+        return;
       }
-      const confirmRes = await fetch(`/api/payments/${currentPaymentId}/confirm`, { method: "POST" });
-      const confirmJson = await confirmRes.json();
-      if (!confirmRes.ok) throw new Error(confirmJson.error);
-      setUnlocked(true);
-      await generateReport();
+
+      // 创建好订单：进入「等待支付」状态，轮询到账后自动解锁
+      setPaymentId(orderJson.payment.id);
+      setPayUrl(orderJson.payUrl ?? null);
+      setQrCode(orderJson.qrCode ?? null);
+      setPayLive(Boolean(orderJson.live));
+      setPayMode("paying");
     } catch (err: any) {
       setError(err.message || "支付失败");
     } finally {
       setPaying(false);
     }
   };
+
+  // 到账回调：解锁 + 重渲染完整报告
+  const handlePollingPaid = async () => {
+    setPayMode("idle");
+    setPollTimedOut(false);
+    setUnlocked(true);
+    await generateReport();
+  };
+
+  // 轮询：在 payMode === "paying" 时启动，到账自动 setUnlocked
+  const poll = usePaymentPolling({
+    paymentId: payMode === "paying" ? paymentId : undefined,
+    onPaid: () => { void handlePollingPaid(); },
+    onTimeout: () => setPollTimedOut(true),
+  });
 
   const generateReport = async () => {
     setGenerating(true);
@@ -171,7 +196,7 @@ export default function PairPage() {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6">
         <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
-        <p className="text-[var(--text-muted)] text-sm mt-4">正在加载关系档案...</p>
+        <p className="text-[var(--text-muted)] text-[18px] sm:text-[19px] mt-4">正在加载关系档案...</p>
       </main>
     );
   }
@@ -179,7 +204,7 @@ export default function PairPage() {
   if (error && !data) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
-        <p className="text-[var(--danger)] text-sm">{error}</p>
+        <p className="text-[var(--danger)] text-[18px] sm:text-[19px]">{error}</p>
         <Link href="/" className="btn-ghost">返回首页</Link>
       </main>
     );
@@ -207,7 +232,7 @@ export default function PairPage() {
 
           {personA && (
             <div className="card p-5 sm:p-6 mt-6 sm:mt-8">
-              <p className="text-sm text-[var(--text-muted)] mb-2">
+              <p className="text-[18px] text-[var(--text-muted)] mb-2">
                 {personA.nickname} 已完成测评
               </p>
               <p className="text-lg text-[var(--accent)] display-serif">
@@ -215,7 +240,7 @@ export default function PairPage() {
               </p>
               <div className="flex flex-wrap justify-center gap-2 mt-4">
                 {personA.tags.map((tag) => (
-                  <span key={tag} className="px-3 py-1 text-xs text-[var(--text-muted)] border border-[var(--border-dim)] rounded-full">
+                  <span key={tag} className="px-3 py-1 text-[16px] text-[var(--text-muted)] border border-[var(--border-dim)] rounded-full">
                     {tag}
                   </span>
                 ))}
@@ -223,7 +248,7 @@ export default function PairPage() {
             </div>
           )}
 
-          <p className="text-xs text-[var(--text-muted)] mt-6 sm:mt-8 leading-relaxed px-2">
+          <p className="text-[15px] sm:text-[16px] text-[var(--text-muted)] mt-6 sm:mt-8 leading-relaxed px-2">
             TA 完成后会自动生成双人关系分析。请保持页面打开，或稍后回来查看。
           </p>
 
@@ -233,7 +258,7 @@ export default function PairPage() {
                 ← 返回我的报告
               </Link>
             ) : (
-              <Link href="/" className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] active:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4">
+              <Link href="/" className="text-[16px] sm:text-[17px] text-[var(--text-muted)] hover:text-[var(--text-warm)] active:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4">
                 ← 返回首页
               </Link>
             )}
@@ -249,7 +274,7 @@ export default function PairPage() {
   if (!personA || !personB || !pairScores) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
-        <p className="text-[var(--text-muted)] text-sm">数据不完整</p>
+        <p className="text-[var(--text-muted)] text-[16px] sm:text-[17px]">数据不完整</p>
         <Link href="/" className="btn-ghost">返回首页</Link>
       </main>
     );
@@ -281,10 +306,11 @@ export default function PairPage() {
           borderColor: "var(--highlight)",
         }}
       >
-        <div className="flex items-center gap-3">
-          <h3 className="archive-label" style={{ color: "var(--highlight)" }}>
+        <div className="flex items-baseline gap-3">
+          <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight" style={{ color: "var(--accent-bright)" }}>
             Pair Scores · 双人默契指数
           </h3>
+          <span className="flex-1 h-px bg-[var(--border-dim)] translate-y-[-3px]" />
         </div>
         {Object.entries(pairScores).map(([key, score]) => {
           const label = PAIR_DIMENSION_LABELS[key] || key;
@@ -293,9 +319,9 @@ export default function PairPage() {
             <div key={key}>
               <div className="flex items-center justify-between mb-1.5 gap-2">
                 <span
-                  className={`text-sm ${
+                  className={`text-[18px] ${
                     isOverall
-                      ? "text-[var(--highlight)] font-semibold text-base"
+                      ? "text-[var(--highlight)] font-semibold text-[19px]"
                       : "text-[var(--text-warm)]"
                   } truncate`}
                 >
@@ -305,7 +331,7 @@ export default function PairPage() {
                   className={`font-mono whitespace-nowrap ${
                     isOverall
                       ? "text-[var(--highlight)] text-xl font-bold"
-                      : "text-[var(--text-muted)] text-sm"
+                      : "text-[var(--text-muted)] text-[16px] sm:text-[17px]"
                   }`}
                 >
                   {score}
@@ -340,8 +366,8 @@ export default function PairPage() {
             return (
               <div key={key}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-[var(--text-muted)]">{label}</span>
-                  <span className="text-xs text-[var(--text-muted)] font-mono">
+                  <span className="text-[16px] sm:text-[17px] text-[var(--text-muted)]">{label}</span>
+                  <span className="text-[16px] sm:text-[17px] text-[var(--text-muted)] font-mono">
                     {scoreA} vs {scoreB}
                   </span>
                 </div>
@@ -352,7 +378,7 @@ export default function PairPage() {
                       style={{ width: `${scoreA}%` }}
                     />
                   </div>
-                  <span className="text-xs text-[var(--text-muted)] px-1">|</span>
+                  <span className="text-[14px] text-[var(--text-muted)] px-1">|</span>
                   <div className="flex-1">
                     <div
                       className="h-2 rounded-r-full bg-[var(--accent)]"
@@ -361,8 +387,8 @@ export default function PairPage() {
                   </div>
                 </div>
                 <div className="flex justify-between mt-1">
-                  <span className="text-xs text-[var(--accent-dim)]">{personA.nickname}</span>
-                  <span className="text-xs text-[var(--accent)]">{personB.nickname}</span>
+                  <span className="text-[16px] sm:text-[17px] text-[var(--accent-dim)]">{personA.nickname}</span>
+                  <span className="text-[16px] sm:text-[17px] text-[var(--accent)]">{personB.nickname}</span>
                 </div>
               </div>
             );
@@ -378,7 +404,7 @@ export default function PairPage() {
             {data.strengths.map((strength) => (
               <div key={strength} className="flex gap-2.5 sm:gap-3">
                 <span className="text-[var(--accent)] flex-shrink-0">+</span>
-                <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{strength}</p>
+                <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{strength}</p>
               </div>
             ))}
           </div>
@@ -394,10 +420,10 @@ export default function PairPage() {
               <div key={pattern.pattern} className="flex gap-2.5 sm:gap-3">
                 <span className="text-[var(--accent)] flex-shrink-0">·</span>
                 <div>
-                  <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
+                  <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">
                     {pattern.isPrimary ? "主模式 · " : "次模式 · "}{pattern.name}
                   </p>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">
+                  <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mt-1.5">
                     置信度 {pattern.confidence} · 影响程度 {pattern.severity}
                   </p>
                 </div>
@@ -411,11 +437,11 @@ export default function PairPage() {
       {generating && (
         <div className="text-center py-10 sm:py-12 fade-in">
           <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-sm text-[var(--text-muted)]">正在撰写你们的关系分析报告...</p>
+          <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)]">正在撰写你们的关系分析报告...</p>
         </div>
       )}
 
-      {report && !generating && !unlocked && (
+      {report && !generating && !unlocked && payMode !== "paying" && (
         <div
           className="p-7 text-center mb-10 fade-in-up rounded-2xl border-2"
           style={{
@@ -430,13 +456,13 @@ export default function PairPage() {
           <h3 className="display-serif text-xl text-[var(--text-warm)] mt-3 mb-3">
             已识别你们的主互动模式
           </h3>
-          <p className="text-sm text-[var(--text-muted)] leading-relaxed mb-6">
+          <p className="text-[18px] text-[var(--text-muted)] leading-relaxed mb-6">
             免费预览展示六维对比、共同优势和主模式名称。解锁后可查看双方体验、完整循环、放大条件、次模式、具体建议与沟通话术。
           </p>
           <p className="text-4xl font-bold font-mono mb-2" style={{ color: "var(--cta)" }}>
             ¥19.9
           </p>
-          <p className="text-xs text-[var(--text-muted)] mb-6">
+          <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-6 leading-relaxed">
             契合画像不可使用积分抵扣
           </p>
           <button
@@ -449,11 +475,101 @@ export default function PairPage() {
               boxShadow: "0 4px 12px rgba(239, 68, 68, 0.35)",
             }}
           >
-            {paying ? "正在处理..." : "🔓 支付 19.9 元解锁我们的契合画像"}
+            {paying ? "正在创建订单..." : "🔓 接受 19.9 元解锁契合画像"}
           </button>
           <p className="text-[10px] text-[var(--text-muted)] mt-4">
-            当前本地版使用模拟支付；云端上线时接入正式支付。
+            支持微信 / 支付宝 · 付款成功后自动解锁
           </p>
+        </div>
+      )}
+
+      {/* ===== 等待支付 UI：payMode === "paying" 时覆盖上面的解锁卡片 ===== */}
+      {report && !unlocked && payMode === "paying" && paymentId && (
+        <div
+          className="p-7 text-center mb-10 fade-in-up rounded-2xl border-2"
+          style={{
+            background: "rgba(239, 68, 68, 0.06)",
+            borderColor: "var(--cta)",
+            boxShadow: "0 8px 24px -8px rgba(239, 68, 68, 0.35)",
+          }}
+        >
+          <span className="archive-label" style={{ color: "var(--cta)" }}>
+            Full Pair Report · 支付确认中
+          </span>
+          <h3 className="display-serif text-xl text-[var(--text-warm)] mt-3 mb-3">
+            订单已创建，请扫码完成支付
+          </h3>
+
+          {/* 聚合收款码 */}
+          <div className="flex flex-col items-center my-5">
+            <div className="bg-[#f5ede0] p-2.5 rounded-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={PAYMENT_CONFIG.aggregateQr}
+                alt="聚合收款码"
+                className="w-56 h-56 sm:w-64 sm:h-64 block"
+              />
+            </div>
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mt-3">
+              {PAYMENT_CONFIG.channels} · {PAYMENT_CONFIG.provider}聚合收款
+            </p>
+          </div>
+
+          <p className="text-4xl font-bold font-mono mb-2" style={{ color: "var(--cta)" }}>
+            ¥{PAIR_REPORT_PRICE.toFixed(2)}
+          </p>
+          <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5">
+            订单号 {paymentId.slice(0, 8).toUpperCase()}
+          </p>
+
+          {/* 自动跳转提示（轮询中） */}
+          {poll.status === "pending" && !pollTimedOut && (
+            <p
+              className="text-[12px] text-[var(--accent-bright)] mt-3 leading-relaxed text-center animate-pulse"
+              data-testid="polling-hint"
+            >
+              ⏳ 付款确认中，到账后将自动解锁（约需 3-5 秒）
+            </p>
+          )}
+          {pollTimedOut && (
+            <p className="text-[12px] text-[var(--text-muted)] mt-3 leading-relaxed text-center">
+              未检测到账，请确认是否已完成付款，或使用下方调试按钮手动确认。
+            </p>
+          )}
+
+          {/* 开发模式：调试入口（折叠状态，生产隐藏） */}
+          <details className="mt-5 text-left">
+            <summary className="text-[14px] text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-warm)]">
+              🛠 开发模式：手动触发支付确认（测试用）
+            </summary>
+            <div className="mt-3 p-3 rounded border border-dashed border-[var(--border-dim)] bg-[rgba(255,255,255,0.02)]">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(
+                      `/api/payments/${paymentId}/dev-mark-paid`,
+                      { method: "POST" }
+                    );
+                    const json = await res.json();
+                    if (json.unlocked !== false) {
+                      setUnlocked(true);
+                      setPayMode("idle");
+                      await generateReport();
+                    }
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+                className="btn-ghost w-full text-[16px] sm:text-[17px]"
+              >
+                模拟网关回调（把账本改为已到账）
+              </button>
+              <p className="text-[10px] text-[var(--text-muted)] mt-2 leading-relaxed">
+                仅开发环境用。生产部署时此入口自动隐藏。
+              </p>
+            </div>
+          </details>
         </div>
       )}
 
@@ -461,49 +577,49 @@ export default function PairPage() {
         <div className="space-y-8 fade-in-up" style={{ animationDelay: "0.35s" }}>
           {/* Summary */}
           <div className="card p-6">
-            <h3 className="archive-label mb-3">关系中的隐藏需求</h3>
+            <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">关系中的隐藏需求</h3>
             <p className="display-serif text-lg text-[var(--accent)] mb-4">{report.headline}</p>
-            <p className="text-sm text-[var(--text-warm)] leading-relaxed">{report.summary}</p>
+            <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{report.summary}</p>
           </div>
 
           {/* Attraction */}
           <div className="card p-6">
-            <h3 className="archive-label mb-3">谁更容易主动投入</h3>
-            <p className="text-sm text-[var(--text-warm)] leading-relaxed">{report.attraction}</p>
+            <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">谁更容易主动投入</h3>
+            <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{report.attraction}</p>
           </div>
 
           {/* Needs */}
           <div className="grid md:grid-cols-2 gap-4">
             <div className="card p-6">
-              <h3 className="archive-label mb-3">{personA.nickname} · 他真正需要的相处方式</h3>
-              <p className="text-sm text-[var(--text-warm)] leading-relaxed">{report.personANeeds}</p>
+              <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">{personA.nickname} · 他真正需要的相处方式</h3>
+              <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{report.personANeeds}</p>
             </div>
             <div className="card p-6">
-              <h3 className="archive-label mb-3">{personB.nickname} · 他真正需要的相处方式</h3>
-              <p className="text-sm text-[var(--text-warm)] leading-relaxed">{report.personBNeeds}</p>
+              <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">{personB.nickname} · 他真正需要的相处方式</h3>
+              <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{report.personBNeeds}</p>
             </div>
           </div>
 
           {/* Interaction Cycle */}
           <div className="card p-6">
-            <h3 className="archive-label mb-3">沟通方式差异</h3>
-            <p className="text-sm text-[var(--text-warm)] leading-relaxed whitespace-pre-line">{report.interactionCycle}</p>
+            <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">沟通方式差异</h3>
+            <p className="text-[18px] text-[var(--text-warm)] leading-relaxed whitespace-pre-line">{report.interactionCycle}</p>
           </div>
 
           {/* Conflict Pattern */}
           <div className="card p-6">
-            <h3 className="archive-label mb-3">你们最容易爆发矛盾的地方</h3>
-            <p className="text-sm text-[var(--text-warm)] leading-relaxed">{report.conflictPattern}</p>
+            <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">你们最容易爆发矛盾的地方</h3>
+            <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{report.conflictPattern}</p>
           </div>
 
           {/* Risks */}
           <div className="card p-6">
-            <h3 className="archive-label mb-3">长期相处风险</h3>
+            <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">长期相处风险</h3>
             <div className="space-y-3">
               {report.risks.map((risk, i) => (
                 <div key={i} className="flex gap-3">
-                  <span className="text-[var(--danger)] flex-shrink-0 text-sm">·</span>
-                  <p className="text-sm text-[var(--text-warm)] leading-relaxed">{risk}</p>
+                  <span className="text-[18px] text-[var(--danger)] flex-shrink-0">·</span>
+                  <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{risk}</p>
                 </div>
               ))}
             </div>
@@ -511,12 +627,12 @@ export default function PairPage() {
 
           {/* Suggestions */}
           <div className="card p-6">
-            <h3 className="archive-label mb-3">怎样让关系更舒服</h3>
+            <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">怎样让关系更舒服</h3>
             <div className="space-y-3">
               {report.suggestions.map((suggestion, i) => (
                 <div key={i} className="flex gap-3">
-                  <span className="text-[var(--accent)] flex-shrink-0 text-sm">{i + 1}.</span>
-                  <p className="text-sm text-[var(--text-warm)] leading-relaxed">{suggestion}</p>
+                  <span className="text-[18px] text-[var(--accent)] flex-shrink-0">{i + 1}.</span>
+                  <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{suggestion}</p>
                 </div>
               ))}
             </div>
@@ -524,19 +640,19 @@ export default function PairPage() {
 
           {/* Communication Scripts */}
           <div className="card p-6">
-            <h3 className="archive-label mb-3">沟通方式差异（话术参考）</h3>
+            <h3 className="display-serif font-bold text-[20px] sm:text-[22px] text-[var(--accent-bright)] tracking-tight mb-3">沟通方式差异（话术参考）</h3>
             <div className="space-y-6">
               {report.communicationScripts.map((script, i) => (
                 <div key={i} className="border-l-2 border-[var(--border-dim)] pl-4">
-                  <p className="text-xs text-[var(--text-muted)] mb-3">{script.situation}</p>
+                  <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-3 leading-relaxed">{script.situation}</p>
                   <div className="space-y-2">
                     <div>
-                      <span className="text-xs text-[var(--accent-dim)]">{personA.nickname}：</span>
-                      <p className="text-sm text-[var(--text-warm)] leading-relaxed">{script.personA}</p>
+                      <span className="text-[16px] sm:text-[17px] text-[var(--accent-dim)]">{personA.nickname}：</span>
+                      <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{script.personA}</p>
                     </div>
                     <div>
-                      <span className="text-xs text-[var(--accent)]">{personB.nickname}：</span>
-                      <p className="text-sm text-[var(--text-warm)] leading-relaxed">{script.personB}</p>
+                      <span className="text-[16px] sm:text-[17px] text-[var(--accent)]">{personB.nickname}：</span>
+                      <p className="text-[18px] text-[var(--text-warm)] leading-relaxed">{script.personB}</p>
                     </div>
                   </div>
                 </div>
@@ -557,7 +673,7 @@ export default function PairPage() {
 
       {error && (
         <div
-          className="mt-4 px-4 py-3 rounded-md text-sm flex items-start gap-2"
+          className="mt-4 px-4 py-3 rounded-md text-[16px] sm:text-[17px] flex items-start gap-2"
           style={{
             background: "rgba(239, 68, 68, 0.12)",
             border: "1px solid rgba(239, 68, 68, 0.45)",
@@ -571,11 +687,11 @@ export default function PairPage() {
 
       <div className="text-center mt-12">
         {mySessionId ? (
-          <Link href={`/result/${mySessionId}`} className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors">
+          <Link href={`/result/${mySessionId}`} className="text-[16px] sm:text-[17px] text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors">
             ← 返回我的报告
           </Link>
         ) : (
-          <Link href="/" className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors">
+          <Link href="/" className="text-[16px] sm:text-[17px] text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors">
             ← 返回首页
           </Link>
         )}

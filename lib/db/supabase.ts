@@ -8,10 +8,12 @@
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import crypto from "crypto";
-import type {
-  PersonalityAnswerRecord,
-  PersonalityTestRecord,
-  PersonalityOrderRecord,
+import {
+  PERSONALITY_ALGORITHM_VERSION,
+  PERSONALITY_REPORT_VERSION,
+  type PersonalityAnswerRecord,
+  type PersonalityTestRecord,
+  type PersonalityOrderRecord,
 } from "@/lib/personality/types";
 
 // ---- 单例客户端（懒加载；首次调用时才解析 env）----
@@ -176,10 +178,14 @@ export interface PaymentRecord {
   target_id: string;
   amount: number;
   currency: "CNY";
-  status: "pending" | "paid" | "cancelled";
-  method: "mock" | "weixin" | "credits";
+  status: "pending" | "pending_review" | "paid" | "cancelled";
+  method: "mock" | "weixin" | "credits" | "xingyifu" | "alipay" | "unionpay";
   created_at: string;
   paid_at?: string;
+  gateway_order_no?: string;
+  pay_url?: string;
+  qr_code?: string;
+  paid_method?: "weixin" | "alipay" | "unionpay" | "yunshanfu" | "creditcard";
 }
 
 export type {
@@ -397,6 +403,15 @@ export async function recordPersonalityShareCompletion(
     .maybeSingle();
   if (error) throw new Error(`[db.supabase] recordPersonalityShareCompletion: ${error.message}`);
   if (!row || (row as any).share_type !== "personality") return null;
+
+  // 防 self-referral:分享者本人扫自己的码,不计有效分享
+  if ((row as any).visitor_id && (row as any).visitor_id === visitorId) {
+    return {
+      counted: false,
+      visitorCount: ((row as any).completed_visitors ?? []).length,
+      recommenderTestId: (row as any).source_test_id ?? null,
+    };
+  }
 
   const completed: string[] = (row as any).completed_visitors ?? [];
   if (completed.includes(visitorId)) {
@@ -696,11 +711,18 @@ export async function spendCreditsForSingleReport(
 // =====================================================
 // Payments
 // =====================================================
+export interface CreatePaymentMeta {
+  gatewayOrderNo?: string;
+  payUrl?: string;
+  qrCode?: string;
+}
+
 export async function createPayment(
   targetType: PaymentRecord["target_type"],
   targetId: string,
   amount: number,
-  method: PaymentRecord["method"] = "mock"
+  method: PaymentRecord["method"] = "mock",
+  meta: CreatePaymentMeta = {}
 ): Promise<PaymentRecord> {
   const supa = getClient();
   const { data: existing } = await supa
@@ -710,7 +732,19 @@ export async function createPayment(
     .eq("target_id", targetId)
     .eq("status", "pending")
     .maybeSingle();
-  if (existing) return existing as PaymentRecord;
+  if (existing) {
+    const updated = {
+      ...(existing as PaymentRecord),
+      amount,
+      method,
+      gateway_order_no: meta.gatewayOrderNo ?? (existing as PaymentRecord).gateway_order_no,
+      pay_url: meta.payUrl ?? (existing as PaymentRecord).pay_url,
+      qr_code: meta.qrCode ?? (existing as PaymentRecord).qr_code,
+    };
+    const { error } = await supa.from(TABLE.payments).update(updated as any).eq("id", existing.id);
+    if (error) throw new Error(`[db.supabase] createPayment(update): ${error.message}`);
+    return updated;
+  }
 
   const payment: PaymentRecord = {
     id: genId(),
@@ -721,8 +755,11 @@ export async function createPayment(
     status: "pending",
     method,
     created_at: new Date().toISOString(),
+    gateway_order_no: meta.gatewayOrderNo,
+    pay_url: meta.payUrl,
+    qr_code: meta.qrCode,
   };
-  const { error } = await supa.from(TABLE.payments).insert(payment);
+  const { error } = await supa.from(TABLE.payments).insert(payment as any);
   if (error) throw new Error(`[db.supabase] createPayment: ${error.message}`);
   return payment;
 }
@@ -735,6 +772,40 @@ export async function getPayment(id: string): Promise<PaymentRecord | null> {
     .maybeSingle();
   if (error) throw new Error(`[db.supabase] getPayment: ${error.message}`);
   return (data as PaymentRecord | null) ?? null;
+}
+
+export async function updatePaymentGatewayMeta(
+  id: string,
+  meta: { gatewayOrderNo?: string; payUrl?: string; qrCode?: string }
+): Promise<PaymentRecord | null> {
+  const supa = getClient();
+  const patch: Record<string, any> = {};
+  if (meta.gatewayOrderNo) patch.gateway_order_no = meta.gatewayOrderNo;
+  if (meta.payUrl) patch.pay_url = meta.payUrl;
+  if (meta.qrCode) patch.qr_code = meta.qrCode;
+  if (Object.keys(patch).length === 0) return await getPayment(id);
+  const { data, error } = await supa
+    .from(TABLE.payments)
+    .update(patch)
+    .eq("id", id)
+    .select("*")
+    .maybeSingle();
+  if (error) throw new Error(`[db.supabase] updatePaymentGatewayMeta: ${error.message}`);
+  return (data as PaymentRecord | null) ?? null;
+}
+
+export async function markPaymentPaidMethod(
+  id: string,
+  paidMethod: PaymentRecord["paid_method"],
+  tradeNo?: string
+): Promise<void> {
+  const patch: Record<string, any> = { paid_method: paidMethod };
+  if (tradeNo) patch.gateway_order_no = tradeNo;
+  const { error } = await getClient()
+    .from(TABLE.payments)
+    .update(patch)
+    .eq("id", id);
+  if (error) throw new Error(`[db.supabase] markPaymentPaidMethod: ${error.message}`);
 }
 
 export async function markPaymentPaid(id: string): Promise<PaymentRecord> {
@@ -761,6 +832,80 @@ export async function markPaymentPaid(id: string): Promise<PaymentRecord> {
   if (error) throw new Error(`[db.supabase] markPaymentPaid: ${error.message}`);
 
   return await postPaymentPaidSideEffects(updated);
+}
+
+/**
+ * 用户点「我已支付」：把订单置为 pending_review，等待管理员在后台确认。
+ * 此函数不触发任何解锁副作用——解锁只发生在管理员真正 approvePaymentReview 后。
+ * 幂等：已是 paid 或 pending_review 的订单直接返回当前记录。
+ */
+export async function markPaymentPendingReview(id: string): Promise<PaymentRecord> {
+  const supa = getClient();
+  const { data: existing } = await supa
+    .from(TABLE.payments)
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existing) throw new Error("PAYMENT_NOT_FOUND");
+  const payment = existing as PaymentRecord;
+
+  if (payment.status === "paid" || payment.status === "pending_review") {
+    return payment;
+  }
+
+  const updated: PaymentRecord = {
+    ...payment,
+    status: "pending_review",
+  };
+  const { error } = await supa.from(TABLE.payments).update(updated).eq("id", id);
+  if (error) throw new Error(`[db.supabase] markPaymentPendingReview: ${error.message}`);
+  return updated;
+}
+
+/**
+ * 管理员在后台「确认已收」：把 pending_review 订单真正解锁。
+ * 复用 markPaymentPaid 的副作用（报告解锁 / 人格测试付费标记 / credit 标记）。
+ */
+export async function approvePaymentReview(id: string): Promise<PaymentRecord> {
+  const supa = getClient();
+  const { data: existing } = await supa
+    .from(TABLE.payments)
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existing) throw new Error("PAYMENT_NOT_FOUND");
+  const payment = existing as PaymentRecord;
+  if (payment.status === "paid") {
+    return await postPaymentPaidSideEffects(payment);
+  }
+  // pending_review 或 pending 都可以被管理员直接 approve（兜底）
+  return await markPaymentPaid(id);
+}
+
+/**
+ * 管理员在后台「驳回」（用户未付款却点了「我已支付」）：把订单置为 cancelled。
+ */
+export async function rejectPaymentReview(id: string, reason?: string): Promise<PaymentRecord> {
+  const supa = getClient();
+  const { data: existing } = await supa
+    .from(TABLE.payments)
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existing) throw new Error("PAYMENT_NOT_FOUND");
+  const payment = existing as PaymentRecord;
+  if (payment.status === "cancelled" || payment.status === "paid") {
+    return payment;
+  }
+  const updated: PaymentRecord = {
+    ...payment,
+    status: "cancelled",
+    paid_method: undefined,
+  };
+  const { error } = await supa.from(TABLE.payments).update(updated).eq("id", id);
+  if (error) throw new Error(`[db.supabase] rejectPaymentReview: ${error.message}`);
+  console.warn(`[payment/reject] manual reject · paymentId=${id} · reason=${reason ?? "—"}`);
+  return updated;
 }
 
 /** 支付完成后的副作用：报告解锁 / 人格测试付费标记 / credit 标记 */
@@ -799,9 +944,11 @@ async function postPaymentPaidSideEffects(payment: PaymentRecord): Promise<Payme
 export async function addPersonalityAnswer(
   testId: string,
   questionId: string,
-  answerLetter: "A" | "B" | "C" | "D",
-  calculatedScore: number,
-  answeredAtMs: number
+  paperId: PersonalityTestRecord["paper_id"],
+  optionIndex: 0 | 1 | 2 | 3 | 4,
+  score: number,
+  answeredAtMs: number,
+  answerLetter?: PersonalityAnswerRecord["answer_letter"]
 ): Promise<void> {
   const supa = getClient();
   const { data: existing } = await supa
@@ -811,13 +958,15 @@ export async function addPersonalityAnswer(
     .eq("question_id", questionId)
     .maybeSingle();
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     test_id: testId,
     question_id: questionId,
-    answer_letter: answerLetter,
-    calculated_score: calculatedScore,
+    paper_id: paperId,
+    option_index: optionIndex,
+    score,
     answered_at_ms: answeredAtMs,
   };
+  if (answerLetter) payload.answer_letter = answerLetter;
   if (existing) {
     const { error } = await supa
       .from(TABLE.personalityAnswers)
@@ -845,20 +994,22 @@ export async function getPersonalityAnswers(testId: string): Promise<Personality
 
 export async function createPersonalityTest(
   visitorId: string,
-  referredByCode?: string
+  referredByCode?: string,
+  paperId?: PersonalityTestRecord["paper_id"]
 ): Promise<PersonalityTestRecord> {
   const now = new Date().toISOString();
   const record: PersonalityTestRecord = {
     id: `PST_${crypto.randomBytes(4).toString("hex")}`,
     visitor_id: visitorId,
+    paper_id: paperId ?? "P1",
     status: "started",
     started_at: now,
     is_paid: false,
     shares_count: 0,
     unlocked_via_share: false,
     referred_by_code: referredByCode,
-    algorithm_version: "personality_v1",
-    report_version: "report_v1",
+    algorithm_version: PERSONALITY_ALGORITHM_VERSION,
+    report_version: PERSONALITY_REPORT_VERSION,
     created_at: now,
     updated_at: now,
   };

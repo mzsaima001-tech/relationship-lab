@@ -3,8 +3,7 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import {
   getPayment,
-  markPaymentPaid,
-  markPersonalityOrderPaid,
+  markPaymentPendingReview,
 } from "@/lib/db";
 import { ADMIN_COOKIE, verifyAdminToken } from "@/lib/admin/auth";
 import { isXingyifuLive } from "@/lib/payment/xingyifu";
@@ -14,12 +13,12 @@ const schema = z.object({ paymentId: z.string().min(1) });
 /**
  * POST /api/payment/personality/callback
  *
- * 双重定位：
- *  - 真网关在线时：禁用（上游通知走 /notify/xingyifu，不走这里）
- *  - 真网关离线（开发/骨架期）：保留作为前端"我已付款"主动解锁通道，
- *      但生产模式必须登录后台才允许 POST（防被白嫖）
+ * 静态收款码 + 手动确认方案（2026-09-14 起）：
+ *   - 用户在支付页扫微信二维码付款后回到网站，点「我已支付」
+ *   - 本路由把 payment.status 改为 pending_review（不直接解锁）
+ *   - 真正解锁由 admin 后台 /api/admin/payments/{id}/approve 完成
  *
- * markPaymentPaid 内部已做幂等（重复调用安全）。
+ * 真网关接入后，本路由降级或下线——上游通知走 /notify/xingyifu。
  */
 export async function POST(request: Request) {
   // 真网关在线 → 整个接口禁用（不走主动确认）
@@ -30,8 +29,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // 仅在「生产 + 真网关在线」组合下强制 admin 鉴权：
-  // 生产但网关未配置（V1 mock 阶段）→ 允许前端主动解锁，否则用户永远无法解锁报告。
+  // 生产 + 真网关在线：必须 admin 鉴权（防白嫖）
   if (process.env.NODE_ENV === "production" && isXingyifuLive()) {
     const token = (await cookies()).get(ADMIN_COOKIE)?.value;
     if (!(await verifyAdminToken(token))) {
@@ -48,15 +46,19 @@ export async function POST(request: Request) {
     if (payment.target_type !== "personality_report") {
       return NextResponse.json({ error: "支付类型不匹配" }, { status: 400 });
     }
-    await markPaymentPaid(paymentId);
-    const order = await markPersonalityOrderPaid(paymentId);
+    // 静态码方案：先入 pending_review 等待管理员复核
+    const reviewed = await markPaymentPendingReview(paymentId);
 
-    // 审计：dev 简化为 warn，生产应写 audit table
     console.warn(
-      `[payment/personality/callback] manual mark-paid by admin/frontend · paymentId=${paymentId}`
+      `[payment/personality/callback] user self-report paid · paymentId=${paymentId}`
     );
 
-    return NextResponse.json({ ok: true, order });
+    return NextResponse.json({
+      ok: true,
+      status: "pending_review",
+      payment: reviewed,
+      message: "已收到你的付款确认，管理员核对后会立即解锁",
+    });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "请求参数无效", details: error.issues }, { status: 400 });

@@ -75,7 +75,12 @@ export const {
   // Payments
   createPayment,
   getPayment,
+  updatePaymentGatewayMeta,
+  markPaymentPaidMethod,
   markPaymentPaid,
+  markPaymentPendingReview,
+  approvePaymentReview,
+  rejectPaymentReview,
   // Personality tests / answers / orders
   addPersonalityAnswer,
   getPersonalityAnswers,

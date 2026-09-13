@@ -6,62 +6,126 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnalyzingScreen } from "@/app/components/AnalyzingScreen";
 import HomeFooter from "@/app/components/HomeFooter";
 
-// =====================================================
-// /personality/test — v1 风格答题页（v5 题库）
-//
-// 视觉与原 v1 test 一致：sticky 顶部 / 题目居中 / 选项列表 / 上一题
-// 底层走 v2 API：拉 36 题（5 选项），答案写到 v2 answers 表
-// 完成跳到 /personality-v2/result/{testId}（v5 月相卡结果页）
-// =====================================================
+/**
+ * /personality/test — 答题页（V3：5 选项，5 卷抽卷）
+ *
+ * 调后端：
+ *   GET   /api/personality/questions                 拉 36 道题（无分值）
+ *   POST  /api/personality/tests/{id}/answers        单题保存（letter: A/B/C/D/E）
+ *   POST  /api/personality/tests/{id}/complete       算分 + Top3
+ *   GET   /api/personality/tests/{id}/result         读报告
+ *
+ * 完成后跳 /personality/result/{testId}。
+ */
 
-interface PaperQuestion {
+interface PersonalityQuestion {
   id: string;
-  dim: string;
-  stem: string;
-  options: { idx: number; text: string }[];
+  order: number;
+  question: string;
+  dimension: string;
+  paper?: string;
+  options?: readonly string[];
 }
 
 interface QuestionsResponse {
-  testId: string;
-  paperId: string;
   total: number;
-  questions: PaperQuestion[];
-  answered: Record<string, number>;
+  paperId?: string;
+  questions: PersonalityQuestion[];
 }
 
+type Letter = "A" | "B" | "C" | "D" | "E";
 type Phase = "answering" | "completing";
+
+const LETTERS: readonly Letter[] = ["A", "B", "C", "D", "E"];
 
 function PersonalityTestInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const testId = sp.get("testId") || "";
+  const refCode = sp.get("ref") || "";
 
   const [data, setData] = useState<QuestionsResponse | null>(null);
   const [idx, setIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, Letter>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [phase, setPhase] = useState<Phase>("answering");
-  // 防重入锁：避免 36 题最后一道点完 A 又点了 B 引发 race
+  // 防重入锁
   const submitLockRef = useRef(false);
 
-  // 加载 paper 题目（v2 API）
+  /**
+   * 启动逻辑（按优先级）：
+   *   1. URL 带 testId → 直接用
+   *   2. URL 带 ref → 自动创建 test(把 ref 作为 referredByCode 传给后端) → 跳到带 testId 的自己
+   *   3. 都没有 → 报错回首页
+   */
+  useEffect(() => {
+    if (!testId) {
+      if (!refCode) {
+        setError("缺少测试 ID,请从人格测试首页重新进入");
+        setLoading(false);
+        return;
+      }
+      // 带 ref 但没 testId → 创建 test(带上 referredByCode)
+      let cancelled = false;
+      (async () => {
+        try {
+          // 取/生成 visitorId
+          const visitorId =
+            (typeof window !== "undefined" &&
+              (localStorage.getItem("personalityVisitorId") ||
+                (() => {
+                  const v = `pv_${Math.random().toString(36).slice(2, 10)}`;
+                  try {
+                    localStorage.setItem("personalityVisitorId", v);
+                  } catch {
+                    /* 写不动忽略 */
+                  }
+                  return v;
+                })())) ||
+            `pv_${Math.random().toString(36).slice(2, 10)}`;
+          if (typeof window !== "undefined") {
+            try {
+              localStorage.setItem("personalityVisitorId", visitorId);
+            } catch {
+              /* 忽略 */
+            }
+          }
+          const res = await fetch(`/api/personality/tests`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ visitorId, referredByCode: refCode }),
+          });
+          const json = await res.json();
+          if (!res.ok || !json.testId) {
+            throw new Error(json.error || "创建测试失败");
+          }
+          if (cancelled) return;
+          // 把 ref 继续带上,避免在后续重定向里丢掉(实际上后续用 testId 即可,但保留 ref 利于调试)
+          router.replace(`/personality/test?testId=${json.testId}&ref=${encodeURIComponent(refCode)}`);
+        } catch (e: any) {
+          if (!cancelled) {
+            setError(e?.message || "创建测试失败");
+            setLoading(false);
+          }
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, [testId, refCode, router]);
+
+  // 加载题库（按当前 testId 抽出 36 道题）
   useEffect(() => {
     if (!testId) return;
     (async () => {
       try {
-        const res = await fetch(
-          `/api/personality-v2/tests/${testId}/questions`
-        );
+        const res = await fetch(`/api/personality/questions?testId=${encodeURIComponent(testId)}`);
         const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "加载失败");
+        if (!res.ok) throw new Error(json.error || "加载题目失败");
         setData(json);
-        setAnswers(json.answered || {});
-        // 找到第一个未答的位置
-        const firstUnanswered = json.questions.findIndex(
-          (q: PaperQuestion) => !(json.answered || {})[q.id]
-        );
-        setIdx(firstUnanswered >= 0 ? firstUnanswered : json.questions.length - 1);
+        setIdx(0);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -73,26 +137,25 @@ function PersonalityTestInner() {
   const questions = data?.questions ?? [];
   const total = questions.length;
   const current = questions[idx];
-  // 已答题数：当前 idx 已经处于"待答"位置，但 progress 应该按"已确定的答题进度"
   const totalAnswered = Math.min(idx + 1, questions.length);
   const progress = total > 0 ? (totalAnswered / total) * 100 : 0;
   const selected = current ? answers[current.id] : undefined;
 
-  const handleAnswer = async (optionIndex: number) => {
+  const handleAnswer = async (letter: Letter) => {
     if (!current || submitLockRef.current || phase === "completing") return;
     submitLockRef.current = true;
     try {
       // 1. 先落本地（含 selected 视觉态）
-      const newAnswers = { ...answers, [current.id]: optionIndex };
+      const newAnswers = { ...answers, [current.id]: letter };
       setAnswers(newAnswers);
 
-      // 2. await 后端保存（v2 answers API）
+      // 2. await 后端保存（V3 answers API：letter A-E）
       const res = await fetch(
-        `/api/personality-v2/tests/${testId}/answers`,
+        `/api/personality/tests/${testId}/answers`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ questionId: current.id, optionIndex }),
+          body: JSON.stringify({ questionId: current.id, letter }),
         }
       );
       if (!res.ok) {
@@ -106,7 +169,7 @@ function PersonalityTestInner() {
         throw new Error(msg);
       }
 
-      // 3. 最后一题 → 切 completing；否则下一题（150ms 让"已选中"先显示）
+      // 3. 最后一题 → 切 completing；否则下一题
       if (idx + 1 >= total) {
         setPhase("completing");
         fireAndPollComplete();
@@ -123,30 +186,31 @@ function PersonalityTestInner() {
     }
   };
 
-  // 触发后端算分 + 轮询 result → 一就绪立即跳
+  // 触发后端算分 + 轮询 result → 一就绪立即跳 v1 结果页
   const fireAndPollComplete = () => {
-    fetch(`/api/personality-v2/tests/${testId}/complete`, {
+    fetch(`/api/personality/tests/${testId}/complete`, {
       method: "POST",
     }).catch(() => {});
     const startedAt = Date.now();
-    const FALLBACK_MS = 10000;
+    // complete 路由里有两路并发 LLM 润色（polishFreeReportWithLLM + polishFullReportWithLLM），
+    // 典型耗时 25–40s，极端网络下可逼近 maxDuration=60s。
+    // 兜底 60s：给真正完成留出窗口，期间只要 /result 返回 200 就立刻跳。
+    const FALLBACK_MS = 60000;
     const tick = async () => {
       try {
-        const r = await fetch(
-          `/api/personality-v2/tests/${testId}/result`
-        );
+        const r = await fetch(`/api/personality/tests/${testId}/result`);
         if (r.ok) {
-          router.push(`/personality-v2/result/${testId}`);
+          router.push(`/personality/result/${testId}`);
           return;
         }
       } catch {
         /* 网络抖 */
       }
       if (Date.now() - startedAt > FALLBACK_MS) {
-        router.push(`/personality-v2/result/${testId}`);
+        router.push(`/personality/result/${testId}`);
         return;
       }
-      setTimeout(tick, 1000);
+      setTimeout(tick, 1500);
     };
     setTimeout(tick, 300);
   };
@@ -167,8 +231,8 @@ function PersonalityTestInner() {
   if (phase === "completing") {
     return (
       <AnalyzingScreen
-        title="请稍候，正在为你匹配月相卡"
-        hint="约需 3–8 秒，请不要关闭页面"
+        title="请稍候，正在为你生成报告"
+        hint="约需 20–60 秒，请不要关闭页面"
       />
     );
   }
@@ -184,18 +248,22 @@ function PersonalityTestInner() {
     );
   }
 
-  // 字母映射：optionIndex 0..4 → A..E
-  const letterOf = (i: number) => String.fromCharCode(65 + i);
-
   return (
     <main className="flex-1 flex flex-col items-center px-5 pt-0 pb-8 sm:px-6 sm:pb-10 max-w-xl mx-auto w-full safe-bottom">
-      {/* 进度：sticky 顶部（v1 风格） */}
+      {/* 进度：sticky 顶部 */}
       <div className="sticky top-0 z-20 w-full bg-[var(--bg-dark)]/95 backdrop-blur-sm -mx-5 px-5 sm:-mx-6 sm:px-6 pt-3 sm:pt-4 pb-3 border-b border-[var(--border-dim)] fade-in">
         <div className="flex items-center justify-between text-xs text-[var(--text-muted)] mb-2">
           <span className="font-mono">
             {totalAnswered} / {total}
           </span>
-          <span>{Math.round(progress)}%</span>
+          <div className="flex items-center gap-2">
+            {data?.paperId && (
+              <span className="rounded-full border border-[var(--border-dim)] px-2 py-0.5 text-[10px] tracking-wider">
+                {data.paperId}
+              </span>
+            )}
+            <span>{Math.round(progress)}%</span>
+          </div>
         </div>
         <div className="h-1.5 bg-[var(--border-dim)] rounded-full overflow-hidden">
           <div
@@ -208,37 +276,43 @@ function PersonalityTestInner() {
       {/* 题目 */}
       <div key={current.id} className="w-full mt-8 mb-6 sm:mt-10 sm:mb-8 fade-in">
         <p className="display-serif text-base sm:text-lg md:text-xl text-[var(--text-warm)] leading-relaxed min-h-[4rem] sm:min-h-[5rem]">
-          {current.stem}
+          {current.question}
+        </p>
+        <p className="mt-3 text-[11px] text-[var(--text-muted)] tracking-wide">
+          凭第一反应就好，不用想太久
         </p>
       </div>
 
-      {/* 选项 */}
+      {/* 选项 A B C D E（V3：5 选项情境题） */}
       <div
         className="w-full space-y-2.5 sm:space-y-3 mb-6 sm:mb-8 fade-in"
         style={{ animationDelay: "0.1s" }}
       >
-        {current.options.map((opt) => {
-          const isSelected = selected === opt.idx;
+        {(LETTERS).map((letter, i) => {
+          const isSelected = selected === letter;
+          const optText = current.options?.[i] ?? "";
           return (
             <button
-              key={opt.idx}
-              onClick={() => handleAnswer(opt.idx)}
-              className={`w-full min-h-[56px] text-left px-4 py-3.5 sm:px-5 sm:py-4 rounded-lg border transition-all ${
+              key={letter}
+              onClick={() => handleAnswer(letter)}
+              className={`w-full min-h-[56px] text-left px-4 py-3.5 sm:px-5 sm:py-4 rounded-lg border transition-all flex items-start gap-3 ${
                 isSelected
                   ? "bg-[var(--accent-dim)] border-[var(--accent)] text-[var(--text-warm)]"
                   : "bg-[rgba(245,237,224,0.04)] border-[var(--border-dim)] text-[var(--text-warm)] active:bg-[rgba(201,169,110,0.12)] active:border-[var(--accent-dim)]"
               }`}
             >
-              <span className="text-[var(--accent)] font-mono mr-2 sm:mr-3">
-                {letterOf(opt.idx)}
+              <span className="text-[var(--accent)] font-mono mt-0.5 shrink-0">
+                {letter}
               </span>
-              {opt.text}
+              <span className="text-sm sm:text-[15px] leading-relaxed text-[var(--text-warm)]">
+                {optText || "（暂无选项）"}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* 上一题（idx > 0 才显示） */}
+      {/* 上一题 */}
       {idx > 0 && (
         <button
           onClick={goPrev}
@@ -264,12 +338,6 @@ function PersonalityTestInner() {
             >
               重试
             </button>
-            <Link
-              href={`/personality-v2/result/${testId}`}
-              className="text-xs px-3 py-2 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] active:text-[var(--text-warm)] min-h-[40px] inline-flex items-center"
-            >
-              跳到结果页
-            </Link>
             <Link
               href="/personality"
               className="text-xs px-3 py-2 rounded-lg border border-[var(--border-dim)] text-[var(--text-muted)] active:text-[var(--text-warm)] min-h-[40px] inline-flex items-center"

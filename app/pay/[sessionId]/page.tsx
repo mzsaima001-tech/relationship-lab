@@ -7,6 +7,7 @@ import { OrnamentDivider, StarMap } from "@/app/components/decor";
 import { SafeLink } from "@/app/components/SafeLink";
 import HomeFooter from "@/app/components/HomeFooter";
 import { PAYMENT_CONFIG } from "@/lib/site";
+import StaticQrPayCard from "@/app/components/StaticQrPayCard";
 import { SINGLE_REPORT_PRICE } from "@/lib/assessment/types";
 
 interface PayInfo {
@@ -15,6 +16,7 @@ interface PayInfo {
   payable: number;
   credits: { balance: number; shares: number };
   payUrl?: string | null;
+  qrCode?: string | null;
   live?: boolean;
   unlocked?: boolean;
 }
@@ -62,17 +64,11 @@ export default function PayPage() {
 
   const handleConfirm = async () => {
     if (!info?.payment) return;
-    setConfirming(true);
-    try {
-      const res = await fetch(`/api/payments/${info.payment.id}/confirm`, { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "确认失败");
-      // 软跳转回结果页：避免微信内整页硬跳重新触发拦截提示；结果页会重新拉取最新解锁状态
-      router.push(`/result/${sessionId}`);
-    } catch (err: any) {
-      setError(err.message || "确认失败");
-      setConfirming(false);
-    }
+    const res = await fetch(`/api/payments/${info.payment.id}/confirm`, { method: "POST" });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "确认失败");
+    // 静态码方案：confirm 路由只把 status 改成 pending_review，不直接解锁。
+    // 这里抛出去让 StaticQrPayCard 显示「已收到付款确认」等待管理员审核。
   };
 
   const handleUnlockWithCredits = async () => {
@@ -89,31 +85,8 @@ export default function PayPage() {
     }
   };
 
-  /** 把网关链接复制到剪贴板（用于微信内让用户"在浏览器中打开"） */
-  const handleCopyGatewayUrl = async () => {
-    if (!info?.payUrl) return;
-    try {
-      await navigator.clipboard.writeText(info.payUrl);
-      setError("✓ 网关链接已复制，请到浏览器粘贴打开");
-      setTimeout(() => setError(""), 3000);
-    } catch {
-      // 降级：textarea trick
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = info.payUrl;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        setError("✓ 网关链接已复制，请到浏览器粘贴打开");
-        setTimeout(() => setError(""), 3000);
-      } catch {
-        setError("复制失败，请手动复制：" + info.payUrl);
-      }
-    }
-  };
+  /** 真网关回调：用 payUrl / qrCode 在线返回的二维码 / 跳转链接 */
+  // (静态码方案不走这条分支，留作未来接入网关时使用)
 
   if (loading) {
     return (
@@ -200,23 +173,25 @@ export default function PayPage() {
               </p>
             </div>
 
-            {/* 真网关在线：跳转到网关 payUrl（由上游完成扣款 → 通知 → 解锁） */}
-            {info.live && info.payUrl ? (
+            {/* 真网关在线：按 payUrl / qrCode 分流展示 */}
+            {info.live && (info.payUrl || info.qrCode) ? (
               <div className="card p-5 sm:p-6 text-center">
-                <p className="archive-label mb-4">去支付</p>
-                {inWechat ? (
+                <p className="archive-label mb-4">扫码或前往支付</p>
+                {info.qrCode ? (
                   <>
-                    <div className="text-sm text-[var(--text-warm)] mb-4 leading-relaxed">
-                      检测到你在微信中打开，微信内不能直接完成支付。
+                    <div className="inline-block rounded-xl bg-white p-3 shadow-lg">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={info.qrCode}
+                        alt="收款二维码"
+                        className="w-52 h-52 object-contain"
+                      />
                     </div>
-                    <p className="text-sm text-[var(--text-muted)] mb-4 leading-relaxed">
-                      点击下方按钮复制支付链接，<span className="text-[var(--accent-bright)]">到浏览器中粘贴打开</span>完成付款。
+                    <p className="text-sm text-[var(--text-muted)] mt-3 leading-relaxed">
+                      微信 / 支付宝 / 银联 任意一个扫码即可完成支付
                     </p>
-                    <button onClick={handleCopyGatewayUrl} className="btn-primary w-full">
-                      📋 复制支付链接
-                    </button>
-                    <p className="text-[11px] text-[var(--text-muted)] mt-3 leading-relaxed">
-                      复制后请退出微信，打开 Safari / Chrome / 浏览器粘贴访问
+                    <p className="text-xs text-[var(--text-muted)] mt-1">
+                      订单号 {info.payment.id.slice(0, 8).toUpperCase()}
                     </p>
                   </>
                 ) : (
@@ -225,66 +200,36 @@ export default function PayPage() {
                       将跳转至星驿付完成支付，支付成功后系统会自动解锁完整报告。
                     </p>
                     {/* 用 a 标签直接打开外部支付网关（保留 next 路由会失败） */}
-                    <a href={info.payUrl} className="btn-primary w-full inline-flex items-center justify-center">
+                    <a href={info.payUrl!} className="btn-primary w-full inline-flex items-center justify-center">
                       前往支付 →
                     </a>
+                    {inWechat && (
+                      <p className="text-[11px] text-[var(--text-muted)] mt-3 leading-relaxed">
+                        检测到你在微信中，点击按钮后浏览器会自动打开支付页
+                      </p>
+                    )}
                   </>
                 )}
+
+                <p className="text-[11px] text-[var(--text-muted)] mt-4 leading-relaxed">
+                  付款成功后系统会在 3-5 秒内自动跳转至完整报告，无需任何操作。
+                </p>
               </div>
             ) : (
-              /* 网关未在线：开发态扫码支付（微信内外统一展示收款码，长按识别） */
-              <div className="card p-5 sm:p-6 text-center">
-                <p className="archive-label mb-4">扫码付款</p>
-                <div className="inline-block rounded-xl bg-white p-3 shadow-lg">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={PAYMENT_CONFIG.aggregateQr}
-                    alt="收款码"
-                    className="w-52 h-52 object-contain"
-                    style={{ WebkitTouchCallout: "default" }}
-                  />
-                </div>
-                <p className="text-sm text-[var(--text-warm)] mt-4">
-                  请支付 <span className="text-[var(--accent)] font-medium">¥{payable.toFixed(1)}</span>
-                </p>
-                {inWechat ? (
-                  <p className="text-sm text-[var(--accent-bright)] mt-2 font-medium leading-relaxed">
-                    长按二维码即可扫一扫付款
-                  </p>
-                ) : (
-                  <p className="text-xs text-[var(--text-muted)] mt-1">
-                    {PAYMENT_CONFIG.channels} · 长按或截图扫码支付
-                  </p>
-                )}
-                <p className="text-xs text-[var(--text-muted)] mt-3">
-                  订单号 {info.payment.id.slice(0, 8).toUpperCase()}
-                </p>
-
-                <button
-                  onClick={handleConfirm}
-                  disabled={confirming}
-                  className="btn-primary w-full mt-6"
-                >
-                  {confirming ? "确认中..." : "我已完成付款，解锁报告"}
-                </button>
-                <p className="text-[11px] text-[var(--text-muted)] mt-3 leading-relaxed">
-                  当前为开发阶段：付款后点击上方按钮立即解锁；正式部署后由支付网关异步回调自动确认。
-                </p>
-              </div>
+              /* 静态收款码方案（2026-09-14 起）：扫码 → 我已支付 → 管理员后台确认 */
+              <StaticQrPayCard
+                amount={payable}
+                orderNo={info.payment.id.slice(0, 8).toUpperCase()}
+                paymentId={info.payment.id}
+                confirmKind="single"
+                onConfirm={handleConfirm}
+                backHref={`/result/${sessionId}`}
+              />
             )}
           </>
         )}
 
         {error && <p className="text-sm text-center mt-4 px-3 py-2 rounded bg-[rgba(220,80,80,0.08)] border border-[rgba(220,80,80,0.25)]" style={{ color: "var(--text-warm)" }}>{error}</p>}
-
-        <div className="text-center mt-8">
-          <Link
-            href={`/result/${sessionId}`}
-            className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
-          >
-            ← 返回我的报告
-          </Link>
-        </div>
 
         <HomeFooter />
       </div>

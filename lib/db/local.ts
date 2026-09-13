@@ -210,16 +210,30 @@ export interface CreditAccountRecord {
   updated_at: string;
 }
 
+/**
+ * 支付方式分类：
+ *  - mock / weixin / credits：历史数据,继续保留以兼容已有支付记录
+ *  - xingyifu：一律代表真实网关（聚合微信/支付宝/银联,具体由网关 pay_type 配置决定）
+ *  - weixin_live / alipay_live / unionpay_live：如果日后要按渠道区分记账,可在此基础上累加
+ */
 export interface PaymentRecord {
   id: string;
   target_type: "single_report" | "pair_report" | "personality_report";
   target_id: string;
   amount: number;
   currency: "CNY";
-  status: "pending" | "paid" | "cancelled";
-  method: "mock" | "weixin" | "credits";
+  status: "pending" | "pending_review" | "paid" | "cancelled";
+  method: "mock" | "weixin" | "credits" | "xingyifu" | "alipay" | "unionpay";
   created_at: string;
   paid_at?: string;
+  /** 网关订单号（星驿付 trade_no，通知 / 主动查询 对账用） */
+  gateway_order_no?: string;
+  /** 网关返回的支付跳转链接（H5 / 公众号跳转） */
+  pay_url?: string;
+  /** 网关返回的二维码图片 URL（聚合码让用户任扫） */
+  qr_code?: string;
+  /** 实际到账的支付渠道（用户在网关侧选择了微信/支付宝/银联） */
+  paid_method?: "weixin" | "alipay" | "unionpay" | "yunshanfu" | "creditcard";
 }
 
 function genId() {
@@ -381,7 +395,7 @@ export async function createShare(
  * 记录人格分享码的下游完成（每人一票，去重）。
  * 新访客完成测评后调用 → 给推荐者 test.shares_count +1。
  * 返回：
- * - counted: bool — 这次是否计入（首次 true，重复 false）
+ * - counted: bool — 这次是否计入（首次 true，重复 false；自己扫自己也是 false）
  * - visitorCount: 当前有效完成人数
  * - recommenderTestId: 推荐者的 testId
  */
@@ -395,6 +409,15 @@ export async function recordPersonalityShareCompletion(
   const shares = await readJson<ShareRecord>(SHARES_FILE);
   const share = shares.find((s) => s.code === code);
   if (!share || share.share_type !== "personality") return null;
+
+  // 防 self-referral:分享者本人扫自己的码,不计有效分享
+  if (share.visitor_id && share.visitor_id === visitorId) {
+    return {
+      counted: false,
+      visitorCount: share.completed_visitors?.length ?? 0,
+      recommenderTestId: share.source_test_id ?? null,
+    };
+  }
 
   const completed = share.completed_visitors ?? [];
   if (completed.includes(visitorId)) {
@@ -645,11 +668,21 @@ export async function spendCreditsForSingleReport(
 }
 
 // ---- Payments (本地开发模拟；云端部署时替换为真实支付回调) ----
+export interface CreatePaymentMeta {
+  /** 网关订单号（星驿付 trade_no 等） */
+  gatewayOrderNo?: string;
+  /** 网关返回的支付跳转链接 */
+  payUrl?: string;
+  /** 网关返回的二维码图片 URL */
+  qrCode?: string;
+}
+
 export async function createPayment(
   targetType: PaymentRecord["target_type"],
   targetId: string,
   amount: number,
-  method: PaymentRecord["method"] = "mock"
+  method: PaymentRecord["method"] = "mock",
+  meta: CreatePaymentMeta = {}
 ): Promise<PaymentRecord> {
   const payments = await readJson<PaymentRecord>(PAYMENTS_FILE);
   const existing = payments.find(payment =>
@@ -657,7 +690,20 @@ export async function createPayment(
     payment.target_id === targetId &&
     payment.status === "pending"
   );
-  if (existing) return existing;
+  if (existing) {
+    // 真网关场景下,已经创建过 pending 订单 → 把最新网关信息合并进去（防止回调到达前用户刷新页面看不到 pay_url）
+    const idx = payments.indexOf(existing);
+    payments[idx] = {
+      ...existing,
+      amount,
+      method,
+      ...(meta.gatewayOrderNo ? { gateway_order_no: meta.gatewayOrderNo } : {}),
+      ...(meta.payUrl ? { pay_url: meta.payUrl } : {}),
+      ...(meta.qrCode ? { qr_code: meta.qrCode } : {}),
+    };
+    await writeJson(PAYMENTS_FILE, payments);
+    return payments[idx];
+  }
 
   const payment: PaymentRecord = {
     id: genId(),
@@ -668,6 +714,9 @@ export async function createPayment(
     status: "pending",
     method,
     created_at: new Date().toISOString(),
+    gateway_order_no: meta.gatewayOrderNo,
+    pay_url: meta.payUrl,
+    qr_code: meta.qrCode,
   };
   payments.push(payment);
   await writeJson(PAYMENTS_FILE, payments);
@@ -692,7 +741,48 @@ export async function listPayments(): Promise<PaymentRecord[]> {
 
 export async function getPayment(id: string): Promise<PaymentRecord | null> {
   const payments = await readJson<PaymentRecord>(PAYMENTS_FILE);
-  return payments.find(payment => payment.id === id) || null;
+  return payments.find((payment) => payment.id === id) || null;
+}
+
+/**
+ * 把网关响应（trade_no / pay_url / qr_code）写回到刚创建的 payment。
+ * 用于「先 createPayment、再调网关、最后回填」的链路。
+ * 注意：status 永远保持 pending，由 /notify/xingyifu 异步推 paid。
+ */
+export async function updatePaymentGatewayMeta(
+  id: string,
+  meta: { gatewayOrderNo?: string; payUrl?: string; qrCode?: string }
+): Promise<PaymentRecord | null> {
+  const payments = await readJson<PaymentRecord>(PAYMENTS_FILE);
+  const idx = payments.findIndex((p) => p.id === id);
+  if (idx === -1) return null;
+  payments[idx] = {
+    ...payments[idx],
+    ...(meta.gatewayOrderNo ? { gateway_order_no: meta.gatewayOrderNo } : {}),
+    ...(meta.payUrl ? { pay_url: meta.payUrl } : {}),
+    ...(meta.qrCode ? { qr_code: meta.qrCode } : {}),
+  };
+  await writeJson(PAYMENTS_FILE, payments);
+  return payments[idx];
+}
+
+/**
+ * 标记"实际到账渠道"。由 /notify/xingyifu 在确认 paid 后调用,便于后台对账。
+ */
+export async function markPaymentPaidMethod(
+  id: string,
+  paidMethod: PaymentRecord["paid_method"],
+  tradeNo?: string
+): Promise<void> {
+  const payments = await readJson<PaymentRecord>(PAYMENTS_FILE);
+  const idx = payments.findIndex((p) => p.id === id);
+  if (idx === -1) return;
+  payments[idx] = {
+    ...payments[idx],
+    paid_method: paidMethod,
+    gateway_order_no: tradeNo || payments[idx].gateway_order_no,
+  };
+  await writeJson(PAYMENTS_FILE, payments);
 }
 
 export async function markPaymentPaid(id: string): Promise<PaymentRecord> {
@@ -724,6 +814,51 @@ export async function markPaymentPaid(id: string): Promise<PaymentRecord> {
   return payment;
 }
 
+/** 用户点「我已支付」：把订单置为 pending_review，等待管理员后台确认。不触发任何解锁。 */
+export async function markPaymentPendingReview(id: string): Promise<PaymentRecord> {
+  const payments = await readJson<PaymentRecord>(PAYMENTS_FILE);
+  const index = payments.findIndex(payment => payment.id === id);
+  if (index === -1) throw new Error("PAYMENT_NOT_FOUND");
+  if (payments[index].status === "paid" || payments[index].status === "pending_review") {
+    return payments[index];
+  }
+  payments[index] = {
+    ...payments[index],
+    status: "pending_review",
+  };
+  await writeJson(PAYMENTS_FILE, payments);
+  return payments[index];
+}
+
+/** 管理员在后台「确认已收」：复用 markPaymentPaid 的副作用真正解锁。 */
+export async function approvePaymentReview(id: string): Promise<PaymentRecord> {
+  const payments = await readJson<PaymentRecord>(PAYMENTS_FILE);
+  const idx = payments.findIndex(p => p.id === id);
+  if (idx === -1) throw new Error("PAYMENT_NOT_FOUND");
+  if (payments[idx].status === "paid") {
+    return payments[idx];
+  }
+  return await markPaymentPaid(id);
+}
+
+/** 管理员在后台「驳回」：把订单置为 cancelled（用户未付款却点了「我已支付」）。 */
+export async function rejectPaymentReview(id: string, reason?: string): Promise<PaymentRecord> {
+  const payments = await readJson<PaymentRecord>(PAYMENTS_FILE);
+  const idx = payments.findIndex(p => p.id === id);
+  if (idx === -1) throw new Error("PAYMENT_NOT_FOUND");
+  if (payments[idx].status === "cancelled" || payments[idx].status === "paid") {
+    return payments[idx];
+  }
+  payments[idx] = {
+    ...payments[idx],
+    status: "cancelled",
+    paid_method: undefined,
+  };
+  await writeJson(PAYMENTS_FILE, payments);
+  console.warn(`[payment/reject] manual reject · paymentId=${id} · reason=${reason ?? "—"}`);
+  return payments[idx];
+}
+
 // =====================================================
 // 人格测试（独立模块，与原双人默契测试数据隔离）
 // =====================================================
@@ -732,41 +867,42 @@ import type {
   PersonalityAnswerRecord,
   PersonalityTestRecord,
 } from "@/lib/personality/types";
+import { PERSONALITY_ALGORITHM_VERSION, PERSONALITY_REPORT_VERSION } from "@/lib/personality/types";
 
 export type {
   PersonalityAnswerRecord,
   PersonalityTestRecord,
 } from "@/lib/personality/types";
 
-/** 写入人格测试答案（含 reverse 处理后的 calculated_score） */
+/** 写入人格测试答案（V3：optionIndex 0-4 + score 1-5） */
 export async function addPersonalityAnswer(
   testId: string,
   questionId: string,
-  answerLetter: "A" | "B" | "C" | "D",
-  calculatedScore: number,
-  answeredAtMs: number
+  paperId: PersonalityTestRecord["paper_id"],
+  optionIndex: 0 | 1 | 2 | 3 | 4,
+  score: number,
+  answeredAtMs: number,
+  answerLetter?: PersonalityAnswerRecord["answer_letter"]
 ): Promise<void> {
   const answers = await readJson<PersonalityAnswerRecord>(PERSONALITY_ANSWERS_FILE);
   const existingIdx = answers.findIndex(
     (a) => a.test_id === testId && a.question_id === questionId
   );
+  const baseFields: PersonalityAnswerRecord = {
+    id: "",
+    test_id: testId,
+    question_id: questionId,
+    paper_id: paperId,
+    option_index: optionIndex,
+    score,
+    answer_letter: answerLetter,
+    answered_at_ms: answeredAtMs,
+    created_at: new Date().toISOString(),
+  };
   if (existingIdx !== -1) {
-    answers[existingIdx] = {
-      ...answers[existingIdx],
-      answer_letter: answerLetter,
-      calculated_score: calculatedScore,
-      answered_at_ms: answeredAtMs,
-    };
+    answers[existingIdx] = { ...answers[existingIdx], ...baseFields };
   } else {
-    answers.push({
-      id: crypto.randomUUID(),
-      test_id: testId,
-      question_id: questionId,
-      answer_letter: answerLetter,
-      calculated_score: calculatedScore,
-      answered_at_ms: answeredAtMs,
-      created_at: new Date().toISOString(),
-    });
+    answers.push({ ...baseFields, id: crypto.randomUUID() });
   }
   await writeJson(PERSONALITY_ANSWERS_FILE, answers);
 }
@@ -780,21 +916,23 @@ export async function getPersonalityAnswers(
 
 export async function createPersonalityTest(
   visitorId: string,
-  referredByCode?: string
+  referredByCode?: string,
+  paperId?: PersonalityTestRecord["paper_id"]
 ): Promise<PersonalityTestRecord> {
   const tests = await readJson<PersonalityTestRecord>(PERSONALITY_TESTS_FILE);
   const now = new Date().toISOString();
   const record: PersonalityTestRecord = {
     id: `PST_${crypto.randomBytes(4).toString("hex")}`,
     visitor_id: visitorId,
+    paper_id: paperId ?? "P1",
     status: "started",
     started_at: now,
     is_paid: false,
     shares_count: 0,
     unlocked_via_share: false,
     referred_by_code: referredByCode,
-    algorithm_version: "personality_v1",
-    report_version: "report_v1",
+    algorithm_version: PERSONALITY_ALGORITHM_VERSION,
+    report_version: PERSONALITY_REPORT_VERSION,
     created_at: now,
     updated_at: now,
   };

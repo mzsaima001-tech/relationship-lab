@@ -35,17 +35,19 @@ interface ResultData {
   paid: boolean;
   fullReport: FullReport | null;
   types?: {
-    primary: { type: string; matchScore: number };
-    secondary: { type: string; matchScore: number };
-    hidden: { type: string; matchScore: number };
+    primary: { id: string; name: string; similarity: number; card: any };
+    secondary: { id: string; name: string; similarity: number; card: any };
+    hidden: { id: string; name: string; similarity: number; card: any };
   };
 }
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="mb-8 sm:mb-10 fade-in-up">
-    <div className="flex items-center gap-3 mb-3 sm:mb-4">
-      <h3 className="archive-label">{title}</h3>
-      <span className="flex-1 h-px bg-[var(--border-dim)]" />
+  <section className="mb-9 sm:mb-12 fade-in-up">
+    <div className="flex items-baseline gap-3 mb-5 sm:mb-6">
+      <h3 className="display-serif font-bold text-[20px] sm:text-[22px] md:text-[24px] text-[var(--accent-bright)] tracking-tight">
+        {title}
+      </h3>
+      <span className="flex-1 h-px bg-[var(--border-dim)] translate-y-[-3px]" />
     </div>
     {children}
   </section>
@@ -109,7 +111,7 @@ export default function PersonalityReport() {
   if (loading) {
     return (
       <main className="flex-1 flex items-center justify-center px-5 sm:px-6">
-        <p className="text-sm text-[var(--text-muted)]">完整报告加载中...</p>
+        <p className="text-[18px] sm:text-[20px] text-[var(--text-muted)]">完整报告加载中...</p>
       </main>
     );
   }
@@ -117,7 +119,7 @@ export default function PersonalityReport() {
   if (!data || !data.fullReport) {
     return (
       <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-4">
-        <p className="text-sm text-[var(--danger)]">{error || "报告不可用"}</p>
+        <p className="text-[18px] sm:text-[19px] text-[var(--danger)]">{error || "报告不可用"}</p>
         <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
           <button
             type="button"
@@ -144,7 +146,7 @@ export default function PersonalityReport() {
         <h1 className="display-serif text-2xl sm:text-3xl md:text-4xl font-bold text-[var(--text-warm)] mb-2">
           {r.primary.name}
         </h1>
-        <p className="display-serif text-base text-[var(--accent)]">「{r.primaryTagline}」</p>
+        <p className="display-serif text-[18px] sm:text-[22px] text-[var(--accent)] font-medium">「{r.primaryTagline}」</p>
       </div>
 
       {/* 雷达图 */}
@@ -160,16 +162,16 @@ export default function PersonalityReport() {
         <div className="mb-5 sm:mb-6">
           {data.types && (
             <PersonalityCard
-              type={data.types.primary.type as Parameters<typeof PersonalityCard>[0]["type"]}
+              card={data.types.primary.card}
               userScores={r.scores as Record<string, number>}
-              matchScore={data.types.primary.matchScore}
+              matchScore={Math.round((data.types.primary.similarity ?? 0) * 100)}
               size="md"
               label="primary"
               className="mx-auto"
             />
           )}
         </div>
-        <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed whitespace-pre-line">
+        <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed whitespace-pre-line">
           {r.primary.description}
         </p>
       </Section>
@@ -178,16 +180,16 @@ export default function PersonalityReport() {
         <div className="mb-5 sm:mb-6">
           {data.types && (
             <PersonalityCard
-              type={data.types.secondary.type as Parameters<typeof PersonalityCard>[0]["type"]}
+              card={data.types.secondary.card}
               userScores={r.scores as Record<string, number>}
-              matchScore={data.types.secondary.matchScore}
+              matchScore={Math.round((data.types.secondary.similarity ?? 0) * 100)}
               size="md"
               label="secondary"
               className="mx-auto"
             />
           )}
         </div>
-        <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
+        <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">
           <span className="display-serif text-base text-[var(--accent)] mr-2">{r.secondary.name}</span>
           {r.secondary.description}
         </p>
@@ -197,16 +199,16 @@ export default function PersonalityReport() {
         <div className="mb-5 sm:mb-6">
           {data.types && (
             <PersonalityCard
-              type={data.types.hidden.type as Parameters<typeof PersonalityCard>[0]["type"]}
+              card={data.types.hidden.card}
               userScores={r.scores as Record<string, number>}
-              matchScore={data.types.hidden.matchScore}
+              matchScore={Math.round((data.types.hidden.similarity ?? 0) * 100)}
               size="md"
               label="hidden"
               className="mx-auto"
             />
           )}
         </div>
-        <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
+        <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">
           <span className="display-serif text-base text-[var(--accent)] mr-2">{r.hidden.name}</span>
           {r.hidden.description}
         </p>
@@ -214,14 +216,14 @@ export default function PersonalityReport() {
 
       {/* 04：表面 vs 真实 */}
       <Section title="04 · 表面的你 vs 真正的你">
-        <div className="card p-4 sm:p-5 space-y-3 sm:space-y-4">
+        <div className="card p-4 sm:p-5 space-y-4 sm:space-y-5">
           <div>
-            <p className="text-xs text-[var(--text-muted)] mb-1">别人看到的你</p>
-            <p className="text-[15px] sm:text-sm text-[var(--text-warm)]">{r.surfaceVsReal.surface}</p>
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">别人看到的你</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.surfaceVsReal.surface}</p>
           </div>
-          <div className="border-t border-[var(--border-dim)] pt-3 sm:pt-4">
-            <p className="text-xs text-[var(--text-muted)] mb-1">真正的你</p>
-            <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{r.surfaceVsReal.real}</p>
+          <div className="border-t border-[var(--border-dim)] pt-4 sm:pt-5">
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">真正的你</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.surfaceVsReal.real}</p>
           </div>
         </div>
       </Section>
@@ -230,7 +232,7 @@ export default function PersonalityReport() {
       <Section title="05 · 你的性格矛盾">
         <ul className="space-y-2.5 sm:space-y-3">
           {r.contradictions.map((c, i) => (
-            <li key={i} className="flex gap-2.5 sm:gap-3 text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
+            <li key={i} className="flex gap-2.5 sm:gap-3 text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">
               <span className="text-[var(--accent)] flex-shrink-0">·</span>
               <span>{c}</span>
             </li>
@@ -243,8 +245,8 @@ export default function PersonalityReport() {
         <div className="space-y-2.5 sm:space-y-3">
           {r.strengths.map((s, i) => (
             <div key={i} className="card p-3.5 sm:p-4">
-              <p className="display-serif text-sm sm:text-base text-[var(--text-warm)] mb-1">{s.title}</p>
-              <p className="text-xs sm:text-xs text-[var(--text-muted)] leading-relaxed">{s.description}</p>
+              <p className="display-serif font-semibold text-[20px] sm:text-[22px] text-[var(--text-warm)] mb-1.5">{s.title}</p>
+              <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{s.description}</p>
             </div>
           ))}
         </div>
@@ -255,8 +257,8 @@ export default function PersonalityReport() {
         <div className="space-y-2.5 sm:space-y-3">
           {r.blindSpots.map((b, i) => (
             <div key={i} className="border border-[var(--border-dim)] rounded-lg p-3.5 sm:p-4">
-              <p className="display-serif text-sm sm:text-base text-[var(--text-warm)] mb-1">{b.title}</p>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">{b.description}</p>
+              <p className="display-serif font-semibold text-[20px] sm:text-[22px] text-[var(--text-warm)] mb-1.5">{b.title}</p>
+              <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{b.description}</p>
             </div>
           ))}
         </div>
@@ -264,22 +266,22 @@ export default function PersonalityReport() {
 
       {/* 08：情绪触发点 */}
       <Section title="08 · 你的情绪触发点">
-        <div className="space-y-2.5 sm:space-y-3">
+        <div className="space-y-3 sm:space-y-4">
           <div>
-            <p className="text-xs text-[var(--text-muted)] mb-1">什么事情最容易让你烦躁</p>
-            <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{r.triggers.whatIrritates}</p>
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">什么事情最容易让你烦躁</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.triggers.whatIrritates}</p>
           </div>
           <div>
-            <p className="text-xs text-[var(--text-muted)] mb-1">什么事情最容易让你失望</p>
-            <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{r.triggers.whatDisappoints}</p>
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">什么事情最容易让你失望</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.triggers.whatDisappoints}</p>
           </div>
           <div>
-            <p className="text-xs text-[var(--text-muted)] mb-1">什么事情容易让你失去耐心</p>
-            <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{r.triggers.whatLosesPatience}</p>
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">什么事情容易让你失去耐心</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.triggers.whatLosesPatience}</p>
           </div>
           <div>
-            <p className="text-xs text-[var(--text-muted)] mb-1">你通常如何处理负面情绪</p>
-            <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{r.triggers.howYouHandle}</p>
+            <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">你通常如何处理负面情绪</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.triggers.howYouHandle}</p>
           </div>
         </div>
       </Section>
@@ -288,23 +290,23 @@ export default function PersonalityReport() {
       <Section title="09 · 压力状态下的你">
         <div className="space-y-3">
           <div className="card p-4">
-            <p className="text-xs text-[var(--accent)] mb-1">轻度压力</p>
-            <p className="text-sm text-[var(--text-warm)] leading-relaxed">{r.stress.mild}</p>
+            <p className="text-[16px] sm:text-[17px] text-[var(--accent)] mb-1.5 font-medium">轻度压力</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.stress.mild}</p>
           </div>
           <div className="card p-4">
-            <p className="text-xs text-[var(--accent)] mb-1">中度压力</p>
-            <p className="text-sm text-[var(--text-warm)] leading-relaxed">{r.stress.moderate}</p>
+            <p className="text-[16px] sm:text-[17px] text-[var(--accent)] mb-1.5 font-medium">中度压力</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.stress.moderate}</p>
           </div>
           <div className="card p-4">
-            <p className="text-xs text-[var(--accent)] mb-1">高压状态</p>
-            <p className="text-sm text-[var(--text-warm)] leading-relaxed">{r.stress.high}</p>
+            <p className="text-[16px] sm:text-[17px] text-[var(--accent)] mb-1.5 font-medium">高压状态</p>
+            <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.stress.high}</p>
           </div>
         </div>
       </Section>
 
       {/* 10：人际关系 */}
       <Section title="10 · 你的人际关系模式">
-        <div className="space-y-2.5 sm:space-y-3">
+        <div className="space-y-3 sm:space-y-4">
           {[
             ["如何认识朋友", r.relationships.makingFriends],
             ["如何建立信任", r.relationships.buildingTrust],
@@ -312,8 +314,8 @@ export default function PersonalityReport() {
             ["如何结束一段关系", r.relationships.endingRelationships],
           ].map(([label, val]) => (
             <div key={label}>
-              <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-              <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{val}</p>
+              <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">{label}</p>
+              <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{val}</p>
             </div>
           ))}
         </div>
@@ -321,7 +323,7 @@ export default function PersonalityReport() {
 
       {/* 11：亲密关系 */}
       <Section title="11 · 你的亲密关系模式">
-        <div className="space-y-2.5 sm:space-y-3">
+        <div className="space-y-3 sm:space-y-4">
           {[
             ["你喜欢什么类型的人", r.intimacy.attractedTo],
             ["你表达喜欢的方式", r.intimacy.expressingLove],
@@ -329,8 +331,8 @@ export default function PersonalityReport() {
             ["你容易出现什么矛盾", r.intimacy.commonConflicts],
           ].map(([label, val]) => (
             <div key={label}>
-              <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-              <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{val}</p>
+              <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">{label}</p>
+              <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{val}</p>
             </div>
           ))}
         </div>
@@ -338,7 +340,7 @@ export default function PersonalityReport() {
 
       {/* 12：事业 */}
       <Section title="12 · 你的事业人格">
-        <div className="space-y-2.5 sm:space-y-3">
+        <div className="space-y-3 sm:space-y-4">
           {[
             ["适合的工作环境", r.career.suitable],
             ["不适合的工作环境", r.career.unsuitable],
@@ -347,8 +349,8 @@ export default function PersonalityReport() {
             ["你的执行风格", r.career.executionStyle],
           ].map(([label, val]) => (
             <div key={label}>
-              <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-              <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{val}</p>
+              <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-1.5 font-medium">{label}</p>
+              <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{val}</p>
             </div>
           ))}
         </div>
@@ -356,19 +358,19 @@ export default function PersonalityReport() {
 
       {/* 13：领导风格 */}
       <Section title="13 · 你的领导风格">
-        <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{r.leadership}</p>
+        <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.leadership}</p>
       </Section>
 
       {/* 14：金钱与风险 */}
       <Section title="14 · 你的金钱与风险模式">
-        <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">{r.moneyAndRisk}</p>
+        <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">{r.moneyAndRisk}</p>
       </Section>
 
       {/* 15：成长建议 */}
       <Section title="15 · 你的成长建议">
         <div className="space-y-2.5">
           {r.growth.map((g, i) => (
-            <div key={i} className="flex gap-2.5 sm:gap-3 text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed">
+            <div key={i} className="flex gap-2.5 sm:gap-3 text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed">
               <span className="text-[var(--accent)] font-mono flex-shrink-0">{String(i + 1).padStart(2, "0")}</span>
               <span>{g}</span>
             </div>
@@ -379,7 +381,7 @@ export default function PersonalityReport() {
       {/* 16：完整总结 */}
       <Section title="16 · 我的人格说明书">
         <div className="card p-4 sm:p-6">
-          <p className="text-[15px] sm:text-sm text-[var(--text-warm)] leading-relaxed whitespace-pre-line">
+          <p className="text-[18px] sm:text-[19px] text-[var(--text-warm)] leading-relaxed whitespace-pre-line">
             {r.summary}
           </p>
         </div>
@@ -401,10 +403,10 @@ export default function PersonalityReport() {
         >
           Share · 分享给朋友
         </p>
-        <h3 className="display-serif text-base sm:text-lg text-[var(--text-warm)] mb-2">
+        <h3 className="display-serif font-semibold text-[20px] sm:text-[22px] text-[var(--text-warm)] mb-2">
           把你的画像分享给朋友
         </h3>
-        <p className="text-xs text-[var(--text-muted)] mb-4 leading-relaxed">
+        <p className="text-[16px] sm:text-[17px] text-[var(--text-muted)] mb-4 leading-relaxed">
           每个人在关系之外的样子都不一样——
           <br />
           想看看你朋友的会是哪一种吗？
@@ -424,7 +426,7 @@ export default function PersonalityReport() {
         </button>
         {shareError && (
           <div
-            className="mt-3 px-3 py-2 rounded-md text-xs flex items-start gap-2"
+            className="mt-3 px-3 py-2 rounded-md text-[16px] sm:text-[17px] flex items-start gap-2"
             style={{
               background: "rgba(239, 68, 68, 0.12)",
               border: "1px solid rgba(239, 68, 68, 0.45)",
@@ -438,11 +440,11 @@ export default function PersonalityReport() {
       </section>
 
       {/* 免责声明 */}
-      <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mt-10 sm:mt-12 mb-6 sm:mb-8 text-center px-2">
+      <p className="text-[15px] sm:text-[16px] text-[var(--text-muted)] leading-relaxed mt-10 sm:mt-12 mb-6 sm:mb-8 text-center px-2">
         本测试主要用于自我探索、娱乐及人格倾向参考，不属于医学、心理学或精神健康诊断，测试结果不应代替专业意见。
       </p>
 
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-6 sm:mt-8 text-xs">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mt-6 sm:mt-8 text-[16px] sm:text-[17px]">
         <button
           type="button"
           onClick={() => router.back()}

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PersonalityCard } from "@/lib/personality/cards/PersonalityCard";
 import PersonalityQuestionsAdmin from "./PersonalityQuestionsAdmin";
+import PendingReviewTable from "./PendingReviewTable";
 
 type PersonalityTestRow = {
   id: string;
@@ -95,6 +96,7 @@ export default function AdminPage() {
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<TabKey>("couple");
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     fetch("/api/admin/overview")
@@ -105,7 +107,7 @@ export default function AdminPage() {
       })
       .then(setData)
       .catch(err => setError(err.message || "加载失败"));
-  }, []);
+  }, [refreshTick]);
 
   const personCards = useMemo(() => {
     if (!data) return [];
@@ -214,11 +216,29 @@ export default function AdminPage() {
                 {data.payments.length === 0 ? <p className="text-sm text-[var(--text-muted)]">暂无支付订单</p> : data.payments.slice(0, 8).map(payment => (
                   <div key={payment.id} className="border-b border-[var(--border-dim)] pb-3">
                     <div className="flex justify-between gap-3 text-sm"><span className="text-[var(--text-warm)]">{payment.target_type === "pair_report" ? "双人报告" : "单人报告"}</span><span className="font-mono text-[var(--accent)]">¥{payment.amount}</span></div>
-                    <div className="flex justify-between mt-1 text-xs text-[var(--text-muted)]"><span>{payment.status === "paid" ? "已支付" : "待支付"}</span><span>{new Date(payment.created_at).toLocaleDateString("zh-CN")}</span></div>
+                    <div className="flex justify-between mt-1 text-xs text-[var(--text-muted)]"><span>{payment.status === "paid" ? "已支付" : payment.status === "pending_review" ? "待复核" : payment.status === "cancelled" ? "已驳回" : "待支付"}</span><span>{new Date(payment.created_at).toLocaleDateString("zh-CN")}</span></div>
                   </div>
                 ))}
               </div>
             </div>
+          </section>
+
+          {/* 待复核订单（静态收款码 + 手动确认方案专用） */}
+          <section className="card p-6 mt-6">
+            <div className="flex justify-between items-center mb-5 gap-4">
+              <h2 className="archive-label">待复核订单</h2>
+              <button
+                type="button"
+                onClick={() => setRefreshTick(t => t + 1)}
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+              >
+                ↻ 刷新
+              </button>
+            </div>
+            <PendingReviewTable
+              payments={data.payments}
+              onChanged={() => setRefreshTick(t => t + 1)}
+            />
           </section>
         </>
       )}
