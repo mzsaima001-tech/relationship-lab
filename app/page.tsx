@@ -150,7 +150,7 @@ export default function Home() {
                 {HOME_CTA}
               </button>
             </Link>
-            <Link href="/personality" className="w-full">
+            <Link href="/personality-v2" className="w-full">
               <button
                 className="w-full font-semibold text-[15px] px-5 py-3.5 rounded min-h-[48px]"
                 style={{

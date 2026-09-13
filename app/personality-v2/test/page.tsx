@@ -209,9 +209,6 @@ function PersonalityV2TestInner() {
       </div>
 
       <div key={current.id} className="w-full mt-8 mb-3 sm:mt-10 fade-in">
-        <p className="text-[10px] tracking-[0.38em] text-[var(--accent)] mb-3">
-          {dimCn(current.dim)} · 该维度第 {dimOrder(current.id)} 题
-        </p>
         <p className="display-serif text-base sm:text-lg md:text-xl text-[var(--text-warm)] leading-relaxed min-h-[4rem] sm:min-h-[5rem]">
           {current.stem}
         </p>
@@ -283,17 +280,13 @@ function PersonalityV2TestInner() {
 }
 
 function dimCn(dim: string): string {
+  // 仅保留 — 调试时复现维度中文名用
   return (
     { G: "表达力", X: "应对力", I: "认可需求", F: "方向感", S: "自主性", E: "情绪觉知" } as Record<
       string,
       string
     >
   )[dim] || dim;
-}
-
-function dimOrder(id: string): string {
-  // "G01" → "1"; "S10" → "10"
-  return id.replace(/^[GXIFS]/, "");
 }
 
 export default function PersonalityV2Test() {
