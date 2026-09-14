@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { OrnamentDivider } from "@/app/components/decor";
 import { PAYMENT_CONFIG } from "@/lib/site";
 
@@ -15,14 +16,11 @@ import { PAYMENT_CONFIG } from "@/lib/site";
  *      → payment.status 进入 pending_review（不直接解锁）
  *   4) 显示「已收到付款确认，等待管理员核对」状态
  *
- * 没有自动回调。管理员在 /admin/operations 后台手动「确认已收」后，
- * 用户刷新报告页（通常下个页面 fetch 已能拿到 unlocked=true）即可看到完整内容。
- *
- * 防重入（2026-09-14）：
- *   - 入参 initialStatus 由 pay 页传入（来自服务端），刷新页面读同一订单时按钮状态保留
- *   - 客户端 mount 后再 GET 一次 /api/payments/[id]/status 校对最新状态
- *     （覆盖"客户已支付但审核员通过后"的实时状态变化）
- *   - 已是 pending_review / paid 时按钮完全禁用 + 切换到对应文案
+ * 没有自动回调。管理员在 Server酱微信推送链接 /review/[paymentId] 上审核通过后：
+ *   - 用户停留在付款页时，本组件每 10s 轮询 /api/payments/[id]/status
+ *   - 检测到 paid → 高亮"✓ 已通过审核，3 秒后跳转报告" → 自动 router.push
+ *   - 用户切到后台再回来（visibilitychange）立即补一次查询
+ *   - 始终保留"查看完整报告" 手动链接按钮，10 分钟未变 paid 时停轮询
  */
 export default function StaticQrPayCard(props: {
   amount: number;
@@ -42,6 +40,16 @@ export default function StaticQrPayCard(props: {
   const [error, setError] = useState("");
   const [currentStatus, setCurrentStatus] = useState(props.initialStatus || "pending");
   const [reportHref, setReportHref] = useState<string | null>(null);
+  const [autoJumpIn, setAutoJumpIn] = useState<number | null>(null); // 3-2-1 倒计时
+
+  const router = useRouter();
+
+  // 根据 target_type 拼报告链接
+  const buildReportHref = (targetType: string, targetId: string) => {
+    if (targetType === "personality_report") return `/personality/report/${targetId}`;
+    if (targetType === "single_report" || targetType === "pair_report") return `/result/${targetId}`;
+    return props.backHref;
+  };
 
   // mount 后再 GET 一次最新状态（覆盖「已通过 / 已驳回」后客户刷新页面的情况）
   useEffect(() => {
@@ -56,9 +64,7 @@ export default function StaticQrPayCard(props: {
           setCurrentStatus(j.status);
           if (j.status === "pending_review" && status !== "submitted") setStatus("submitted");
           if (j.status === "paid") {
-            // 根据 target_type 拼报告链接
-            if (j.target_type === "personality_report") setReportHref(`/personality/report/${j.target_id}`);
-            else if (j.target_type === "single_report" || j.target_type === "pair_report") setReportHref(`/result/${j.target_id}`);
+            setReportHref(buildReportHref(j.target_type, j.target_id));
           }
         }
       } catch {}
@@ -67,6 +73,79 @@ export default function StaticQrPayCard(props: {
     // 仅在挂载时取一次；后续点击 handled by handleClick
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.paymentId]);
+
+  // 实时轮询（pending_review 期间，每 10s 查一次；变 paid → 1.5s 后自动跳转）
+  // visibilitychange 时立即补一次（用户从微信/其他 app 切回来）
+  // 10 分钟超时停轮询，避免给后端持续压力
+  useEffect(() => {
+    if (currentStatus === "paid" || currentStatus === "cancelled" || currentStatus === "refunded") return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 60; // 60 * 10s = 10 分钟
+    const POLL_MS = 10_000;
+
+    const jumpTo = (href: string) => {
+      if (cancelled) return;
+      // 3-2-1 倒计时
+      setAutoJumpIn(3);
+      let n = 3;
+      const tick = () => {
+        if (cancelled) return;
+        n -= 1;
+        if (n <= 0) { router.push(href); return; }
+        setAutoJumpIn(n);
+        setTimeout(tick, 1000);
+      };
+      setTimeout(tick, 1000);
+    };
+
+    const check = async () => {
+      if (cancelled) return;
+      attempts += 1;
+      try {
+        const r = await fetch(`/api/payments/${props.paymentId}/status`, { cache: "no-store" });
+        if (cancelled) return;
+        if (!r.ok) { schedule(); return; }
+        const j = await r.json();
+        if (cancelled) return;
+        if (j?.status === "paid") {
+          const href = buildReportHref(j.target_type ?? "", j.target_id ?? "");
+          setReportHref(href);
+          setCurrentStatus("paid");
+          jumpTo(href);
+          return;
+        }
+      } catch {
+        // 网络抖动：下次再查
+      }
+      schedule();
+    };
+
+    const schedule = () => {
+      if (cancelled || attempts >= MAX_ATTEMPTS) return;
+      timer = setTimeout(check, POLL_MS);
+    };
+
+    // 立即查一次（用户可能挂起页面很久再回来）
+    check();
+
+    // 切回前台时立刻再查（避免长间隔错过）
+    const onVis = () => {
+      if (!cancelled && document.visibilityState === "visible") {
+        if (timer) { clearTimeout(timer); timer = null; }
+        check();
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [currentStatus, props.paymentId, router]);
 
   const handleClick = async () => {
     if (status === "submitting" || status === "submitted") return;
@@ -123,11 +202,16 @@ export default function StaticQrPayCard(props: {
           <p className="text-[15px] text-[var(--accent)] font-medium">
             ✓ 已通过审核，报告已解锁
           </p>
+          {autoJumpIn !== null && (
+            <p className="text-xs text-[var(--text-muted)]">
+              {autoJumpIn} 秒后自动跳转到报告页…
+            </p>
+          )}
           <Link
             href={reportHref || props.backHref}
             className="btn-primary w-full inline-flex items-center justify-center"
           >
-            查看完整报告 →
+            立即查看完整报告 →
           </Link>
         </div>
       ) : currentStatus === "pending_review" || status === "submitted" ? (
@@ -137,7 +221,7 @@ export default function StaticQrPayCard(props: {
           </p>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed">
             管理员核对后会立即解锁，<br />
-            大约 1-30 分钟，请耐心等待。
+            这里会在审核通过后自动跳转到报告页（约 1-30 分钟）。
           </p>
           <p className="text-[11px] text-[var(--text-muted)] mt-1">
             如果着急可以加微信 <span className="text-[var(--accent)]">moonphase_helper</span> 催一下
