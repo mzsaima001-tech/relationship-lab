@@ -27,5 +27,11 @@
     "deployOnPush": {
       "branches": ["main"]
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/keepalive",
+      "schedule": "0 1 * * *"
+    }
+  ]
 }

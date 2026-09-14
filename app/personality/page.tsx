@@ -52,9 +52,34 @@ function PersonalityEntry() {
   const [creating, setCreating] = useState(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  /** 该访客最近一次测试（答过题的人才显示「回到结果」按钮） */
+  const [existing, setExisting] = useState<
+    { testId: string; status: string; isPaid: boolean } | null
+  >(null);
 
   useEffect(() => {
     setReady(true);
+    // 只读 localStorage（不创建新 visitorId），查有没有历史测试
+    try {
+      const vid = localStorage.getItem(STORAGE_KEY);
+      if (!vid) return;
+      fetch(`/api/personality/tests/latest?visitorId=${encodeURIComponent(vid)}`)
+        .then((r) => r.json())
+        .then((j) => {
+          if (j?.testId) {
+            setExisting({
+              testId: j.testId,
+              status: j.status,
+              isPaid: Boolean(j.isPaid),
+            });
+          }
+        })
+        .catch(() => {
+          /* 查询失败不阻塞开始测试 */
+        });
+    } catch {
+      /* localStorage 不可用时静默 */
+    }
   }, []);
 
   const startTest = async () => {
@@ -123,19 +148,54 @@ function PersonalityEntry() {
         </ul>
 
         <div className="mt-10 sm:mt-12 flex flex-col items-center gap-3 fade-in-up w-full" style={{ animationDelay: "0.25s" }}>
-          <button
-            onClick={startTest}
-            disabled={creating || !ready}
-            className="w-full sm:w-auto sm:min-w-[220px] font-semibold text-[15px] px-6 py-3.5 rounded min-h-[48px]"
-            style={{
-              background: "var(--accent)",
-              color: "var(--bg-dark)",
-              border: "none",
-              transition: "all 0.2s ease",
-            }}
-          >
-            {creating ? "准备中..." : "开始测试"}
-          </button>
+          {/* 答过题的老访客：主按钮变成「回到我的结果」 */}
+          {existing?.status === "completed" ? (
+            <>
+              <button
+                onClick={() =>
+                  router.push(
+                    existing.isPaid
+                      ? `/personality/report/${existing.testId}`
+                      : `/personality/result/${existing.testId}`
+                  )
+                }
+                className="w-full sm:w-auto sm:min-w-[220px] font-semibold text-[15px] px-6 py-3.5 rounded min-h-[48px]"
+                style={{
+                  background: "var(--accent)",
+                  color: "var(--bg-dark)",
+                  border: "none",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {existing.isPaid ? "查看我的完整报告" : "查看我的测试结果"}
+              </button>
+              <button
+                onClick={startTest}
+                disabled={creating || !ready}
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors min-h-[44px] inline-flex items-center px-4"
+              >
+                {creating ? "准备中..." : "重新测一次 →"}
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={startTest}
+              disabled={creating || !ready}
+              className="w-full sm:w-auto sm:min-w-[220px] font-semibold text-[15px] px-6 py-3.5 rounded min-h-[48px]"
+              style={{
+                background: "var(--accent)",
+                color: "var(--bg-dark)",
+                border: "none",
+                transition: "all 0.2s ease",
+              }}
+            >
+              {creating
+                ? "准备中..."
+                : existing?.status === "started"
+                  ? "继续上次未完成的测试"
+                  : "开始测试"}
+            </button>
+          )}
           {error && (
             <p className="text-xs text-[var(--danger)] mt-2">{error}</p>
           )}
@@ -145,6 +205,11 @@ function PersonalityEntry() {
           >
             ← 返回首页
           </Link>
+          {existing && (
+            <p className="text-[11px] text-[var(--text-muted)] opacity-70 mt-1">
+              结果保存在本设备浏览器中
+            </p>
+          )}
         </div>
 
         <p className="mt-12 sm:mt-16 text-[11px] text-[var(--text-muted)] leading-relaxed max-w-md fade-in px-2" style={{ animationDelay: "0.5s" }}>
