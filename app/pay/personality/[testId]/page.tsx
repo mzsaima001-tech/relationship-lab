@@ -172,6 +172,7 @@ export default function PersonalityPayPage() {
             onConfirm={handleConfirm}
             backHref={`/personality/result/${testId}`}
             backLabel="返回我的报告"
+            initialStatus={info.payment.status as "pending" | "pending_review" | "paid" | "cancelled" | "refunded"}
           />
         )}
 

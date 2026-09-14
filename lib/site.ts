@@ -30,7 +30,7 @@ export const SITE_URL =
 export const PAYMENT_CONFIG = {
   provider: "微信收款码",
   /** 静态收款码图片（public 下路径） */
-  aggregateQr: "/pay/wechat-qr.png",
+  aggregateQr: "/pay/wechat-qr-v3.png",
   /** 支持的支付方式提示 */
   channels: "微信扫码",
   /**

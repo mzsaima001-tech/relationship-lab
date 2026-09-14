@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import {
   getSession,
   getAnswers,
@@ -48,22 +48,26 @@ const aiPolishEnabled = () =>
 /** 已入库结果 → 叙事报告；优先用缓存（含 AI 润色），缺失或降级过则重建。
  *  lite=true（分享海报等轻量场景）：有缓存直接返回，无缓存则只建模板草稿，
  *  绝不触发 LLM 重润色（避免分享页被 30-60s 的润色拖慢）。
+ *  deferPolishing=true（POST complete 新建场景）：只落模板草稿，绝不调 LLM；
+ *  付费版润色放到 GET 路由里在 credits.report_unlocked 时懒润色并回写。
  */
 async function resolveNarrative(
   result: ResultRecord,
   session: SessionRecord,
-  lite = false
+  opts: { lite?: boolean; deferPolishing?: boolean } = {}
 ): Promise<SingleReportNarrative> {
+  const { lite = false, deferPolishing = false } = opts;
   const cached = result.narrative as SingleReportNarrative | undefined;
   // 轻量模式：只要库里有缓存就直接用，不做版本/半成品校验、不重润色
   if (lite && cached) return cached;
-  const meta = result.narrative_meta as { source?: string; error?: string | null; v?: number } | undefined;
+  const meta = result.narrative_meta as { source?: string; ai_polished?: boolean; error?: string | null; v?: number } | undefined;
   // 引擎版本不一致 → 陈旧缓存，必须重建（旧缓存可能含有已修复缺陷的文案）
   const stale = meta?.v !== NARRATIVE_VERSION;
   // 部分块润色失败时视为半成品：下次访问时再补一次润色（不视为最终版）
   const partial = typeof meta?.error === "string" && meta.error.startsWith("partial");
-  // 缓存命中：版本一致，且 AI 已完整润色过，或当前就没开 AI（模板版即最终版）
-  if (cached && !stale && ((meta?.source === "ai" && !partial) || !aiPolishEnabled())) {
+  // 缓存命中条件：版本一致，且 AI 已完整润色过，或当前就没开 AI（模板版即最终版）
+  const aiDone = meta?.source === "ai" && !partial;
+  if (cached && !stale && (aiDone || !aiPolishEnabled())) {
     return cached;
   }
 
@@ -87,8 +91,8 @@ async function resolveNarrative(
     }
   );
 
-  // 轻量模式：模板草稿直接返回，不做 LLM 润色、不落库
-  if (lite) return draft;
+  // 轻量模式 / defer 模式：模板草稿直接返回，不做 LLM 润色、不落库
+  if (lite || deferPolishing) return draft;
 
   const { narrative, applied, model, error } = await polishWithLLM(draft);
   try {
@@ -97,6 +101,7 @@ async function resolveNarrative(
       narrative: narrative as unknown as Record<string, any>,
       narrative_meta: {
         source: applied ? "ai" : "template",
+        ai_polished: applied === true,
         model: model ?? null,
         error: error ?? null,
         v: NARRATIVE_VERSION,
@@ -131,7 +136,8 @@ export async function POST(
     const existing = await getResult(id);
     if (existing) {
       const credits = await getCreditAccount(id);
-      const narrative = await resolveNarrative(existing, session);
+      // POST 已完成场景：不重润色，直接拿缓存返回（即使未解锁也用模板版渲染给客户端）
+      const narrative = await resolveNarrative(existing, session, { deferPolishing: true });
       return NextResponse.json({
         sessionId: id,
         scores: existing.dimension_scores,
@@ -194,8 +200,11 @@ export async function POST(
       relationshipState,
     });
 
-    // 先生成叙事报告（含 AI 润色），再连同结果一起落库缓存
-    const draft = buildSingleReportNarrative(
+    // 先生成模板草稿（不调 LLM），再连同结果一起落库缓存
+    // —— 提速策略：complete 阶段不再等 30-60s 的 polish；改为 GET 路由在用户实际查看
+    // 且 credits.report_unlocked=true 时懒润色并回写。免费版走 gateNarrativeForFree 截断
+    // 也只看到模板草稿，没必要付出 LLM 成本。
+    const narrative = buildSingleReportNarrative(
       {
         scores,
         dimensionResults,
@@ -207,7 +216,6 @@ export async function POST(
       reportFacts,
       context
     );
-    const { narrative, applied, model, error } = await polishWithLLM(draft);
 
     await saveResult({
       session_id: id,
@@ -222,9 +230,10 @@ export async function POST(
       created_at: new Date().toISOString(),
       narrative: narrative as unknown as Record<string, any>,
       narrative_meta: {
-        source: applied ? "ai" : "template",
-        model: model ?? null,
-        error: error ?? null,
+        source: "template",
+        ai_polished: false,
+        model: null,
+        error: null,
         v: NARRATIVE_VERSION,
         at: new Date().toISOString(),
       },
@@ -318,7 +327,12 @@ export async function GET(
       }
     }
 
-    const narrative = await resolveNarrative(result, session, lite);
+    // 提速懒润色：未付费（含分享海报 lite）一律返回模板；付费后首次访问才走 LLM
+    const polishNow = !lite && Boolean(credits.report_unlocked);
+    const narrative = await resolveNarrative(result, session, {
+      lite,
+      deferPolishing: !polishNow,
+    });
 
     // 反查：这个 session 是否已在某个 pair 里（A 或 B），
     // 用于结果页 PAIR 板块展示「查看我们的契合画像」按钮。

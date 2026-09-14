@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isValidAnswer } from "@/lib/personality/types";
 import { getPersonalityQuestionById } from "@/lib/content/store";

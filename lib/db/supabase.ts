@@ -850,7 +850,9 @@ export async function createPayment(
     .select("*")
     .eq("target_type", targetType)
     .eq("target_id", targetId)
-    .eq("status", "pending")
+    // pending_review 也要算占位：客户点过「我已支付」就在等审核，
+    // 刷新页面不能创建新订单，否则审核员看到重复收款 / 客户能反复点
+    .in("status", ["pending", "pending_review"])
     .maybeSingle();
   if (existing) {
     const updated = {

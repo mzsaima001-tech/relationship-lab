@@ -781,7 +781,10 @@ export async function createPayment(
   const existing = payments.find(payment =>
     payment.target_type === targetType &&
     payment.target_id === targetId &&
-    payment.status === "pending"
+    // pending_review 也算"占位订单"：用户点过「我已支付」就在等审核，
+    // 刷新页面再调 createPayment 必须返回同一单，不能再开新订单
+    // ——否则审核员会收到两笔疑似重复收款，且客户能无限点按钮。
+    (payment.status === "pending" || payment.status === "pending_review")
   );
   if (existing) {
     // 真网关场景下,已经创建过 pending 订单 → 把最新网关信息合并进去（防止回调到达前用户刷新页面看不到 pay_url）

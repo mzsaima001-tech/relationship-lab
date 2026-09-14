@@ -224,6 +224,7 @@ export default function PayPage() {
                 confirmKind="single"
                 onConfirm={handleConfirm}
                 backHref={`/result/${sessionId}`}
+                initialStatus={info.payment.status as "pending" | "pending_review" | "paid" | "cancelled" | "refunded"}
               />
             )}
           </>

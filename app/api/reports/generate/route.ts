@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getPair, getSession, getResult, getReportByPair, saveReport } from "@/lib/db";
 import { generatePairReport, polishPairReportWithLLM } from "@/lib/reports/generate";
