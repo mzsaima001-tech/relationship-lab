@@ -6,6 +6,7 @@ import type { Question, QuestionOption } from "@/lib/assessment/types";
 import { LIKERT_OPTIONS } from "@/lib/assessment/types";
 import { AnalyzingScreen } from "@/app/components/AnalyzingScreen";
 import HomeFooter from "@/app/components/HomeFooter";
+import { getOrCreateVisitorId } from "@/lib/visitor";
 
 interface SessionData {
   sessionId: string;
@@ -55,6 +56,12 @@ export default function TestPage() {
   useEffect(() => {
     async function fetchSession() {
       try {
+        // 兜底登记：即使用户直接从收藏/历史进入答题页，「我的结果」按钮也能找回这份记录
+        try {
+          localStorage.setItem("sessionId", sessionId);
+        } catch {
+          /* 写不动忽略 */
+        }
         const res = await fetch(`/api/assessments/${sessionId}`);
         const json = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
         if (!res.ok) {
@@ -135,7 +142,12 @@ export default function TestPage() {
     try {
       setPhase("completing");
       // fire-and-forget 触发后端 LLM 润色（同步执行，最长 ~60s）
-      fetch(`/api/assessments/${sessionId}/complete`, { method: "POST" }).catch(() => {});
+      // 带统一访客 ID：若本 session 来自邀请链接，后端据此给分享人 +1 积分（按人去重）
+      fetch(`/api/assessments/${sessionId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId: getOrCreateVisitorId() }),
+      }).catch(() => {});
       // 轮询 result，就绪才跳：绝不中途跳走（中途跳走会被结果页弹回形成死循环）
       const MAX_WAIT_MS = 300000; // 极端兜底 5 分钟；分析等待页 90s 后自带给用户的提示
       const startedAt = Date.now();

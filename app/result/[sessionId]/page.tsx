@@ -11,6 +11,7 @@ import HomeFooter from "@/app/components/HomeFooter";
 import { tarotFor, tarotImage } from "@/lib/reports/tarot";
 import { SINGLE_REPORT_PRICE, VALID_SHARES_FOR_FREE_UNLOCK } from "@/lib/assessment/types";
 import { PAYMENT_CONFIG } from "@/lib/site";
+import { getOrCreateVisitorId } from "@/lib/visitor";
 
 // ---------- 类型（与 lib/reports/narrative.ts 输出对齐） ----------
 
@@ -200,7 +201,13 @@ export default function ResultPage() {
     let mounted = true;
     async function fetchResult() {
       try {
-        const res = await fetchWithRetry(`/api/assessments/${sessionId}/complete`);
+        // 兜底登记：直达结果页也让「我的结果」按钮能找回这份记录
+        try {
+          localStorage.setItem("sessionId", sessionId);
+        } catch {
+          /* 写不动忽略 */
+        }
+        const res = await fetchWithRetry(`/api/assessments/${sessionId}/complete?visitorId=${encodeURIComponent(getOrCreateVisitorId())}`);
         const json = await res.json();
         if (!res.ok) {
           if (json.status === "started") {
@@ -282,7 +289,11 @@ export default function ResultPage() {
   const handleUnlock = async () => {
     setUnlocking(true);
     try {
-      const res = await fetch(`/api/credits/${sessionId}/unlock`, { method: "POST" });
+      const res = await fetch(`/api/credits/${sessionId}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visitorId: getOrCreateVisitorId() }),
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "解锁失败");
       setData(prev => prev ? {

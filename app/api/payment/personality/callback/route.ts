@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { cookies } from "next/headers";
 import {
@@ -7,6 +7,8 @@ import {
 } from "@/lib/db";
 import { ADMIN_COOKIE, verifyAdminToken } from "@/lib/admin/auth";
 import { isXingyifuLive } from "@/lib/payment/xingyifu";
+import { buildReviewUrl } from "@/lib/review-token";
+import { notifyPaymentPendingReview } from "@/lib/notify/serverchan";
 
 const schema = z.object({ paymentId: z.string().min(1) });
 
@@ -51,6 +53,18 @@ export async function POST(request: Request) {
 
     console.warn(
       `[payment/personality/callback] user self-report paid · paymentId=${paymentId}`
+    );
+
+    // 微信推送通知站长复核（after：响应发出后执行；未配置 SendKey 时静默跳过）
+    const origin =
+      (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim() || new URL(request.url).origin;
+    after(() =>
+      notifyPaymentPendingReview({
+        paymentId,
+        targetType: payment.target_type,
+        amount: payment.amount,
+        reviewUrl: buildReviewUrl(origin, paymentId),
+      })
     );
 
     return NextResponse.json({

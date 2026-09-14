@@ -3,10 +3,14 @@ import { z } from "zod";
 import {
   getPersonalityTest,
   updatePersonalityTest,
+  getPersonalShareByVisitor,
 } from "@/lib/db";
 import { PERSONALITY_VALID_SHARES_FOR_FREE_UNLOCK } from "@/lib/personality/types";
 
-const schema = z.object({ testId: z.string() });
+const schema = z.object({
+  testId: z.string(),
+  visitorId: z.string().optional(),
+});
 
 /**
  * POST /api/personality/free-unlock
@@ -17,7 +21,7 @@ const schema = z.object({ testId: z.string() });
  */
 export async function POST(request: Request) {
   try {
-    const { testId } = schema.parse(await request.json());
+    const { testId, visitorId } = schema.parse(await request.json());
     const test = await getPersonalityTest(testId);
     if (!test) {
       return NextResponse.json({ error: "测试不存在" }, { status: 404 });
@@ -32,11 +36,22 @@ export async function POST(request: Request) {
         via: test.unlocked_via_share ? "share" : "payment",
       });
     }
-    if ((test.shares_count ?? 0) < PERSONALITY_VALID_SHARES_FOR_FREE_UNLOCK) {
+
+    // 有效分享口径：老 shares_count 与个人专属邀请码邀请数取大
+    let effectiveShares = test.shares_count ?? 0;
+    if (visitorId) {
+      try {
+        const personal = await getPersonalShareByVisitor(visitorId);
+        effectiveShares = Math.max(effectiveShares, personal?.completed_visitors?.length ?? 0);
+      } catch {
+        // 查询失败按老计数判断
+      }
+    }
+    if (effectiveShares < PERSONALITY_VALID_SHARES_FOR_FREE_UNLOCK) {
       return NextResponse.json(
         {
           error: "分享数不足",
-          shares: test.shares_count ?? 0,
+          shares: effectiveShares,
           required: PERSONALITY_VALID_SHARES_FOR_FREE_UNLOCK,
         },
         { status: 402 }
@@ -53,7 +68,7 @@ export async function POST(request: Request) {
       testId,
       unlocked: true,
       via: "share",
-      sharesCount: test.shares_count ?? 0,
+      sharesCount: effectiveShares,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

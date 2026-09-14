@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   listPayments,
+  listPersonalShares,
   listPersonalityOrders,
   listPersonalityTests,
   listReports,
@@ -12,13 +13,14 @@ import { PERSONALITY_TYPE_META } from "@/lib/personality/types";
 // 本地开发运营概览。云端部署前应添加管理员登录和服务端权限校验。
 export async function GET() {
   try {
-    const [sessions, results, reports, payments, personalityTests, personalityOrders] = await Promise.all([
+    const [sessions, results, reports, payments, personalityTests, personalityOrders, personalShares] = await Promise.all([
       listSessions(),
       listResults(),
       listReports(),
       listPayments(),
       listPersonalityTests(),
       listPersonalityOrders(),
+      listPersonalShares(),
     ]);
 
     // ---- 双人默契 ----
@@ -111,6 +113,20 @@ export async function GET() {
           .sort((a, b) => b.created_at.localeCompare(a.created_at))
           .slice(0, 50),
         archetypeDistribution,
+      },
+      // 邀请积分（个人专属分享码）
+      referrals: {
+        totalSharers: personalShares.length,
+        totalPoints: personalShares.reduce((sum, s) => sum + (s.completed_visitors?.length ?? 0), 0),
+        totalVisits: personalShares.reduce((sum, s) => sum + (s.visits ?? 0), 0),
+        rows: personalShares.slice(0, 100).map(s => ({
+          code: s.code,
+          visitorId: s.visitor_id ?? "",
+          visits: s.visits ?? 0,
+          points: s.completed_visitors?.length ?? 0,
+          completedVisitors: s.completed_visitors ?? [],
+          createdAt: s.created_at,
+        })),
       },
     });
   } catch (error) {

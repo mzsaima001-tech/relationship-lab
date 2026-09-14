@@ -120,7 +120,9 @@ export interface ShareRecord {
   id: string;
   code: string;
   source_session_id: string;
-  share_type?: "couple" | "personality";
+  /** undefined / "couple" = 双人默契海报；"personality" = 人格海报；
+   *  "personal" = 个人专属邀请码（每人一个、永久，落地首页 /?ref=code） */
+  share_type?: "couple" | "personality" | "personal";
   source_test_id?: string;
   visitor_id?: string;
   visits: number;
@@ -356,7 +358,7 @@ export async function getInviteBySession(sessionId: string): Promise<InviteRecor
 // Shares
 // =====================================================
 export interface CreateShareOptions {
-  shareType?: "couple" | "personality";
+  shareType?: "couple" | "personality" | "personal";
   sourceTestId?: string;
   visitorId?: string;
 }
@@ -365,10 +367,14 @@ export async function createShare(
   sourceSessionId: string,
   options: CreateShareOptions = {}
 ): Promise<ShareRecord> {
-  // personality 类型的 share 没有对应的 session 行：source_session_id 必须置空以避开
-  // shares 表上的 sessions(id) 外键约束（schema.sql 里 source_session_id 有 REFERENCES）。
+  // personality / personal 类型的 share 没有对应的 session 行：source_session_id 必须置空
+  // 以避开 shares 表上的 sessions(id) 外键约束（schema.sql 里 source_session_id 有 REFERENCES）。
   const effectiveSessionId =
-    options.shareType === "personality" || !sourceSessionId ? undefined : sourceSessionId;
+    options.shareType === "personality" ||
+    options.shareType === "personal" ||
+    !sourceSessionId
+      ? undefined
+      : sourceSessionId;
 
   const record: ShareRecord = {
     id: genId(),
@@ -378,7 +384,10 @@ export async function createShare(
     source_test_id: options.sourceTestId,
     visitor_id: options.visitorId,
     visits: 0,
-    completed_visitors: options.shareType === "personality" ? [] : undefined,
+    completed_visitors:
+      options.shareType === "personality" || options.shareType === "personal"
+        ? []
+        : undefined,
     created_at: new Date().toISOString(),
   };
   // 过滤 undefined 字段避免 not-null 约束（虽然定义上是可空）
@@ -482,6 +491,82 @@ export async function incrementShareVisits(code: string): Promise<void> {
     return;
   }
   throw new Error(`[db.supabase] incrementShareVisits: ${error.message}`);
+}
+
+// =====================================================
+// 个人专属邀请码（share_type="personal"）
+// 每个 visitor 一个永久码，链接 = 首页 /?ref=code。
+// 积分口径：被邀请人完成任意测试并生成报告（免费/付费均可）→ 分享人 +1 分，
+// 按被邀请人 visitorId 去重（同一朋友反复测只计 1 分），自己点自己的码不计。
+// =====================================================
+
+/** 按 visitorId 查个人邀请码（不创建） */
+export async function getPersonalShareByVisitor(
+  visitorId: string
+): Promise<ShareRecord | null> {
+  const { data, error } = await getClient()
+    .from(TABLE.shares)
+    .select("*")
+    .eq("share_type", "personal")
+    .eq("visitor_id", visitorId)
+    .maybeSingle();
+  if (error) throw new Error(`[db.supabase] getPersonalShareByVisitor: ${error.message}`);
+  return (data as ShareRecord | null) ?? null;
+}
+
+/** 取/建个人邀请码（幂等）：有则复用，无则新建 */
+export async function getOrCreatePersonalShare(
+  visitorId: string
+): Promise<ShareRecord> {
+  const existing = await getPersonalShareByVisitor(visitorId);
+  if (existing) return existing;
+  return createShare("", { shareType: "personal", visitorId });
+}
+
+/**
+ * 个人码归因计分：被邀请人完成测试生成报告后调用。
+ * 返回 counted=true 表示本次 +1 分；重复完成 / 自己完成不计。
+ * points = 当前累计积分（= 已成功邀请人数）。
+ */
+export async function recordPersonalShareCompletion(
+  code: string,
+  visitorId: string
+): Promise<{ counted: boolean; points: number } | null> {
+  const supa = getClient();
+  const { data: row, error } = await supa
+    .from(TABLE.shares)
+    .select("*")
+    .eq("code", code)
+    .maybeSingle();
+  if (error) throw new Error(`[db.supabase] recordPersonalShareCompletion: ${error.message}`);
+  if (!row || (row as any).share_type !== "personal") return null;
+
+  const completed: string[] = (row as any).completed_visitors ?? [];
+  // 防 self-referral：分享者本人不计
+  if ((row as any).visitor_id && (row as any).visitor_id === visitorId) {
+    return { counted: false, points: completed.length };
+  }
+  if (completed.includes(visitorId)) {
+    return { counted: false, points: completed.length };
+  }
+  completed.push(visitorId);
+  const { error: upErr } = await supa
+    .from(TABLE.shares)
+    .update({ completed_visitors: completed })
+    .eq("code", code);
+  if (upErr) throw new Error(`[db.supabase] recordPersonalShareCompletion(update): ${upErr.message}`);
+  return { counted: true, points: completed.length };
+}
+
+/** 列出全部个人邀请码（后台「邀请积分」页用） */
+export async function listPersonalShares(): Promise<ShareRecord[]> {
+  const { data, error } = await getClient()
+    .from(TABLE.shares)
+    .select("*")
+    .eq("share_type", "personal")
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`[db.supabase] listPersonalShares: ${error.message}`);
+  return (data as ShareRecord[]) ?? [];
 }
 
 // =====================================================
@@ -703,6 +788,41 @@ export async function spendCreditsForSingleReport(
     })
     .eq("session_id", sessionId);
   if (error) throw new Error(`[db.supabase] spendCreditsForSingleReport: ${error.message}`);
+
+  await updateReportUnlockBySession(sessionId, true);
+  return account;
+}
+
+/**
+ * 分享集齐免费解锁（不扣余额）：有效分享人数达标后由 unlock 路由调用。
+ * 幂等：已解锁直接返回。
+ */
+export async function unlockReportViaShares(
+  sessionId: string
+): Promise<CreditAccountRecord> {
+  const supa = getClient();
+  const account = await getCreditAccount(sessionId);
+  if (account.report_unlocked) return account;
+
+  account.report_unlocked = true;
+  account.transactions.push({
+    id: genId(),
+    type: "spend_report",
+    amount: 0,
+    description: "有效分享集齐，免费解锁单人完整报告",
+    created_at: new Date().toISOString(),
+  });
+  account.updated_at = new Date().toISOString();
+
+  const { error } = await supa
+    .from(TABLE.credits)
+    .update({
+      report_unlocked: true,
+      transactions: account.transactions,
+      updated_at: account.updated_at,
+    })
+    .eq("session_id", sessionId);
+  if (error) throw new Error(`[db.supabase] unlockReportViaShares: ${error.message}`);
 
   await updateReportUnlockBySession(sessionId, true);
   return account;

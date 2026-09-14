@@ -12,6 +12,7 @@ import { PERSONALITY_COPY_SETS } from "@/lib/personality-copy";
 import { wrapMystery, FALLBACK_PERSONALITY } from "@/lib/share-mystery";
 import { PERSONALITY_CARD_BY_ID } from "@/lib/personality/cards";
 import { PersonalitySharePoster } from "@/lib/personality/cards/PersonalitySharePoster";
+import { getOrCreateVisitorId } from "@/lib/visitor";
 
 // =====================================================
 // 人格测试分享海报页 /share/personality/[code]
@@ -415,6 +416,7 @@ export default function PersonalitySharePosterPage() {
 
   const [data, setData] = useState<PersonalityShareData | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -455,20 +457,37 @@ export default function PersonalitySharePosterPage() {
     let mounted = true;
     async function prepare() {
       try {
-        const res = await fetchWithRetry(`/api/shares/${code}`);
+        // 分享数据 + 个人专属邀请码并行（邀请码失败降级裸首页，不阻塞海报）
+        const [res, referralRes] = await Promise.all([
+          fetchWithRetry(`/api/shares/${code}`),
+          fetch("/api/referral/code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ visitorId: getOrCreateVisitorId() }),
+          }).catch(() => null),
+        ]);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "分享不存在");
         if (json.shareType !== "personality") {
           throw new Error("该分享不是人格测试类型");
         }
 
-        const homeUrl = `${window.location.origin}/`;
+        // QR 指向首页 + 个人专属邀请码：朋友扫码进首页，
+        // 完成任意测试出报告 → 分享人 +1 默契积分（/referral 可查）
+        let homeUrl = `${window.location.origin}/`;
+        try {
+          const refJson = referralRes ? await referralRes.json() : null;
+          if (refJson?.url) homeUrl = `${window.location.origin}${refJson.url}`;
+        } catch {
+          /* 降级裸首页 */
+        }
         const qr = await QRCode.toDataURL(homeUrl, {
           width: 512,
           margin: 1,
           color: { dark: "#2a2418", light: "#f5ede0" },
         });
         if (!mounted) return;
+        setShareUrl(homeUrl);
         setQrDataUrl(qr);
         setData(json as PersonalityShareData);
       } catch (err: any) {
@@ -512,8 +531,7 @@ export default function PersonalitySharePosterPage() {
     copy.scenes.join(" ") +
     "\n\n" +
     "——\n来默契研究所，看看你是哪一种\n36 题 · 5 分钟 · 基础结果免费\n" +
-    (typeof window !== "undefined" ? window.location.origin : "") +
-    "/";
+    (shareUrl || (typeof window !== "undefined" ? window.location.origin + "/" : ""));
 
   if (loading) {
     return (
@@ -618,7 +636,7 @@ export default function PersonalitySharePosterPage() {
                 E: data.sharer.scores.sensitivity ?? 50,
               }}
               fileNo={data.sharer.fileNo}
-              shareUrl={typeof window !== "undefined" ? window.location.origin + "/p/" + code : ""}
+              shareUrl={shareUrl || (typeof window !== "undefined" ? window.location.origin + "/" : "")}
               qrCodeDataUrl={qrDataUrl}
               nickname={data.sharer.nickname}
             />

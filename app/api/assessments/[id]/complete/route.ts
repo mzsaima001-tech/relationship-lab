@@ -10,6 +10,8 @@ import {
   getPairBySession,
   getReportByPair,
   addCredits,
+  recordPersonalShareCompletion,
+  getPersonalShareByVisitor,
 } from "@/lib/db";
 import type { ResultRecord, SessionRecord } from "@/lib/db";
 import { getQuestionById } from "@/lib/content/store";
@@ -108,11 +110,19 @@ async function resolveNarrative(
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    // 可选 body：{ visitorId } —— 统一访客 ID，用于个人邀请码按人积分（旧客户端无 body 时跳过）
+    let bodyVisitorId = "";
+    try {
+      const raw = await request.json();
+      if (typeof raw?.visitorId === "string") bodyVisitorId = raw.visitorId.slice(0, 64);
+    } catch {
+      /* 无 body / 非 JSON 都按空处理 */
+    }
     const session = await getSession(id);
     if (!session) {
       return NextResponse.json({ error: "Session not found" }, { status: 404 });
@@ -225,12 +235,17 @@ export async function POST(
       completed_at: new Date().toISOString(),
     });
 
-    // 有效分享归因：本 session 由分享海报带来且已完成测评 → 给分享者记 1 位有效分享。
-    // shareToken = ref_complete:<本sessionId> 天然幂等，同一朋友重复完成只计一次；自己完成不计。
+    // 有效分享归因：本 session 由分享带来且已完成测评（免费报告生成即记，付费不重复记）。
+    // - personal 个人专属邀请码：给分享人 +1 积分，按被邀请人 visitorId 去重（同一朋友只计一次）
+    // - 旧默契海报码：给分享者 credit 账户 +¥1 抵扣；shareToken = ref_complete:<本sessionId> 天然幂等
     if (session.referred_by_code) {
       try {
         const share = await getShareByCode(session.referred_by_code);
-        if (share && share.source_session_id !== id) {
+        if (share?.share_type === "personal") {
+          if (bodyVisitorId) {
+            await recordPersonalShareCompletion(session.referred_by_code, bodyVisitorId);
+          }
+        } else if (share && share.source_session_id !== id) {
           await addCredits(
             share.source_session_id,
             SHARE_REWARD,
@@ -289,6 +304,19 @@ export async function GET(
       return NextResponse.json({ error: "Result not found", status: "started" }, { status: 404 });
     }
     const credits = await getCreditAccount(id);
+
+    // 进度条口径统一：海报二维码已换为「个人专属邀请码」，朋友完成记在 personal 账户上。
+    // 这里把该 visitor 的个人邀请数合并进来（取两者较大值，兼容旧海报码加的老积分）。
+    const visitorId = new URL(request.url).searchParams.get("visitorId") || "";
+    if (visitorId) {
+      try {
+        const personal = await getPersonalShareByVisitor(visitorId);
+        const personalCount = personal?.completed_visitors?.length ?? 0;
+        if (personalCount > credits.shares) credits.shares = personalCount;
+      } catch {
+        // 查询失败不阻塞主流程
+      }
+    }
 
     const narrative = await resolveNarrative(result, session, lite);
 

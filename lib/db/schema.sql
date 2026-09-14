@@ -80,7 +80,10 @@ CREATE TABLE IF NOT EXISTS public.invites (
 CREATE INDEX IF NOT EXISTS idx_invites_source ON public.invites(source_session_id);
 
 -- =====================================================
--- 5. shares — 普通分享（海报 / 邀请），同表支持 couple + personality
+-- 5. shares — 分享（海报 / 邀请 / 个人专属码），同表支持 couple + personality + personal
+--    share_type: 'couple' = 默契海报 | 'personality' = 人格海报 | 'personal' = 个人专属邀请码
+--    personal：每人一个永久码，链接 = 首页 /?ref=code；
+--    completed_visitors = 已完成测试的被邀请人（= 积分），visits = 链接打开次数
 -- =====================================================
 CREATE TABLE IF NOT EXISTS public.shares (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,9 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import { getPayment, markPaymentPendingReview } from "@/lib/db";
 import { ADMIN_COOKIE, verifyAdminToken } from "@/lib/admin/auth";
 import { isXingyifuLive } from "@/lib/payment/xingyifu";
+import { buildReviewUrl } from "@/lib/review-token";
+import { notifyPaymentPendingReview } from "@/lib/notify/serverchan";
 
 /**
  * 静态收款码 + 手动确认方案（2026-09-14 起）：
@@ -40,6 +42,18 @@ export async function POST(
     // 审计：dev 简化为 warn，生产应写 audit table
     console.warn(
       `[payment/confirm] user self-report paid · paymentId=${paymentId} · note=${note ?? "—"} · target_type=${payment.target_type}`
+    );
+
+    // 微信推送通知站长复核（after：响应发出后执行，不拖慢用户；未配置 SendKey 时静默跳过）
+    const origin =
+      (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim() || new URL(request.url).origin;
+    after(() =>
+      notifyPaymentPendingReview({
+        paymentId,
+        targetType: payment.target_type,
+        amount: payment.amount,
+        reviewUrl: buildReviewUrl(origin, paymentId),
+      })
     );
 
     return NextResponse.json({

@@ -9,6 +9,7 @@ import HomeFooter from "@/app/components/HomeFooter";
 import SharePosterActions from "@/app/components/SharePosterActions";
 import { TAROT_CARDS, tarotImage } from "@/lib/reports/tarot";
 import { wrapMystery, FALLBACK_COUPLE } from "@/lib/share-mystery";
+import { getOrCreateVisitorId } from "@/lib/visitor";
 
 /**
  * 「神秘暗号」正文块：长 oneLiner 必须限行，否则会撞出版面。
@@ -488,15 +489,20 @@ export default function SharePosterPage() {
     let mounted = true;
     async function prepare() {
       try {
-        // 1+2 并行：取测评结果（lite 模式跳过 AI 重润色，秒回）+ 创建/复用分享码
+        // 1+2+3 并行：取测评结果（lite 模式跳过 AI 重润色，秒回）+ 创建/复用分享码 + 取个人专属邀请码
         // 原先串行 3 个请求且 complete 可能触发 30-60s 重润色，是分享页加载慢的根因
-        const [res, shareRes] = await Promise.all([
+        const [res, shareRes, referralRes] = await Promise.all([
           fetchWithRetry(`/api/assessments/${sessionId}/complete?lite=1`),
           fetchWithRetry("/api/shares", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sessionId }),
           }),
+          fetch("/api/referral/code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ visitorId: getOrCreateVisitorId() }),
+          }).catch(() => null),
         ]);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "结果不存在");
@@ -507,8 +513,16 @@ export default function SharePosterPage() {
         // oneLiner / archetype 直接取报告数据（与分享详情接口同源：result.narrative.oneLiner）
         // 省掉原来的第 3 个请求 GET /api/shares/:code
 
-        // 3. QR 指向首页
-        const homeUrl = `${window.location.origin}/`;
+        // 3. QR 指向首页 + 个人专属邀请码：朋友扫码进首页，
+        //    完成任意测试出报告 → 分享人 +1 默契积分（/referral 可查）。
+        //    邀请码接口失败时降级为裸首页链接（海报仍可用，仅丢失归因）。
+        let homeUrl = `${window.location.origin}/`;
+        try {
+          const refJson = referralRes ? await referralRes.json() : null;
+          if (refJson?.url) homeUrl = `${window.location.origin}${refJson.url}`;
+        } catch {
+          /* 降级裸首页 */
+        }
         setShareUrl(homeUrl);
 
         // 4. 生成二维码
@@ -564,8 +578,7 @@ export default function SharePosterPage() {
   const defaultCaption =
     "我们之间，是不是有什么总是重复？\n" +
     "来默契研究所，36 道题看看你的关系牌到底是什么。\n" +
-    (typeof window !== "undefined" ? window.location.origin : "") +
-    "/";
+    (shareUrl || (typeof window !== "undefined" ? window.location.origin + "/" : ""));
 
   if (loading) {
     return (

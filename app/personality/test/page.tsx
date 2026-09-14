@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnalyzingScreen } from "@/app/components/AnalyzingScreen";
 import HomeFooter from "@/app/components/HomeFooter";
+import { getOrCreateVisitorId } from "@/lib/visitor";
 
 /**
  * /personality/test — 答题页（V3：5 选项，5 卷抽卷）
@@ -70,27 +71,8 @@ function PersonalityTestInner() {
       let cancelled = false;
       (async () => {
         try {
-          // 取/生成 visitorId
-          const visitorId =
-            (typeof window !== "undefined" &&
-              (localStorage.getItem("personalityVisitorId") ||
-                (() => {
-                  const v = `pv_${Math.random().toString(36).slice(2, 10)}`;
-                  try {
-                    localStorage.setItem("personalityVisitorId", v);
-                  } catch {
-                    /* 写不动忽略 */
-                  }
-                  return v;
-                })())) ||
-            `pv_${Math.random().toString(36).slice(2, 10)}`;
-          if (typeof window !== "undefined") {
-            try {
-              localStorage.setItem("personalityVisitorId", visitorId);
-            } catch {
-              /* 忽略 */
-            }
-          }
+          // 统一访客身份（自动收养旧 personalityVisitorId key，同人同号）
+          const visitorId = getOrCreateVisitorId();
           const res = await fetch(`/api/personality/tests`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -304,7 +286,7 @@ function PersonalityTestInner() {
               <span className="text-[var(--accent)] font-mono mt-0.5 shrink-0">
                 {letter}
               </span>
-              <span className="text-sm sm:text-[15px] leading-relaxed text-[var(--text-warm)]">
+              <span className="text-[15px] sm:text-base leading-relaxed text-[var(--text-warm)]">
                 {optText || "（暂无选项）"}
               </span>
             </button>

@@ -4,6 +4,11 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StarMap, CompassDial, OrnamentDivider } from "@/app/components/decor";
+import {
+  getOrCreateVisitorId,
+  getStoredRefCode,
+  peekVisitorId,
+} from "@/lib/visitor";
 
 /**
  * /personality — v1 入口页（人格测试）
@@ -12,38 +17,6 @@ import { StarMap, CompassDial, OrnamentDivider } from "@/app/components/decor";
  * - 跳到 /personality/test?testId=...（v1 答题页，原版 UI/算法/题型）
  * - 数据/算法走 lib/personality/*（v1 questions/scoring/archetypes/report），一行未改
  */
-
-const STORAGE_KEY = "personalityVisitorId_v1";
-
-function makeVisitorId(): string {
-  try {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return `v1_${crypto.randomUUID()}`;
-    }
-  } catch {
-    /* 某些 webview */
-  }
-  return `v1_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function getOrCreateVisitorId(): string {
-  if (typeof window === "undefined") return "";
-  let id: string | null = null;
-  try {
-    id = localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return makeVisitorId();
-  }
-  if (!id) {
-    id = makeVisitorId();
-    try {
-      localStorage.setItem(STORAGE_KEY, id);
-    } catch {
-      /* 写不动忽略 */
-    }
-  }
-  return id;
-}
 
 function PersonalityEntry() {
   const router = useRouter();
@@ -59,9 +32,9 @@ function PersonalityEntry() {
 
   useEffect(() => {
     setReady(true);
-    // 只读 localStorage（不创建新 visitorId），查有没有历史测试
+    // 只读统一访客 ID（不创建新 id），查有没有历史测试
     try {
-      const vid = localStorage.getItem(STORAGE_KEY);
+      const vid = peekVisitorId();
       if (!vid) return;
       fetch(`/api/personality/tests/latest?visitorId=${encodeURIComponent(vid)}`)
         .then((r) => r.json())
@@ -87,12 +60,14 @@ function PersonalityEntry() {
     setError("");
     try {
       const visitorId = getOrCreateVisitorId();
+      // 归因码：URL ?ref 优先，否则用首页存下的邀请码
+      const ref = refCode || getStoredRefCode();
       const res = await fetch(`/api/personality/tests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           visitorId,
-          ...(refCode ? { referredByCode: refCode } : {}),
+          ...(ref ? { referredByCode: ref } : {}),
         }),
       });
       const json = await res.json();

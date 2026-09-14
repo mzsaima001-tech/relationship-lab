@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { RadarChart } from "@/app/components/RadarChart";
 import HomeFooter from "@/app/components/HomeFooter";
 import { PersonalityCard, PersonalityCardRow } from "@/lib/personality/cards/PersonalityCard";
+import { getOrCreateVisitorId } from "@/lib/visitor";
 
 interface FullReport {
   primaryTagline: string;
@@ -87,13 +88,8 @@ export default function PersonalityReport() {
     setSharing(true);
     setShareError("");
     try {
-      const visitorId =
-        localStorage.getItem("personalityVisitorId") ||
-        (() => {
-          const v = `pv_${Math.random().toString(36).slice(2, 10)}`;
-          localStorage.setItem("personalityVisitorId", v);
-          return v;
-        })();
+      // 统一访客身份（收养旧 key，同人同号）
+      const visitorId = getOrCreateVisitorId();
       const res = await fetch(`/api/personality/shares`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,8 +106,9 @@ export default function PersonalityReport() {
 
   if (loading) {
     return (
-      <main className="flex-1 flex items-center justify-center px-5 sm:px-6">
-        <p className="text-[18px] sm:text-[20px] text-[var(--text-muted)]">完整报告加载中...</p>
+      <main className="flex-1 flex flex-col items-center justify-center px-5 sm:px-6 gap-3">
+        <p className="text-[18px] sm:text-[20px] text-[var(--text-muted)]">正在为你撰写完整报告…</p>
+        <p className="text-xs text-[var(--text-muted)]/70 tracking-wider">首次生成约需半分钟，之后打开即看</p>
       </main>
     );
   }

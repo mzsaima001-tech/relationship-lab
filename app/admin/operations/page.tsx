@@ -37,6 +37,15 @@ type PersonalityOrderRow = {
 
 type ArchetypeDistribution = { type: string; cn: string; count: number };
 
+type ReferralRow = {
+  code: string;
+  visitorId: string;
+  visits: number;
+  points: number;
+  completedVisitors: string[];
+  createdAt: string;
+};
+
 type Overview = {
   metrics: {
     totalSessions: number;
@@ -75,6 +84,12 @@ type Overview = {
     orders: PersonalityOrderRow[];
     archetypeDistribution: ArchetypeDistribution[];
   };
+  referrals: {
+    totalSharers: number;
+    totalPoints: number;
+    totalVisits: number;
+    rows: ReferralRow[];
+  };
 };
 
 const relationshipLabels: Record<string, string> = {
@@ -84,7 +99,7 @@ const relationshipLabels: Record<string, string> = {
   friend: "朋友",
 };
 
-type TabKey = "couple" | "personality";
+type TabKey = "couple" | "personality" | "referral";
 
 const polishStatusBadge: Record<string, { label: string; cls: string }> = {
   "ai-polished": { label: "AI 已润色", cls: "bg-emerald-100 text-emerald-700" },
@@ -170,6 +185,17 @@ export default function AdminPage() {
           }`}
         >
           人格测试 <span className="ml-1 text-xs text-[var(--text-muted)]">({data.metrics.personalityTotalTests})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("referral")}
+          className={`px-4 py-2 text-sm rounded-t-lg border-b-2 -mb-px transition ${
+            tab === "referral"
+              ? "border-[var(--accent)] text-[var(--text-warm)] font-medium"
+              : "border-transparent text-[var(--text-muted)] hover:text-[var(--text-warm)]"
+          }`}
+        >
+          邀请积分 <span className="ml-1 text-xs text-[var(--text-muted)]">({data.referrals.totalPoints})</span>
         </button>
       </div>
 
@@ -408,6 +434,69 @@ export default function AdminPage() {
           {/* 人格题库管理 — CRUD */}
           <section className="mt-6">
             <PersonalityQuestionsAdmin />
+          </section>
+        </>
+      )}
+      {tab === "referral" && (
+        <>
+          <section className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-10">
+            {([
+              ["分享人数", data.referrals.totalSharers],
+              ["累计积分（成功邀请）", data.referrals.totalPoints],
+              ["链接打开次数", data.referrals.totalVisits],
+            ] as const).map(([label, value]) => (
+              <div key={String(label)} className="card p-4">
+                <p className="text-[10px] tracking-widest text-[var(--text-muted)] uppercase">{label}</p>
+                <p className="text-2xl font-mono text-[var(--accent)] mt-2">{value}</p>
+              </div>
+            ))}
+          </section>
+
+          <section className="card p-6 overflow-hidden">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="archive-label">邀请积分明细</h2>
+              <button
+                type="button"
+                onClick={() => setRefreshTick(t => t + 1)}
+                className="text-xs text-[var(--text-muted)] hover:text-[var(--text-warm)] transition-colors"
+              >
+                ↻ 刷新
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[640px]">
+                <thead className="text-[10px] tracking-wider text-[var(--text-muted)] uppercase border-b border-[var(--border-dim)]">
+                  <tr>
+                    <th className="pb-3 font-normal">分享人（游客 ID）</th>
+                    <th className="pb-3 font-normal">专属码</th>
+                    <th className="pb-3 font-normal">积分</th>
+                    <th className="pb-3 font-normal">链接打开</th>
+                    <th className="pb-3 font-normal">创建时间</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.referrals.rows.length === 0 ? (
+                    <tr><td colSpan={5} className="py-6 text-sm text-[var(--text-muted)] text-center">还没有人生成专属邀请链接</td></tr>
+                  ) : data.referrals.rows.map(r => (
+                    <tr key={r.code} className="border-b border-[var(--border-dim)] text-sm">
+                      <td className="py-3">
+                        <span className="font-mono text-xs text-[var(--text-warm)]" title={r.visitorId}>
+                          {r.visitorId ? `${r.visitorId.slice(0, 18)}…` : "-"}
+                        </span>
+                      </td>
+                      <td className="py-3 font-mono text-xs text-[var(--accent)]">{r.code}</td>
+                      <td className="py-3">
+                        <span className={`font-mono ${r.points > 0 ? "text-emerald-600 font-semibold" : "text-[var(--text-muted)]"}`}>
+                          {r.points}
+                        </span>
+                      </td>
+                      <td className="py-3 font-mono text-xs text-[var(--text-muted)]">{r.visits}</td>
+                      <td className="py-3 text-xs text-[var(--text-muted)]">{new Date(r.createdAt).toLocaleString("zh-CN")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         </>
       )}

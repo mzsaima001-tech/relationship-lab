@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getStoredRefCode } from "@/lib/visitor";
 
 const RELATIONSHIP_TYPES = [
   { value: "ambiguous", label: "暧昧中" },
@@ -84,13 +85,49 @@ export default function StartPage() {
     duration: "",
     currentFeeling: "",
   });
+  const [missingKeys, setMissingKeys] = useState<string[]>([]);
 
   const handleChange = (key: string, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (missingKeys.includes(key)) {
+      setMissingKeys((prev) => prev.filter((k) => k !== key));
+    }
+  };
+
+  const REQUIRED_FIELDS: { key: string; label: string }[] = [
+    { key: "nickname", label: "昵称" },
+    { key: "ageBand", label: "你的年龄" },
+    { key: "gender", label: "你的性别" },
+    { key: "relationshipType", label: "你们是什么关系" },
+    { key: "relationshipStage", label: "目前在什么阶段" },
+    { key: "duration", label: "认识多久了" },
+    { key: "currentFeeling", label: "最近的感觉" },
+  ];
+
+  const validate = () => {
+    const missing = REQUIRED_FIELDS.filter((f) => !form[f.key as keyof typeof form]);
+    setMissingKeys(missing.map((f) => f.key));
+    if (missing.length > 0) {
+      const firstKey = missing[0].key;
+      setError(`还差 ${missing.length} 项没填完：${missing.map((m) => m.label).join("、")}`);
+      // 滚到第一个未填项（昵称在最上面）
+      setTimeout(() => {
+        const el = document.querySelector(`[data-field-key="${firstKey}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          const inner = el.querySelector("input, select") as HTMLElement | null;
+          if (inner) inner.focus({ preventScroll: true });
+        }
+      }, 50);
+      return false;
+    }
+    setError("");
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
     setLoading(true);
     setError("");
 
@@ -100,8 +137,11 @@ export default function StartPage() {
         ...form,
         partnerGender: form.partnerGender || undefined,
         lifeStage: form.lifeStage || undefined,
-        // 从分享落地页 /s/[code] 带来的归因码（无则为 undefined，后端自动忽略）
-        ref: new URLSearchParams(window.location.search).get("ref") || undefined,
+        // 归因码：URL ?ref 优先（分享落地页带来），否则用首页存下的邀请码
+        ref:
+          new URLSearchParams(window.location.search).get("ref") ||
+          getStoredRefCode() ||
+          undefined,
       };
 
       const res = await fetch("/api/assessments/start", {
@@ -128,15 +168,6 @@ export default function StartPage() {
     }
   };
 
-  const isFormValid =
-    form.nickname &&
-    form.ageBand &&
-    form.gender &&
-    form.relationshipType &&
-    form.relationshipStage &&
-    form.duration &&
-    form.currentFeeling;
-
   return (
     <main className="flex-1 flex flex-col items-center px-5 py-8 sm:px-6 sm:py-12 max-w-xl mx-auto w-full safe-bottom">
       <div className="w-full">
@@ -155,8 +186,8 @@ export default function StartPage() {
         </p>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6 fade-in-up" style={{ animationDelay: "0.2s" }}>
-          <div>
+        <form onSubmit={handleSubmit} noValidate className="space-y-5 sm:space-y-6 fade-in-up" style={{ animationDelay: "0.2s" }}>
+          <div data-field-key="nickname" className={missingKeys.includes("nickname") ? "-mx-1 rounded-lg ring-2 ring-[var(--danger)]/60 px-1 py-1 transition-all" : ""}>
             <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
               昵称
             </label>
@@ -173,7 +204,7 @@ export default function StartPage() {
 
           {/* 手机端单列，桌面双列 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-4 gap-5">
-            <div>
+            <div data-field-key="ageBand" className={missingKeys.includes("ageBand") ? "rounded-lg ring-2 ring-[var(--danger)]/60 transition-all" : ""}>
               <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
                 你的年龄
               </label>
@@ -189,7 +220,7 @@ export default function StartPage() {
                 ))}
               </select>
             </div>
-            <div>
+            <div data-field-key="gender" className={missingKeys.includes("gender") ? "rounded-lg ring-2 ring-[var(--danger)]/60 transition-all" : ""}>
               <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
                 你的性别
               </label>
@@ -239,7 +270,7 @@ export default function StartPage() {
             </select>
           </div>
 
-          <div>
+          <div data-field-key="relationshipType" className={missingKeys.includes("relationshipType") ? "rounded-lg ring-2 ring-[var(--danger)]/60 transition-all" : ""}>
             <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
               你们是什么关系
             </label>
@@ -256,7 +287,7 @@ export default function StartPage() {
             </select>
           </div>
 
-          <div>
+          <div data-field-key="relationshipStage" className={missingKeys.includes("relationshipStage") ? "rounded-lg ring-2 ring-[var(--danger)]/60 transition-all" : ""}>
             <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
               目前在什么阶段
             </label>
@@ -274,7 +305,7 @@ export default function StartPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-4 gap-5">
-            <div>
+            <div data-field-key="duration" className={missingKeys.includes("duration") ? "rounded-lg ring-2 ring-[var(--danger)]/60 transition-all" : ""}>
               <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
                 认识多久了
               </label>
@@ -290,7 +321,7 @@ export default function StartPage() {
                 ))}
               </select>
             </div>
-            <div>
+            <div data-field-key="currentFeeling" className={missingKeys.includes("currentFeeling") ? "rounded-lg ring-2 ring-[var(--danger)]/60 transition-all" : ""}>
               <label className="block text-xs text-[var(--text-muted)] mb-2 tracking-wide">
                 最近的感觉
               </label>
@@ -315,7 +346,7 @@ export default function StartPage() {
           <button
             type="submit"
             className="btn-primary w-full text-base py-4 mt-2"
-            disabled={!isFormValid || loading}
+            disabled={loading}
           >
             {loading ? "正在准备题目..." : "开始测试 →"}
           </button>

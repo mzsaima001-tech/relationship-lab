@@ -5,8 +5,12 @@ import {
   PERSONALITY_DIMENSIONS,
   type PersonalityDimension,
 } from "@/lib/personality/types";
-import { getPersonalityTest } from "@/lib/db";
+import { getPersonalityTest, getPersonalShareByVisitor, updatePersonalityTest } from "@/lib/db";
 import { buildFreeReport, buildFullReport } from "@/lib/personality/report-builder";
+import { polishFullReportWithLLM } from "@/lib/personality/polish";
+
+export const maxDuration = 60;
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/personality/tests/[testId]/result
@@ -14,7 +18,7 @@ import { buildFreeReport, buildFullReport } from "@/lib/personality/report-build
  * 缓存：complete 时已写 free_report_cache + full_report_cache，优先读缓存。
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ testId: string }> }
 ) {
   try {
@@ -68,8 +72,21 @@ export async function GET(
       ...(test.polish_error ? { error: test.polish_error } : {}),
     };
 
+    // 进度条口径统一：海报二维码已换为「个人专属邀请码」，朋友完成记在 personal 账户上，
+    // 与该 test 的老 shares_count 取较大值（兼容旧 /p/ 海报码加的老计数）。
+    let effectiveShares = test.shares_count ?? 0;
+    const visitorId = new URL(request.url).searchParams.get("visitorId") || "";
+    if (visitorId) {
+      try {
+        const personal = await getPersonalShareByVisitor(visitorId);
+        effectiveShares = Math.max(effectiveShares, personal?.completed_visitors?.length ?? 0);
+      } catch {
+        // 查询失败按老计数返回
+      }
+    }
+
     const shareCredit = {
-      shares: test.shares_count ?? 0,
+      shares: effectiveShares,
       unlockedViaShare: !!test.unlocked_via_share,
       shareCode: test.share_code,
     };
@@ -94,6 +111,38 @@ export async function GET(
     }
 
     const fullReport = (test.full_report_cache as any) ?? buildFullReport(scores, matchResult);
+
+    // 懒润色（2026-09-14 提速改造）：complete 时只润色免费版，完整版存的是模板。
+    // 用户付费后第一次打开完整报告时才在这里润色（一次约 10-30s，前端有加载屏），
+    // 成功后回写缓存并打 _aiPolished=true，之后打开秒回。润色失败返回模板版兜底。
+    // 老数据兼容：改造前的记录没有 _aiPolished 键，且当时 polish_status==="ai-polished"
+    // 表示免费+完整都已润色——直接信任，不重复润色。
+    const aiPolishedMark = (fullReport as any)?._aiPolished;
+    const legacyFullyPolished =
+      aiPolishedMark === undefined && test.polish_status === "ai-polished";
+    if (aiPolishedMark !== true && !legacyFullyPolished) {
+      try {
+        const base = { ...(fullReport as object) } as any;
+        delete base._aiPolished;
+        const polished = await polishFullReportWithLLM(base);
+        if (polished.applied) {
+          const stamped = { ...(polished.report as object), _aiPolished: true } as any;
+          await updatePersonalityTest(testId, { full_report_cache: stamped });
+          return NextResponse.json({
+            testId,
+            scores,
+            types,
+            freeReport,
+            paid: true,
+            fullReport: stamped,
+            polish,
+            shareCredit,
+          });
+        }
+      } catch (e) {
+        console.error("[personality/result] lazy full polish failed:", e); // 降级模板版
+      }
+    }
 
     return NextResponse.json({
       testId,

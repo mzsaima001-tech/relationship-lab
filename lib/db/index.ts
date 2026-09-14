@@ -56,6 +56,12 @@ export const {
   getShareByCode,
   getShareBySession,
   incrementShareVisits,
+  // 个人专属邀请码
+  getPersonalShareByVisitor,
+  getOrCreatePersonalShare,
+  recordPersonalShareCompletion,
+  listPersonalShares,
+  unlockReportViaShares,
   // Pairs
   createPair,
   getPair,

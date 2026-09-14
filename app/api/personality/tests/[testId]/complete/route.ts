@@ -12,13 +12,13 @@ import {
   getPersonalityAnswers,
   getPersonalityTest,
   recordPersonalityShareCompletion,
+  recordPersonalShareCompletion,
   updatePersonalityTest,
   markPersonalityTestUnlockedViaShare,
 } from "@/lib/db";
 import { buildFreeReport, buildFullReport } from "@/lib/personality/report-builder";
 import {
   polishFreeReportWithLLM,
-  polishFullReportWithLLM,
   PERSONALITY_POLISH_PROMPT_VERSION,
 } from "@/lib/personality/polish";
 
@@ -65,33 +65,26 @@ export async function POST(
     const userNorm = PERSONALITY_DIMENSIONS.map(d => scoreResult.norm[d]);
     const matchResult = matchCards(userNorm, PERSONALITY_CARDS);
 
-    // 3. 生成 V3 报告（模板版）+ AI 润色（复用 v1 通用润色引擎）
+    // 3. 生成 V3 报告（模板版）+ AI 润色
+    // 提速关键（2026-09-14）：这里只润色【免费版】——它是用户答完题马上要看的；
+    // 完整版（40+ 段文案、多轮 LLM，是之前出结果慢的主因）只存模板版并打
+    // _aiPolished=false 标记，等用户付费解锁、打开完整报告时才由 result 路由
+    // 懒润色（大多数用户不付费，这笔 LLM 开销直接省掉）。
     const baseFree = buildFreeReport(scoreResult.norm, matchResult);
     const baseFull = buildFullReport(scoreResult.norm, matchResult);
 
     const polishStart = Date.now();
-    // free / full 并发润色（每个约 20-30s，并发跑总耗时与单跑接近）
-    const [freePolish, fullPolish] = await Promise.all([
-      polishFreeReportWithLLM(baseFree),
-      polishFullReportWithLLM(baseFull),
-    ]);
+    const freePolish = await polishFreeReportWithLLM(baseFree);
     const freeReport = freePolish.applied ? freePolish.report : baseFree;
-    const fullReport = fullPolish.applied ? fullPolish.report : baseFull;
+    const fullReport = { ...(baseFull as object), _aiPolished: false } as typeof baseFull & { _aiPolished: boolean };
     const polishElapsedMs = Date.now() - polishStart;
 
-    // 聚合 polish 状态：两边都成功才记 ai-polished；任一边降级则 local-partial；都没润上则 local-template
-    const anyApplied = freePolish.applied || fullPolish.applied;
-    const bothApplied = freePolish.applied && fullPolish.applied;
-    const polishStatus: PersonalityTestRecord["polish_status"] = bothApplied
+    // polish_status 现在只描述免费版：润上 ai-polished，没润上 local-template
+    const polishStatus: PersonalityTestRecord["polish_status"] = freePolish.applied
       ? "ai-polished"
-      : anyApplied
-        ? "local-partial"
-        : "local-template";
-    const polishModel = (freePolish.model ?? fullPolish.model) || undefined;
-    const polishError =
-      freePolish.error || fullPolish.error
-        ? `${freePolish.error ?? "ok"} / ${fullPolish.error ?? "ok"}`
-        : undefined;
+      : "local-template";
+    const polishModel = freePolish.model || undefined;
+    const polishError = freePolish.error || undefined;
 
     // 4. 写库（status=completed + V3 字段 + V1 兼容字段同填）
     const updateFields: Partial<PersonalityTestRecord> = {
@@ -131,6 +124,16 @@ export async function POST(
     await updatePersonalityTest(testId, updateFields);
 
     // 5. 分享归因
+    // - personal 个人专属邀请码：给分享人 +1 积分，按被邀请人 visitorId 去重
+    //   （免费报告生成即记，之后付费不重复记；非 personal 码时函数返回 null 安全跳过）
+    if (test.referred_by_code) {
+      try {
+        await recordPersonalShareCompletion(test.referred_by_code, test.visitor_id);
+      } catch (e) {
+        console.error("[personality/complete] personal referral failed", e); // 不阻塞主流程
+      }
+    }
+    // - 旧人格海报码：share-to-unlock（推荐者攒够人数免费解锁完整报告）
     let referrerUnlocked = false;
     let recommendedCount = 0;
     if (test.referred_by_code) {
@@ -157,8 +160,7 @@ export async function POST(
       },
       freeReport,
       polish: {
-        applied: anyApplied,
-        bothApplied,
+        applied: freePolish.applied,
         model: polishModel,
         elapsedMs: polishElapsedMs,
         status: polishStatus,

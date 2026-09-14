@@ -12,6 +12,7 @@ import { RadarChart } from "@/app/components/RadarChart";
 import HomeFooter from "@/app/components/HomeFooter";
 import { PersonalityCard } from "@/lib/personality/cards/PersonalityCard";
 import { AnalyzingScreen } from "@/app/components/AnalyzingScreen";
+import { getOrCreateVisitorId } from "@/lib/visitor";
 
 interface FreeReport {
   primaryTagline: string;
@@ -91,7 +92,7 @@ export default function PersonalityResult() {
 
   const loadResult = async () => {
     try {
-      const res = await fetch(`/api/personality/tests/${testId}/result`);
+      const res = await fetch(`/api/personality/tests/${testId}/result?visitorId=${encodeURIComponent(getOrCreateVisitorId())}`);
       const json = await res.json();
       if (!res.ok) {
         // 400 + 测试未完成 → 不是错误，是还在算
@@ -158,14 +159,8 @@ export default function PersonalityResult() {
     setSharing(true);
     setShareError("");
     try {
-      // localStorage 兜底 visitorId（人格测试无登录态）
-      const visitorId =
-        localStorage.getItem("personalityVisitorId") ||
-        (() => {
-          const v = `pv_${Math.random().toString(36).slice(2, 10)}`;
-          localStorage.setItem("personalityVisitorId", v);
-          return v;
-        })();
+      // 统一访客身份（人格测试无登录态；收养旧 key，同人同号）
+      const visitorId = getOrCreateVisitorId();
       const res = await fetch(`/api/personality/shares`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -192,7 +187,7 @@ export default function PersonalityResult() {
       const res = await fetch(`/api/personality/free-unlock`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ testId }),
+        body: JSON.stringify({ testId, visitorId: getOrCreateVisitorId() }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "解锁失败");

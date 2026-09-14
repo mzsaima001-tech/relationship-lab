@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   distDir: process.env.BUILD_DIST_DIR || ".next",
   poweredByHeader: false, // 移除 `X-Powered-By: Next.js` 信息暴露
 
+  // 允许手机/局域网设备访问 dev server（Next 16 默认只信任 localhost，
+  // 否则 HMR WebSocket 握手被拒、页面永不 hydration —— 2026-09-14 手机调试修复）
+  allowedDevOrigins: ["192.168.31.210"],
+
   /**
    * 统一注入基础安全 HTTP 头。
    * 生产建议在部署层（CDN/Nginx）补 CSP，本配置提供 base-layer。

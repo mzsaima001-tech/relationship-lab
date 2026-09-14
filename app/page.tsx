@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { HOME_COPY_SETS, HOME_CTA } from "@/lib/home-copy";
 import { TAROT_CARDS, tarotImage } from "@/lib/reports/tarot";
 import { CompassDial, StarMap, OrnamentDivider } from "./components/decor";
+import { getOrCreateVisitorId, storeRefCode } from "@/lib/visitor";
 
 /** 洗牌：返回不重复的随机索引 */
 function shuffledIndexes(length: number, count: number): number[] {
@@ -28,6 +29,25 @@ export default function Home() {
     setCardIdxs(shuffledIndexes(TAROT_CARDS.length, 3));
     setFileNo(String(Math.floor(100000 + Math.random() * 900000)));
     setReady(true);
+
+    // 邀请归因：朋友通过 /?ref=CODE 打开首页 → 存码 + 记一次访问。
+    // 之后 TA 做任意测试出报告，分享人 +1 积分（服务端按人去重、防自己）。
+    try {
+      const ref = new URLSearchParams(window.location.search).get("ref");
+      if (ref) {
+        storeRefCode(ref);
+        const visitorId = getOrCreateVisitorId();
+        fetch("/api/referral/visit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: ref, visitorId }),
+        }).catch(() => {
+          /* 计数失败不影响使用 */
+        });
+      }
+    } catch {
+      /* 静默 */
+    }
   }, []);
 
   const copy = HOME_COPY_SETS[copyIdx];
@@ -160,7 +180,7 @@ export default function Home() {
                   transition: "all 0.2s ease",
                 }}
               >
-                我的性格测试 →
+                了解真正的自己 →
               </button>
             </Link>
           </div>
@@ -174,6 +194,14 @@ export default function Home() {
               36 题 · 约 5 分钟 · 基础结果免费查看
             </p>
           </div>
+
+          {/* 邀请入口：专属链接 + 积分 */}
+          <Link
+            href="/referral"
+            className="mt-2 text-xs sm:text-sm text-[var(--accent)] tracking-wider hover:opacity-80 transition-opacity"
+          >
+            把研究所递给一位朋友，攒默契积分 →
+          </Link>
         </div>
 
         <div className="mt-14 sm:mt-20 flex items-center gap-3 fade-in" style={{ animationDelay: "0.8s" }}>
