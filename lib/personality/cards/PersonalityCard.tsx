@@ -16,7 +16,7 @@
 import type { PersonalityDimension, PersonalityCard as PersonalityCardData } from "../types";
 import { PERSONALITY_CARD_BY_ID } from "../cards";
 
-export type CardSize = "xs" | "sm" | "md" | "lg";
+export type CardSize = "xs" | "sm" | "md" | "lg" | "vs";
 
 interface PersonalityCardProps {
   /** V5: 直接传 V3 card 对象（优先）；或传 V1 type id（P01/P02/T01…）作为 fallback */
@@ -63,6 +63,14 @@ const SIZE_MAP: Record<CardSize, { wrapper: string; imgHeight: string; hudSize: 
     hudSize: "text-xs",
     romanSize: "text-3xl",
     mottoSize: "text-sm",
+  },
+  /** 对位板块专用（响应式）：手机 112×168，sm+ 与 md 相同 224×336 */
+  vs: {
+    wrapper: "w-28 sm:w-56",
+    imgHeight: "h-[168px] sm:h-[336px]",
+    hudSize: "text-[8px] sm:text-[10px]",
+    romanSize: "text-sm sm:text-xl",
+    mottoSize: "text-[9px] sm:text-xs",
   },
 };
 

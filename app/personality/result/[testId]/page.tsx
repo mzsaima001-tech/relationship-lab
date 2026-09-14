@@ -307,7 +307,7 @@ export default function PersonalityResult() {
       {/* C：主卡 vs 次卡对位指示器（呼应 Crystal Knows 的 DISC map 思路） */}
       {data.types.secondary && (
         <div
-          className="paper-section px-5 sm:px-8 py-9 sm:py-11 mb-10 fade-in-up mx-auto"
+          className="paper-section px-3 sm:px-8 py-9 sm:py-11 mb-10 fade-in-up mx-auto"
           style={{ animationDelay: "0.08s", maxWidth: 720 }}
         >
           <p
@@ -322,12 +322,12 @@ export default function PersonalityResult() {
           </p>
 
           {/* 三段式：主卡列 | vs 区分隔 | 次卡列 —— 每张卡独立一列,卡+名字+数字上下对齐 */}
-          <div className="flex items-stretch justify-center gap-4 sm:gap-7">
+          <div className="flex items-stretch justify-center gap-3 sm:gap-7">
             {/* ===== 主卡 整列 ===== */}
             <div className="flex flex-col items-center flex-shrink-0 min-w-0">
               <PersonalityCard
                 card={data.types.primary.card}
-                size="md"
+                size="vs"
                 theme="light"
                 matchScore={primaryPctDec}
               />
@@ -348,7 +348,7 @@ export default function PersonalityResult() {
             </div>
 
             {/* ===== 中央 vs 区（垂直分隔） ===== */}
-            <div className="flex flex-col items-center justify-center min-w-[88px] sm:min-w-[104px] px-2">
+            <div className="flex flex-col items-center justify-center min-w-[56px] sm:min-w-[104px] px-1 sm:px-2">
               <div className="flex items-center w-full max-w-[120px] mb-2">
                 <span
                   className="flex-1 h-px"
@@ -393,7 +393,7 @@ export default function PersonalityResult() {
             <div className="flex flex-col items-center flex-shrink-0 min-w-0">
               <PersonalityCard
                 card={data.types.secondary.card}
-                size="md"
+                size="vs"
                 theme="light"
                 matchScore={secondaryPctDec}
               />

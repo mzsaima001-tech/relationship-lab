@@ -169,18 +169,38 @@ CREATE INDEX IF NOT EXISTS idx_payments_created ON public.payments(created_at DE
 CREATE TABLE IF NOT EXISTS public.personality_tests (
   id                    text PRIMARY KEY,                     -- 'PST_xxxxxxxx'
   visitor_id            text NOT NULL,
+  paper_id              text NOT NULL DEFAULT 'P1',           -- 抽到的卷号 P1-P5
   status                text NOT NULL DEFAULT 'started',      -- 'started' | 'completed'
   started_at            timestamptz NOT NULL DEFAULT now(),
   completed_at          timestamptz,
+  -- V3 6 维分
+  g_score               numeric,
+  x_score               numeric,
+  i_score               numeric,
+  f_score               numeric,
+  s_score               numeric,
+  e_score               numeric,
+  -- V1 兼容字段（deprecated alias）
   social_score          numeric,
   rationality_score     numeric,
   planning_score        numeric,
   risk_score            numeric,
   dominance_score       numeric,
   sensitivity_score     numeric,
+  -- V3 Top3 卡
+  top1_card_id          text,
+  top2_card_id          text,
+  top3_card_id          text,
+  top1_sim              numeric,
+  top2_sim              numeric,
+  top3_sim              numeric,
+  -- V1 兼容字段（deprecated alias）
   primary_type          text,
   secondary_type        text,
   hidden_type           text,
+  -- V3 混合型
+  is_mixed              boolean,
+  mixed_note            text,
   is_paid               boolean NOT NULL DEFAULT false,
   paid_at               timestamptz,
   share_code            text,
@@ -211,8 +231,11 @@ CREATE TABLE IF NOT EXISTS public.personality_answers (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   test_id           text NOT NULL REFERENCES public.personality_tests(id) ON DELETE CASCADE,
   question_id       text NOT NULL,
-  answer_letter     text NOT NULL,                            -- 'A' | 'B' | 'C' | 'D'
-  calculated_score  integer NOT NULL,
+  paper_id          text,                                     -- V3：卷号 P1-P5
+  option_index      integer,                                -- V3：0-4
+  score             integer,                                -- V3：所选选项的分值
+  answer_letter     text,                                   -- V1 兼容（nullable）
+  calculated_score  integer,                                -- V1 兼容（nullable）
   answered_at_ms    bigint NOT NULL,
   created_at        timestamptz NOT NULL DEFAULT now(),
   UNIQUE (test_id, question_id)
@@ -254,6 +277,40 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 如果未来给前端 anon key，需补：
 --   ALTER TABLE public.xxx ENABLE ROW LEVEL SECURITY;
 -- =====================================================
+
+-- =====================================================
+-- V3 迁移（幂等，可重复执行）
+-- 老库升级到 V3 题卷系统：补 paper_id / 6 维分 / Top3 卡 / 混合型字段
+-- 生产库执行方式：Supabase Dashboard → SQL Editor → 粘贴本节 → Run
+-- =====================================================
+ALTER TABLE public.personality_tests
+  ADD COLUMN IF NOT EXISTS paper_id      text NOT NULL DEFAULT 'P1',
+  ADD COLUMN IF NOT EXISTS g_score       numeric,
+  ADD COLUMN IF NOT EXISTS x_score       numeric,
+  ADD COLUMN IF NOT EXISTS i_score       numeric,
+  ADD COLUMN IF NOT EXISTS f_score       numeric,
+  ADD COLUMN IF NOT EXISTS s_score       numeric,
+  ADD COLUMN IF NOT EXISTS e_score       numeric,
+  ADD COLUMN IF NOT EXISTS top1_card_id  text,
+  ADD COLUMN IF NOT EXISTS top2_card_id  text,
+  ADD COLUMN IF NOT EXISTS top3_card_id  text,
+  ADD COLUMN IF NOT EXISTS top1_sim      numeric,
+  ADD COLUMN IF NOT EXISTS top2_sim      numeric,
+  ADD COLUMN IF NOT EXISTS top3_sim      numeric,
+  ADD COLUMN IF NOT EXISTS is_mixed      boolean,
+  ADD COLUMN IF NOT EXISTS mixed_note    text;
+
+ALTER TABLE public.personality_answers
+  ADD COLUMN IF NOT EXISTS paper_id     text,
+  ADD COLUMN IF NOT EXISTS option_index integer,
+  ADD COLUMN IF NOT EXISTS score        integer;
+
+-- V1 旧列放宽（代码已不再写 answer_letter / calculated_score）
+ALTER TABLE public.personality_answers ALTER COLUMN answer_letter    DROP NOT NULL;
+ALTER TABLE public.personality_answers ALTER COLUMN calculated_score DROP NOT NULL;
+
+-- 让 PostgREST 立刻感知新列（否则报 "in the schema cache"）
+NOTIFY pgrst, 'reload schema';
 
 -- =====================================================
 -- 验证：列出全部表
