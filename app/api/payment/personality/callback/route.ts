@@ -1,4 +1,4 @@
-﻿import { NextResponse, after } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { cookies } from "next/headers";
 import {
@@ -21,6 +21,10 @@ const schema = z.object({ paymentId: z.string().min(1) });
  *   - 真正解锁由 admin 后台 /api/admin/payments/{id}/approve 完成
  *
  * 真网关接入后，本路由降级或下线——上游通知走 /notify/xingyifu。
+ *
+ * 2026-09-15 强化：notifyPaymentPendingReview 由 after() 改为同步 await，
+ *   原因：`after()` 在某些 Vercel Serverless 上下文里 callback 会被响应 close
+ *   后冻结，导致推送不到。同步等待保证 console 能看到推送结果（成功/失败）。
  */
 export async function POST(request: Request) {
   // 真网关在线 → 整个接口禁用（不走主动确认）
@@ -55,23 +59,28 @@ export async function POST(request: Request) {
       `[payment/personality/callback] user self-report paid · paymentId=${paymentId}`
     );
 
-    // 微信推送通知站长复核（after：响应发出后执行；未配置 SendKey 时静默跳过）
+    // 同步推送 Server酱（最多 2 次重试；即使响应慢 1 秒也要保证推到微信）
     const origin =
       (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim() || new URL(request.url).origin;
-    after(() =>
-      notifyPaymentPendingReview({
-        paymentId,
-        targetType: payment.target_type,
-        amount: payment.amount,
-        reviewUrl: buildReviewUrl(origin, paymentId),
-      })
-    );
+    const pushResult = await notifyPaymentPendingReview({
+      paymentId,
+      targetType: payment.target_type,
+      amount: payment.amount,
+      reviewUrl: buildReviewUrl(origin, paymentId),
+    });
+    if (!pushResult.ok) {
+      console.error(
+        `[payment/personality/callback] Server酱 推送失败 paymentId=${paymentId} reason=${pushResult.reason} detail=${pushResult.detail}`
+      );
+    }
 
     return NextResponse.json({
       ok: true,
       status: "pending_review",
       payment: reviewed,
       message: "已收到你的付款确认，管理员核对后会立即解锁",
+      // 调试辅助字段：true 表示 Server酱 实际推到了站长微信
+      notifyPushed: pushResult.ok,
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {
