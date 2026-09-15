@@ -12,6 +12,12 @@ export async function GET() {
     ? `${aiKey.slice(0, 4)}...(${aiKey.length} chars)`
     : "(not set)";
 
+  // 脱敏显示 SERVERCHAN_SENDKEY（仅前 4 + 长度），方便线上排错
+  const serverchanKey = process.env.SERVERCHAN_SENDKEY ?? "";
+  const serverchanInfo = serverchanKey
+    ? `${serverchanKey.slice(0, 4)}...(${serverchanKey.length} chars)`
+    : "(not set)";
+
   return NextResponse.json({
     nodeEnv: process.env.NODE_ENV,
     vercel: !!process.env.VERCEL,
@@ -24,6 +30,7 @@ export async function GET() {
     supabaseConfigured: !!(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY),
     dbMode: process.env.DB_MODE ?? "auto (default)",
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "(not set)",
+    serverchan: serverchanInfo,
     timestamp: new Date().toISOString(),
   });
 }
