@@ -1,6 +1,6 @@
-﻿import { NextResponse, after } from "next/server";
-import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+import { cookies } from "next/headers";
 import { getPayment, markPaymentPendingReview } from "@/lib/db";
 import { ADMIN_COOKIE, verifyAdminToken } from "@/lib/admin/auth";
 import { isXingyifuLive } from "@/lib/payment/xingyifu";
@@ -15,6 +15,11 @@ import { notifyPaymentPendingReview } from "@/lib/notify/serverchan";
  *
  * 真网关接入后，订单解锁主要靠 /notify/xingyifu 上游回包；
  * 本路由降级为"对账补偿"工具，必须加 admin 鉴权才允许 POST。
+ *
+ * 2026-09-15 强化：
+ *  - 改 `after(() => notify(...))` 为同步 `await notify(...)` —— after() 在某些
+ *    Vercel Serverless 上下文里 callback 会在响应 close 后被冻结，导致推送不到。
+ *    同步等待能让错误立即可见（写入 console），且最多 2 次重试覆盖偶发抖动。
  */
 const schema = z.object({ note: z.string().max(200).optional() });
 
@@ -44,22 +49,28 @@ export async function POST(
       `[payment/confirm] user self-report paid · paymentId=${paymentId} · note=${note ?? "—"} · target_type=${payment.target_type}`
     );
 
-    // 微信推送通知站长复核（after：响应发出后执行，不拖慢用户；未配置 SendKey 时静默跳过）
+    // 同步推送 Server酱（即使响应慢 1 秒也要保证推到微信）
     const origin =
       (process.env.NEXT_PUBLIC_SITE_URL ?? "").trim() || new URL(request.url).origin;
-    after(() =>
-      notifyPaymentPendingReview({
-        paymentId,
-        targetType: payment.target_type,
-        amount: payment.amount,
-        reviewUrl: buildReviewUrl(origin, paymentId),
-      })
-    );
+    const pushResult = await notifyPaymentPendingReview({
+      paymentId,
+      targetType: payment.target_type,
+      amount: payment.amount,
+      reviewUrl: buildReviewUrl(origin, paymentId),
+    });
+    // 推送失败时 console.error 已在 lib/notify/serverchan.ts 里打；这里再冗余一行方便排查
+    if (!pushResult.ok) {
+      console.error(
+        `[payment/confirm] Server酱 推送失败 paymentId=${paymentId} reason=${pushResult.reason} detail=${pushResult.detail}`
+      );
+    }
 
     return NextResponse.json({
       payment: reviewed,
       status: "pending_review",
       message: "已收到你的付款确认，管理员核对后会立即解锁",
+      // 调试辅助字段（前端可忽略）：true 表示 Server酱 实际推到了站长微信
+      notifyPushed: pushResult.ok,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
